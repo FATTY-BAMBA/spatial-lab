@@ -1,207 +1,1771 @@
 {
-  "schema": "primestride.spatial/plan@0.1",
-  "project": {
-    "id": "demo-banqiao-townhouse",
-    "name": "板橋透天示範案",
-    "nameEn": "Banqiao Townhouse (demo)",
-    "note": "Sample project for the v0 demo. Layout, items and prices are illustrative.",
-    "units": "m",
-    "footprint": [[0, 0], [8, 0], [8, 14], [0, 14]],
-    "north": 0
+ "schema": "primestride.spatial/plan@0.1",
+ "project": {
+  "id": "demo-banqiao-townhouse",
+  "name": "板橋透天示範案",
+  "nameEn": "Banqiao Townhouse (demo)",
+  "note": "Sample project for the v0 demo. Layout, items and prices are illustrative.",
+  "units": "m",
+  "footprint": [
+   [
+    0,
+    0
+   ],
+   [
+    8,
+    0
+   ],
+   [
+    8,
+    14
+   ],
+   [
+    0,
+    14
+   ]
+  ],
+  "north": 0,
+  "type": "townhouse",
+  "typeLabel": "透天 2F",
+  "stats": [
+   {
+    "label": "格局 Layout",
+    "value": "透天 2F・3房"
+   },
+   {
+    "label": "樓層 Levels",
+    "value": "1F / 2F"
+   }
+  ],
+  "sun": [
+   0.55,
+   0.62,
+   0.55
+  ]
+ },
+ "levels": [
+  {
+   "id": "1F",
+   "name": "一樓",
+   "nameEn": "Ground floor",
+   "elevation": 0,
+   "height": 3.2,
+   "walls": [
+    {
+     "id": "1-W0",
+     "a": [
+      0,
+      0
+     ],
+     "b": [
+      8,
+      0
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 0.7,
+       "width": 0.6,
+       "sill": 1.5,
+       "head": 2.1
+      },
+      {
+       "type": "window",
+       "offset": 4.0,
+       "width": 2.0,
+       "sill": 1.05,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "1-W1",
+     "a": [
+      8,
+      0
+     ],
+     "b": [
+      8,
+      14
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 2.5,
+       "width": 2.0,
+       "sill": 0.9,
+       "head": 2.2
+      },
+      {
+       "type": "window",
+       "offset": 12.0,
+       "width": 1.5,
+       "sill": 0.45,
+       "head": 2.4
+      }
+     ]
+    },
+    {
+     "id": "1-W2",
+     "a": [
+      8,
+      14
+     ],
+     "b": [
+      0,
+      14
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 0.6,
+       "width": 4.0,
+       "sill": 0.45,
+       "head": 2.4
+      },
+      {
+       "type": "door",
+       "offset": 6.4,
+       "width": 1.0,
+       "sill": 0,
+       "head": 2.2,
+       "main": true
+      }
+     ]
+    },
+    {
+     "id": "1-W3",
+     "a": [
+      0,
+      14
+     ],
+     "b": [
+      0,
+      0
+     ],
+     "t": 0.2,
+     "ext": true,
+     "party": true,
+     "openings": []
+    },
+    {
+     "id": "1-W4",
+     "a": [
+      2.2,
+      0
+     ],
+     "b": [
+      2.2,
+      6
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 1.0,
+       "width": 0.8,
+       "sill": 0,
+       "head": 2.1
+      },
+      {
+       "type": "door",
+       "offset": 4.0,
+       "width": 0.8,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "1-W5",
+     "a": [
+      0,
+      3
+     ],
+     "b": [
+      2.2,
+      3
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "1-W6",
+     "a": [
+      0,
+      6
+     ],
+     "b": [
+      2.2,
+      6
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "1-W7",
+     "a": [
+      2.2,
+      11
+     ],
+     "b": [
+      2.2,
+      14
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "passage",
+       "offset": 0.3,
+       "width": 1.9,
+       "sill": 0,
+       "head": 2.4
+      }
+     ]
+    }
+   ],
+   "rooms": [
+    {
+     "id": "entrance",
+     "name": "玄關",
+     "nameEn": "Entrance",
+     "finish": "floor",
+     "polygon": [
+      [
+       0,
+       11
+      ],
+      [
+       2.2,
+       11
+      ],
+      [
+       2.2,
+       14
+      ],
+      [
+       0,
+       14
+      ]
+     ],
+     "spot": {
+      "pos": [
+       1.0,
+       13.55
+      ],
+      "look": [
+       5.2,
+       10.8
+      ]
+     },
+     "labelAt": [
+      1.35,
+      12.2
+     ]
+    },
+    {
+     "id": "living",
+     "name": "客廳",
+     "nameEn": "Living",
+     "finish": "floor",
+     "polygon": [
+      [
+       2.2,
+       8
+      ],
+      [
+       8,
+       8
+      ],
+      [
+       8,
+       14
+      ],
+      [
+       2.2,
+       14
+      ]
+     ],
+     "spot": {
+      "pos": [
+       7.35,
+       13.35
+      ],
+      "look": [
+       3.4,
+       9.6
+      ]
+     },
+     "labelAt": [
+      4.6,
+      12.4
+     ]
+    },
+    {
+     "id": "kitchen",
+     "name": "餐廚",
+     "nameEn": "Dining & Kitchen",
+     "finish": "floor",
+     "polygon": [
+      [
+       2.2,
+       0
+      ],
+      [
+       8,
+       0
+      ],
+      [
+       8,
+       8
+      ],
+      [
+       2.2,
+       8
+      ]
+     ],
+     "spot": {
+      "pos": [
+       7.4,
+       7.6
+      ],
+      "look": [
+       4.0,
+       1.6
+      ]
+     },
+     "labelAt": [
+      4.3,
+      7.0
+     ]
+    },
+    {
+     "id": "bath1",
+     "name": "衛浴",
+     "nameEn": "Bathroom",
+     "finish": "tile",
+     "polygon": [
+      [
+       0,
+       0
+      ],
+      [
+       2.2,
+       0
+      ],
+      [
+       2.2,
+       3
+      ],
+      [
+       0,
+       3
+      ]
+     ],
+     "spot": {
+      "pos": [
+       1.7,
+       2.6
+      ],
+      "look": [
+       0.6,
+       0.6
+      ]
+     }
+    },
+    {
+     "id": "storage",
+     "name": "儲藏室",
+     "nameEn": "Storage",
+     "finish": "floor",
+     "polygon": [
+      [
+       0,
+       3
+      ],
+      [
+       2.2,
+       3
+      ],
+      [
+       2.2,
+       6
+      ],
+      [
+       0,
+       6
+      ]
+     ],
+     "spot": {
+      "pos": [
+       1.8,
+       4.5
+      ],
+      "look": [
+       0.2,
+       4.5
+      ]
+     }
+    },
+    {
+     "id": "stair1",
+     "name": "樓梯",
+     "nameEn": "Stair",
+     "finish": "floor",
+     "circulation": true,
+     "polygon": [
+      [
+       0,
+       6
+      ],
+      [
+       2.2,
+       6
+      ],
+      [
+       2.2,
+       11
+      ],
+      [
+       0,
+       11
+      ]
+     ],
+     "spot": {
+      "pos": [
+       2.0,
+       6.55
+      ],
+      "look": [
+       0.6,
+       10.5
+      ]
+     },
+     "labelAt": [
+      1.75,
+      8.6
+     ]
+    }
+   ],
+   "furniture": [
+    {
+     "kind": "fridge",
+     "x": 2.75,
+     "z": 0.45,
+     "w": 0.8,
+     "d": 0.7,
+     "rot": 0,
+     "name": "冰箱",
+     "nameEn": "Refrigerator",
+     "price": 72000
+    },
+    {
+     "kind": "counter",
+     "x": 5.525,
+     "z": 0.4,
+     "w": 4.75,
+     "d": 0.6,
+     "rot": 0,
+     "name": "廚房檯面",
+     "nameEn": "Kitchen run",
+     "counter": true,
+     "cabinet": true
+    },
+    {
+     "kind": "counter",
+     "x": 5.3,
+     "z": 2.45,
+     "w": 2.6,
+     "d": 0.95,
+     "rot": 0,
+     "name": "中島",
+     "nameEn": "Island",
+     "counter": true,
+     "cabinet": true
+    },
+    {
+     "kind": "pendant",
+     "x": 4.75,
+     "z": 2.45,
+     "w": 0.36,
+     "d": 0.36,
+     "rot": 0,
+     "name": "吊燈",
+     "nameEn": "Pendant light",
+     "price": 5800
+    },
+    {
+     "kind": "pendant",
+     "x": 5.85,
+     "z": 2.45,
+     "w": 0.36,
+     "d": 0.36,
+     "rot": 0,
+     "name": "吊燈",
+     "nameEn": "Pendant light",
+     "price": 5800
+    },
+    {
+     "kind": "table",
+     "x": 5.3,
+     "z": 5.3,
+     "w": 2.0,
+     "d": 0.95,
+     "rot": 0,
+     "name": "餐桌",
+     "nameEn": "Dining table",
+     "price": 38000
+    },
+    {
+     "kind": "chair",
+     "x": 4.6,
+     "z": 4.5,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 0,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 5.3,
+     "z": 4.5,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 0,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 6.0,
+     "z": 4.5,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 0,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 4.6,
+     "z": 6.1,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 180,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 5.3,
+     "z": 6.1,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 180,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 6.0,
+     "z": 6.1,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 180,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "rug",
+     "x": 5.6,
+     "z": 10.2,
+     "w": 2.4,
+     "d": 3.0,
+     "rot": 0,
+     "name": "地毯",
+     "nameEn": "Rug",
+     "price": 9800
+    },
+    {
+     "kind": "sofa",
+     "x": 4.0,
+     "z": 10.2,
+     "w": 2.6,
+     "d": 0.95,
+     "rot": 90,
+     "name": "三人沙發",
+     "nameEn": "3-seat sofa",
+     "price": 68000
+    },
+    {
+     "kind": "coffee",
+     "x": 5.4,
+     "z": 10.2,
+     "w": 1.1,
+     "d": 0.6,
+     "rot": 90,
+     "name": "茶几",
+     "nameEn": "Coffee table",
+     "price": 12000
+    },
+    {
+     "kind": "tvconsole",
+     "x": 7.66,
+     "z": 10.2,
+     "w": 2.4,
+     "d": 0.45,
+     "rot": -90,
+     "name": "電視櫃",
+     "nameEn": "TV console",
+     "price": 26000
+    },
+    {
+     "kind": "plant",
+     "x": 7.45,
+     "z": 13.4,
+     "w": 0.5,
+     "d": 0.5,
+     "rot": 0,
+     "name": "植栽",
+     "nameEn": "Plant",
+     "price": 3200
+    },
+    {
+     "kind": "shoe",
+     "x": 0.33,
+     "z": 12.5,
+     "w": 1.6,
+     "d": 0.45,
+     "rot": 90,
+     "name": "玄關鞋櫃",
+     "nameEn": "Shoe cabinet",
+     "price": 18000
+    },
+    {
+     "kind": "toilet",
+     "x": 0.45,
+     "z": 2.4,
+     "w": 0.4,
+     "d": 0.65,
+     "rot": 90,
+     "name": "馬桶",
+     "nameEn": "Toilet",
+     "price": 15000
+    },
+    {
+     "kind": "vanity",
+     "x": 1.45,
+     "z": 0.37,
+     "w": 0.9,
+     "d": 0.5,
+     "rot": 0,
+     "name": "浴櫃",
+     "nameEn": "Vanity",
+     "price": 16000
+    },
+    {
+     "kind": "shelf",
+     "x": 0.3,
+     "z": 4.5,
+     "w": 2.4,
+     "d": 0.45,
+     "rot": 90,
+     "h": 2.0,
+     "name": "收納層架",
+     "nameEn": "Storage shelving",
+     "price": 9000
+    }
+   ]
   },
-  "levels": [
+  {
+   "id": "2F",
+   "name": "二樓",
+   "nameEn": "Upper floor",
+   "elevation": 3.2,
+   "height": 3.2,
+   "walls": [
     {
-      "id": "1F",
-      "name": "一樓",
-      "nameEn": "Ground floor",
-      "elevation": 0,
-      "height": 3.2,
-      "walls": [
-        { "id": "1-W0", "a": [0, 0], "b": [8, 0], "t": 0.2, "ext": true,
-          "openings": [
-            { "type": "window", "offset": 0.7, "width": 0.6, "sill": 1.5, "head": 2.1 },
-            { "type": "window", "offset": 4.0, "width": 2.0, "sill": 1.05, "head": 2.1 }
-          ] },
-        { "id": "1-W1", "a": [8, 0], "b": [8, 14], "t": 0.2, "ext": true,
-          "openings": [
-            { "type": "window", "offset": 2.5, "width": 2.0, "sill": 0.9, "head": 2.2 },
-            { "type": "window", "offset": 12.0, "width": 1.5, "sill": 0.45, "head": 2.4 }
-          ] },
-        { "id": "1-W2", "a": [8, 14], "b": [0, 14], "t": 0.2, "ext": true,
-          "openings": [
-            { "type": "window", "offset": 0.6, "width": 4.0, "sill": 0.45, "head": 2.4 },
-            { "type": "door", "offset": 6.4, "width": 1.0, "sill": 0, "head": 2.2, "main": true }
-          ] },
-        { "id": "1-W3", "a": [0, 14], "b": [0, 0], "t": 0.2, "ext": true, "party": true, "openings": [] },
-        { "id": "1-W4", "a": [2.2, 0], "b": [2.2, 6], "t": 0.12,
-          "openings": [
-            { "type": "door", "offset": 1.0, "width": 0.8, "sill": 0, "head": 2.1 },
-            { "type": "door", "offset": 4.0, "width": 0.8, "sill": 0, "head": 2.1 }
-          ] },
-        { "id": "1-W5", "a": [0, 3], "b": [2.2, 3], "t": 0.12, "openings": [] },
-        { "id": "1-W6", "a": [0, 6], "b": [2.2, 6], "t": 0.12, "openings": [] },
-        { "id": "1-W7", "a": [2.2, 11], "b": [2.2, 14], "t": 0.12,
-          "openings": [
-            { "type": "passage", "offset": 0.3, "width": 1.9, "sill": 0, "head": 2.4 }
-          ] }
-      ],
-      "rooms": [
-        { "id": "entrance", "name": "玄關", "nameEn": "Entrance", "finish": "floor",
-          "polygon": [[0, 11], [2.2, 11], [2.2, 14], [0, 14]],
-          "spot": { "pos": [1.0, 13.55], "look": [5.2, 10.8] } },
-        { "id": "living", "name": "客廳", "nameEn": "Living", "finish": "floor",
-          "polygon": [[2.2, 8], [8, 8], [8, 14], [2.2, 14]],
-          "spot": { "pos": [7.35, 13.35], "look": [3.4, 9.6] } },
-        { "id": "kitchen", "name": "餐廚", "nameEn": "Dining & Kitchen", "finish": "floor",
-          "polygon": [[2.2, 0], [8, 0], [8, 8], [2.2, 8]],
-          "spot": { "pos": [7.4, 7.6], "look": [4.0, 1.6] } },
-        { "id": "bath1", "name": "衛浴", "nameEn": "Bathroom", "finish": "tile",
-          "polygon": [[0, 0], [2.2, 0], [2.2, 3], [0, 3]],
-          "spot": { "pos": [1.7, 2.6], "look": [0.6, 0.6] } },
-        { "id": "storage", "name": "儲藏室", "nameEn": "Storage", "finish": "floor",
-          "polygon": [[0, 3], [2.2, 3], [2.2, 6], [0, 6]],
-          "spot": { "pos": [1.8, 4.5], "look": [0.2, 4.5] } },
-        { "id": "stair1", "name": "樓梯", "nameEn": "Stair", "finish": "floor", "circulation": true,
-          "polygon": [[0, 6], [2.2, 6], [2.2, 11], [0, 11]],
-          "spot": { "pos": [2.0, 6.55], "look": [0.6, 10.5] } }
-      ],
-      "furniture": [
-        { "kind": "fridge", "x": 2.75, "z": 0.45, "w": 0.8, "d": 0.7, "rot": 0, "name": "冰箱", "nameEn": "Refrigerator", "price": 72000 },
-        { "kind": "counter", "x": 5.525, "z": 0.4, "w": 4.75, "d": 0.6, "rot": 0, "name": "廚房檯面", "nameEn": "Kitchen run", "counter": true, "cabinet": true },
-        { "kind": "counter", "x": 5.3, "z": 2.45, "w": 2.6, "d": 0.95, "rot": 0, "name": "中島", "nameEn": "Island", "counter": true, "cabinet": true },
-        { "kind": "pendant", "x": 4.75, "z": 2.45, "w": 0.36, "d": 0.36, "rot": 0, "name": "吊燈", "nameEn": "Pendant light", "price": 5800 },
-        { "kind": "pendant", "x": 5.85, "z": 2.45, "w": 0.36, "d": 0.36, "rot": 0, "name": "吊燈", "nameEn": "Pendant light", "price": 5800 },
-        { "kind": "table", "x": 5.3, "z": 5.3, "w": 2.0, "d": 0.95, "rot": 0, "name": "餐桌", "nameEn": "Dining table", "price": 38000 },
-        { "kind": "chair", "x": 4.6, "z": 4.5, "w": 0.46, "d": 0.5, "rot": 0, "name": "餐椅", "nameEn": "Dining chair", "price": 6800 },
-        { "kind": "chair", "x": 5.3, "z": 4.5, "w": 0.46, "d": 0.5, "rot": 0, "name": "餐椅", "nameEn": "Dining chair", "price": 6800 },
-        { "kind": "chair", "x": 6.0, "z": 4.5, "w": 0.46, "d": 0.5, "rot": 0, "name": "餐椅", "nameEn": "Dining chair", "price": 6800 },
-        { "kind": "chair", "x": 4.6, "z": 6.1, "w": 0.46, "d": 0.5, "rot": 180, "name": "餐椅", "nameEn": "Dining chair", "price": 6800 },
-        { "kind": "chair", "x": 5.3, "z": 6.1, "w": 0.46, "d": 0.5, "rot": 180, "name": "餐椅", "nameEn": "Dining chair", "price": 6800 },
-        { "kind": "chair", "x": 6.0, "z": 6.1, "w": 0.46, "d": 0.5, "rot": 180, "name": "餐椅", "nameEn": "Dining chair", "price": 6800 },
-        { "kind": "rug", "x": 5.6, "z": 10.2, "w": 2.4, "d": 3.0, "rot": 0, "name": "地毯", "nameEn": "Rug", "price": 9800 },
-        { "kind": "sofa", "x": 4.0, "z": 10.2, "w": 2.6, "d": 0.95, "rot": 90, "name": "三人沙發", "nameEn": "3-seat sofa", "price": 68000 },
-        { "kind": "coffee", "x": 5.4, "z": 10.2, "w": 1.1, "d": 0.6, "rot": 90, "name": "茶几", "nameEn": "Coffee table", "price": 12000 },
-        { "kind": "tvconsole", "x": 7.66, "z": 10.2, "w": 2.4, "d": 0.45, "rot": -90, "name": "電視櫃", "nameEn": "TV console", "price": 26000 },
-        { "kind": "plant", "x": 7.45, "z": 13.4, "w": 0.5, "d": 0.5, "rot": 0, "name": "植栽", "nameEn": "Plant", "price": 3200 },
-        { "kind": "shoe", "x": 0.33, "z": 12.5, "w": 1.6, "d": 0.45, "rot": 90, "name": "玄關鞋櫃", "nameEn": "Shoe cabinet", "price": 18000 },
-        { "kind": "toilet", "x": 0.45, "z": 2.4, "w": 0.4, "d": 0.65, "rot": 90, "name": "馬桶", "nameEn": "Toilet", "price": 15000 },
-        { "kind": "vanity", "x": 1.45, "z": 0.37, "w": 0.9, "d": 0.5, "rot": 0, "name": "浴櫃", "nameEn": "Vanity", "price": 16000 },
-        { "kind": "shelf", "x": 0.3, "z": 4.5, "w": 2.4, "d": 0.45, "rot": 90, "h": 2.0, "name": "收納層架", "nameEn": "Storage shelving", "price": 9000 }
-      ]
+     "id": "2-W0",
+     "a": [
+      0,
+      0
+     ],
+     "b": [
+      8,
+      0
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 0.8,
+       "width": 1.6,
+       "sill": 0.9,
+       "head": 2.2
+      }
+     ]
     },
     {
-      "id": "2F",
-      "name": "二樓",
-      "nameEn": "Upper floor",
-      "elevation": 3.2,
-      "height": 3.2,
-      "walls": [
-        { "id": "2-W0", "a": [0, 0], "b": [8, 0], "t": 0.2, "ext": true,
-          "openings": [
-            { "type": "window", "offset": 0.8, "width": 1.6, "sill": 0.9, "head": 2.2 }
-          ] },
-        { "id": "2-W1", "a": [8, 0], "b": [8, 14], "t": 0.2, "ext": true,
-          "openings": [
-            { "type": "window", "offset": 4.0, "width": 2.5, "sill": 0.9, "head": 2.2 },
-            { "type": "window", "offset": 9.5, "width": 2.5, "sill": 0.9, "head": 2.2 }
-          ] },
-        { "id": "2-W2", "a": [8, 14], "b": [0, 14], "t": 0.2, "ext": true,
-          "openings": [
-            { "type": "window", "offset": 0.8, "width": 3.2, "sill": 0.45, "head": 2.4 },
-            { "type": "window", "offset": 5.6, "width": 0.9, "sill": 1.5, "head": 2.1 }
-          ] },
-        { "id": "2-W3", "a": [0, 14], "b": [0, 0], "t": 0.2, "ext": true, "party": true, "openings": [] },
-        { "id": "2-I0", "a": [3.2, 0], "b": [3.2, 14], "t": 0.12,
-          "openings": [
-            { "type": "door", "offset": 6.2, "width": 0.9, "sill": 0, "head": 2.1 },
-            { "type": "door", "offset": 9.0, "width": 0.9, "sill": 0, "head": 2.1 }
-          ] },
-        { "id": "2-I1", "a": [0, 11], "b": [3.2, 11], "t": 0.12,
-          "openings": [ { "type": "door", "offset": 2.2, "width": 0.85, "sill": 0, "head": 2.1 } ] },
-        { "id": "2-I2", "a": [0, 6], "b": [3.2, 6], "t": 0.12,
-          "openings": [ { "type": "door", "offset": 2.25, "width": 0.85, "sill": 0, "head": 2.1 } ] },
-        { "id": "2-I3", "a": [3.2, 8], "b": [8, 8], "t": 0.12, "openings": [] },
-        { "id": "2-I4", "a": [3.2, 3], "b": [8, 3], "t": 0.12,
-          "openings": [ { "type": "door", "offset": 3.0, "width": 0.8, "sill": 0, "head": 2.1 } ] }
-      ],
-      "voids": [
-        { "id": "stairwell", "polygon": [[0, 6], [1.25, 6], [1.25, 10.85], [0, 10.85]], "railFrom": [1.25, 6], "railTo": [1.25, 10.0] }
-      ],
-      "rooms": [
-        { "id": "landing", "name": "梯廳", "nameEn": "Landing", "finish": "floor", "circulation": true,
-          "polygon": [[1.25, 6], [3.2, 6], [3.2, 11], [0, 11], [0, 10.85], [1.25, 10.85]],
-          "spot": { "pos": [2.3, 10.3], "look": [2.6, 6.2] } },
-        { "id": "master", "name": "主臥", "nameEn": "Master Bedroom", "finish": "floor",
-          "polygon": [[3.2, 8], [8, 8], [8, 14], [3.2, 14]],
-          "spot": { "pos": [7.35, 9.0], "look": [4.2, 12.4] } },
-        { "id": "mbath", "name": "主浴", "nameEn": "Master Bath", "finish": "tile",
-          "polygon": [[0, 11], [3.2, 11], [3.2, 14], [0, 14]],
-          "spot": { "pos": [2.6, 11.5], "look": [0.6, 13.2] } },
-        { "id": "bed2", "name": "次臥", "nameEn": "Bedroom", "finish": "floor",
-          "polygon": [[3.2, 3], [8, 3], [8, 8], [3.2, 8]],
-          "spot": { "pos": [7.3, 3.6], "look": [4.6, 7.2] } },
-        { "id": "walkin", "name": "更衣室", "nameEn": "Walk-in Closet", "finish": "floor",
-          "polygon": [[3.2, 0], [8, 0], [8, 3], [3.2, 3]],
-          "spot": { "pos": [6.6, 2.6], "look": [4.4, 0.4] } },
-        { "id": "study", "name": "書房", "nameEn": "Study", "finish": "floor",
-          "polygon": [[0, 0], [3.2, 0], [3.2, 6], [0, 6]],
-          "spot": { "pos": [2.7, 5.4], "look": [1.0, 0.6] } }
-      ],
-      "furniture": [
-        { "kind": "rug", "x": 4.9, "z": 12.0, "w": 2.6, "d": 2.8, "rot": 0, "name": "地毯", "nameEn": "Rug", "price": 9800 },
-        { "kind": "bed", "x": 4.3, "z": 12.0, "w": 1.8, "d": 2.1, "rot": 90, "name": "雙人床", "nameEn": "Queen bed", "price": 45000 },
-        { "kind": "nightstand", "x": 3.5, "z": 10.75, "w": 0.45, "d": 0.42, "rot": 90, "name": "床頭櫃", "nameEn": "Nightstand", "price": 6500 },
-        { "kind": "nightstand", "x": 3.5, "z": 13.25, "w": 0.45, "d": 0.42, "rot": 90, "name": "床頭櫃", "nameEn": "Nightstand", "price": 6500 },
-        { "kind": "bed", "x": 5.6, "z": 6.9, "w": 1.5, "d": 2.0, "rot": 180, "name": "雙人床", "nameEn": "Double bed", "price": 32000 },
-        { "kind": "nightstand", "x": 4.5, "z": 7.67, "w": 0.45, "d": 0.42, "rot": 180, "name": "床頭櫃", "nameEn": "Nightstand", "price": 6500 },
-        { "kind": "wardrobe", "x": 5.6, "z": 0.4, "w": 4.6, "d": 0.6, "rot": 0, "h": 2.3, "name": "系統衣櫃", "nameEn": "Wardrobe", "price": 85000 },
-        { "kind": "wardrobe", "x": 7.6, "z": 1.65, "w": 1.5, "d": 0.6, "rot": -90, "h": 2.3, "name": "系統衣櫃", "nameEn": "Wardrobe", "price": 32000 },
-        { "kind": "desk", "x": 1.6, "z": 0.45, "w": 1.6, "d": 0.7, "rot": 0, "name": "書桌", "nameEn": "Desk", "price": 16000 },
-        { "kind": "chair", "x": 1.6, "z": 1.15, "w": 0.48, "d": 0.5, "rot": 180, "name": "書桌椅", "nameEn": "Desk chair", "price": 9800 },
-        { "kind": "shelf", "x": 0.28, "z": 3.0, "w": 2.4, "d": 0.36, "rot": 90, "h": 2.2, "name": "書櫃", "nameEn": "Bookcase", "price": 22000 },
-        { "kind": "vanity", "x": 1.6, "z": 13.63, "w": 1.2, "d": 0.5, "rot": 180, "name": "浴櫃", "nameEn": "Vanity", "price": 22000 },
-        { "kind": "tub", "x": 0.5, "z": 12.3, "w": 1.6, "d": 0.75, "rot": 90, "name": "浴缸", "nameEn": "Bathtub", "price": 38000 },
-        { "kind": "toilet", "x": 2.85, "z": 13.55, "w": 0.4, "d": 0.65, "rot": 180, "name": "馬桶", "nameEn": "Toilet", "price": 15000 },
-        { "kind": "plant", "x": 7.45, "z": 13.4, "w": 0.5, "d": 0.5, "rot": 0, "name": "植栽", "nameEn": "Plant", "price": 3200 }
-      ]
+     "id": "2-W1",
+     "a": [
+      8,
+      0
+     ],
+     "b": [
+      8,
+      14
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 4.0,
+       "width": 2.5,
+       "sill": 0.9,
+       "head": 2.2
+      },
+      {
+       "type": "window",
+       "offset": 9.5,
+       "width": 2.5,
+       "sill": 0.9,
+       "head": 2.2
+      }
+     ]
+    },
+    {
+     "id": "2-W2",
+     "a": [
+      8,
+      14
+     ],
+     "b": [
+      0,
+      14
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 0.8,
+       "width": 3.2,
+       "sill": 0.45,
+       "head": 2.4
+      },
+      {
+       "type": "window",
+       "offset": 5.6,
+       "width": 0.9,
+       "sill": 1.5,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "2-W3",
+     "a": [
+      0,
+      14
+     ],
+     "b": [
+      0,
+      0
+     ],
+     "t": 0.2,
+     "ext": true,
+     "party": true,
+     "openings": []
+    },
+    {
+     "id": "2-I0",
+     "a": [
+      3.2,
+      0
+     ],
+     "b": [
+      3.2,
+      14
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 6.2,
+       "width": 0.9,
+       "sill": 0,
+       "head": 2.1
+      },
+      {
+       "type": "door",
+       "offset": 9.0,
+       "width": 0.9,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "2-I1",
+     "a": [
+      0,
+      11
+     ],
+     "b": [
+      3.2,
+      11
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 2.2,
+       "width": 0.85,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "2-I2",
+     "a": [
+      0,
+      6
+     ],
+     "b": [
+      3.2,
+      6
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 2.25,
+       "width": 0.85,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "2-I3",
+     "a": [
+      3.2,
+      8
+     ],
+     "b": [
+      8,
+      8
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "2-I4",
+     "a": [
+      3.2,
+      3
+     ],
+     "b": [
+      8,
+      3
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 3.0,
+       "width": 0.8,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
     }
-  ],
-  "stairs": [
-    { "id": "S1", "from": "1F", "to": "2F", "x0": 0.15, "x1": 1.15, "zStart": 6.25, "zEnd": 10.85, "risers": 18, "name": "直跑樓梯", "nameEn": "Straight stair" }
-  ],
-  "finishes": [
+   ],
+   "voids": [
     {
-      "id": "floor", "name": "地坪", "nameEn": "Flooring", "unit": "坪", "basis": "floorArea",
-      "options": [
-        { "id": "oak", "name": "海島型木地板・橡木", "nameEn": "Engineered oak", "tex": "oak", "color": "#b8875a", "rough": 0.62, "price": 4800 },
-        { "id": "marble", "name": "大理石紋磁磚 60×120", "nameEn": "Marble-look tile", "tex": "marble", "color": "#e9e5dd", "rough": 0.22, "price": 5600 },
-        { "id": "terrazzo", "name": "磨石子", "nameEn": "Terrazzo", "tex": "terrazzo", "color": "#d8d2c6", "rough": 0.45, "price": 7800 }
+     "id": "stairwell",
+     "polygon": [
+      [
+       0,
+       6
+      ],
+      [
+       1.25,
+       6
+      ],
+      [
+       1.25,
+       10.85
+      ],
+      [
+       0,
+       10.85
       ]
-    },
-    {
-      "id": "counter", "name": "檯面", "nameEn": "Countertop", "unit": "m", "basis": "counterLength",
-      "options": [
-        { "id": "quartz", "name": "石英石・雪白", "nameEn": "Quartz, snow", "tex": "quartz", "color": "#f1efea", "rough": 0.28, "price": 16000 },
-        { "id": "granite", "name": "黑色花崗岩", "nameEn": "Black granite", "tex": "granite", "color": "#2c2b2a", "rough": 0.3, "price": 12000 },
-        { "id": "steel", "name": "髮絲紋不鏽鋼", "nameEn": "Brushed steel", "tex": "steel", "color": "#b9bcbd", "rough": 0.35, "metal": 0.85, "price": 20000 }
-      ]
-    },
-    {
-      "id": "cabinet", "name": "櫥櫃門板", "nameEn": "Cabinet doors", "unit": "m", "basis": "cabinetLength",
-      "options": [
-        { "id": "walnut", "name": "胡桃木紋", "nameEn": "Walnut veneer", "tex": "walnut", "color": "#6b4a33", "rough": 0.55, "price": 9500 },
-        { "id": "white", "name": "霧面白", "nameEn": "Matte white", "color": "#ecebe6", "rough": 0.7, "price": 8000 },
-        { "id": "green", "name": "墨綠烤漆", "nameEn": "Forest green lacquer", "color": "#2f4a3e", "rough": 0.4, "price": 11000 }
-      ]
-    },
-    {
-      "id": "paint", "name": "牆面塗料", "nameEn": "Wall paint", "unit": "坪", "basis": "wallArea",
-      "options": [
-        { "id": "warm", "name": "暖白", "nameEn": "Warm white", "color": "#eeeae2", "rough": 0.9, "price": 780 },
-        { "id": "greige", "name": "燕麥灰", "nameEn": "Greige", "color": "#d6cfc3", "rough": 0.9, "price": 820 },
-        { "id": "sage", "name": "鼠尾草綠", "nameEn": "Sage", "color": "#c3c9b6", "rough": 0.9, "price": 860 }
-      ]
+     ],
+     "railFrom": [
+      1.25,
+      6
+     ],
+     "railTo": [
+      1.25,
+      10.0
+     ]
     }
+   ],
+   "rooms": [
+    {
+     "id": "landing",
+     "name": "梯廳",
+     "nameEn": "Landing",
+     "finish": "floor",
+     "circulation": true,
+     "polygon": [
+      [
+       1.25,
+       6
+      ],
+      [
+       3.2,
+       6
+      ],
+      [
+       3.2,
+       11
+      ],
+      [
+       0,
+       11
+      ],
+      [
+       0,
+       10.85
+      ],
+      [
+       1.25,
+       10.85
+      ]
+     ],
+     "spot": {
+      "pos": [
+       2.3,
+       10.3
+      ],
+      "look": [
+       2.6,
+       6.2
+      ]
+     },
+     "labelAt": [
+      2.3,
+      8.3
+     ]
+    },
+    {
+     "id": "master",
+     "name": "主臥",
+     "nameEn": "Master Bedroom",
+     "finish": "floor",
+     "polygon": [
+      [
+       3.2,
+       8
+      ],
+      [
+       8,
+       8
+      ],
+      [
+       8,
+       14
+      ],
+      [
+       3.2,
+       14
+      ]
+     ],
+     "spot": {
+      "pos": [
+       7.35,
+       9.0
+      ],
+      "look": [
+       4.2,
+       12.4
+      ]
+     },
+     "labelAt": [
+      6.6,
+      9.4
+     ]
+    },
+    {
+     "id": "mbath",
+     "name": "主浴",
+     "nameEn": "Master Bath",
+     "finish": "tile",
+     "polygon": [
+      [
+       0,
+       11
+      ],
+      [
+       3.2,
+       11
+      ],
+      [
+       3.2,
+       14
+      ],
+      [
+       0,
+       14
+      ]
+     ],
+     "spot": {
+      "pos": [
+       2.6,
+       11.5
+      ],
+      "look": [
+       0.6,
+       13.2
+      ]
+     },
+     "labelAt": [
+      2.0,
+      12.3
+     ]
+    },
+    {
+     "id": "bed2",
+     "name": "次臥",
+     "nameEn": "Bedroom",
+     "finish": "floor",
+     "polygon": [
+      [
+       3.2,
+       3
+      ],
+      [
+       8,
+       3
+      ],
+      [
+       8,
+       8
+      ],
+      [
+       3.2,
+       8
+      ]
+     ],
+     "spot": {
+      "pos": [
+       7.3,
+       3.6
+      ],
+      "look": [
+       4.6,
+       7.2
+      ]
+     },
+     "labelAt": [
+      5.2,
+      4.0
+     ]
+    },
+    {
+     "id": "walkin",
+     "name": "更衣室",
+     "nameEn": "Walk-in Closet",
+     "finish": "floor",
+     "polygon": [
+      [
+       3.2,
+       0
+      ],
+      [
+       8,
+       0
+      ],
+      [
+       8,
+       3
+      ],
+      [
+       3.2,
+       3
+      ]
+     ],
+     "spot": {
+      "pos": [
+       6.6,
+       2.6
+      ],
+      "look": [
+       4.4,
+       0.4
+      ]
+     },
+     "labelAt": [
+      5.1,
+      2.0
+     ]
+    },
+    {
+     "id": "study",
+     "name": "書房",
+     "nameEn": "Study",
+     "finish": "floor",
+     "polygon": [
+      [
+       0,
+       0
+      ],
+      [
+       3.2,
+       0
+      ],
+      [
+       3.2,
+       6
+      ],
+      [
+       0,
+       6
+      ]
+     ],
+     "spot": {
+      "pos": [
+       2.7,
+       5.4
+      ],
+      "look": [
+       1.0,
+       0.6
+      ]
+     },
+     "labelAt": [
+      1.9,
+      3.2
+     ]
+    }
+   ],
+   "furniture": [
+    {
+     "kind": "rug",
+     "x": 4.9,
+     "z": 12.0,
+     "w": 2.6,
+     "d": 2.8,
+     "rot": 0,
+     "name": "地毯",
+     "nameEn": "Rug",
+     "price": 9800
+    },
+    {
+     "kind": "bed",
+     "x": 4.3,
+     "z": 12.0,
+     "w": 1.8,
+     "d": 2.1,
+     "rot": 90,
+     "name": "雙人床",
+     "nameEn": "Queen bed",
+     "price": 45000
+    },
+    {
+     "kind": "nightstand",
+     "x": 3.5,
+     "z": 10.75,
+     "w": 0.45,
+     "d": 0.42,
+     "rot": 90,
+     "name": "床頭櫃",
+     "nameEn": "Nightstand",
+     "price": 6500
+    },
+    {
+     "kind": "nightstand",
+     "x": 3.5,
+     "z": 13.25,
+     "w": 0.45,
+     "d": 0.42,
+     "rot": 90,
+     "name": "床頭櫃",
+     "nameEn": "Nightstand",
+     "price": 6500
+    },
+    {
+     "kind": "bed",
+     "x": 5.6,
+     "z": 6.9,
+     "w": 1.5,
+     "d": 2.0,
+     "rot": 180,
+     "name": "雙人床",
+     "nameEn": "Double bed",
+     "price": 32000
+    },
+    {
+     "kind": "nightstand",
+     "x": 4.5,
+     "z": 7.67,
+     "w": 0.45,
+     "d": 0.42,
+     "rot": 180,
+     "name": "床頭櫃",
+     "nameEn": "Nightstand",
+     "price": 6500
+    },
+    {
+     "kind": "wardrobe",
+     "x": 5.6,
+     "z": 0.4,
+     "w": 4.6,
+     "d": 0.6,
+     "rot": 0,
+     "h": 2.3,
+     "name": "系統衣櫃",
+     "nameEn": "Wardrobe",
+     "price": 85000
+    },
+    {
+     "kind": "wardrobe",
+     "x": 7.6,
+     "z": 1.65,
+     "w": 1.5,
+     "d": 0.6,
+     "rot": -90,
+     "h": 2.3,
+     "name": "系統衣櫃",
+     "nameEn": "Wardrobe",
+     "price": 32000
+    },
+    {
+     "kind": "desk",
+     "x": 1.6,
+     "z": 0.45,
+     "w": 1.6,
+     "d": 0.7,
+     "rot": 0,
+     "name": "書桌",
+     "nameEn": "Desk",
+     "price": 16000
+    },
+    {
+     "kind": "chair",
+     "x": 1.6,
+     "z": 1.15,
+     "w": 0.48,
+     "d": 0.5,
+     "rot": 180,
+     "name": "書桌椅",
+     "nameEn": "Desk chair",
+     "price": 9800
+    },
+    {
+     "kind": "shelf",
+     "x": 0.28,
+     "z": 3.0,
+     "w": 2.4,
+     "d": 0.36,
+     "rot": 90,
+     "h": 2.2,
+     "name": "書櫃",
+     "nameEn": "Bookcase",
+     "price": 22000
+    },
+    {
+     "kind": "vanity",
+     "x": 1.6,
+     "z": 13.63,
+     "w": 1.2,
+     "d": 0.5,
+     "rot": 180,
+     "name": "浴櫃",
+     "nameEn": "Vanity",
+     "price": 22000
+    },
+    {
+     "kind": "tub",
+     "x": 0.5,
+     "z": 12.3,
+     "w": 1.6,
+     "d": 0.75,
+     "rot": 90,
+     "name": "浴缸",
+     "nameEn": "Bathtub",
+     "price": 38000
+    },
+    {
+     "kind": "toilet",
+     "x": 2.85,
+     "z": 13.55,
+     "w": 0.4,
+     "d": 0.65,
+     "rot": 180,
+     "name": "馬桶",
+     "nameEn": "Toilet",
+     "price": 15000
+    },
+    {
+     "kind": "plant",
+     "x": 7.45,
+     "z": 13.4,
+     "w": 0.5,
+     "d": 0.5,
+     "rot": 0,
+     "name": "植栽",
+     "nameEn": "Plant",
+     "price": 3200
+    }
+   ]
+  }
+ ],
+ "stairs": [
+  {
+   "id": "S1",
+   "from": "1F",
+   "to": "2F",
+   "x0": 0.15,
+   "x1": 1.15,
+   "zStart": 6.25,
+   "zEnd": 10.85,
+   "risers": 18,
+   "name": "直跑樓梯",
+   "nameEn": "Straight stair"
+  }
+ ],
+ "finishes": [
+  {
+   "id": "floor",
+   "name": "地坪",
+   "nameEn": "Flooring",
+   "unit": "坪",
+   "basis": "floorArea",
+   "options": [
+    {
+     "id": "oak",
+     "name": "海島型木地板・橡木",
+     "nameEn": "Engineered oak",
+     "tex": "oak",
+     "color": "#b8875a",
+     "rough": 0.62,
+     "price": 4800
+    },
+    {
+     "id": "marble",
+     "name": "大理石紋磁磚 60×120",
+     "nameEn": "Marble-look tile",
+     "tex": "marble",
+     "color": "#e9e5dd",
+     "rough": 0.22,
+     "price": 5600
+    },
+    {
+     "id": "terrazzo",
+     "name": "磨石子",
+     "nameEn": "Terrazzo",
+     "tex": "terrazzo",
+     "color": "#d8d2c6",
+     "rough": 0.45,
+     "price": 7800
+    }
+   ]
+  },
+  {
+   "id": "counter",
+   "name": "檯面",
+   "nameEn": "Countertop",
+   "unit": "m",
+   "basis": "counterLength",
+   "options": [
+    {
+     "id": "quartz",
+     "name": "石英石・雪白",
+     "nameEn": "Quartz, snow",
+     "tex": "quartz",
+     "color": "#f1efea",
+     "rough": 0.28,
+     "price": 16000
+    },
+    {
+     "id": "granite",
+     "name": "黑色花崗岩",
+     "nameEn": "Black granite",
+     "tex": "granite",
+     "color": "#2c2b2a",
+     "rough": 0.3,
+     "price": 12000
+    },
+    {
+     "id": "steel",
+     "name": "髮絲紋不鏽鋼",
+     "nameEn": "Brushed steel",
+     "tex": "steel",
+     "color": "#b9bcbd",
+     "rough": 0.35,
+     "metal": 0.85,
+     "price": 20000
+    }
+   ]
+  },
+  {
+   "id": "cabinet",
+   "name": "櫥櫃門板",
+   "nameEn": "Cabinet doors",
+   "unit": "m",
+   "basis": "cabinetLength",
+   "options": [
+    {
+     "id": "walnut",
+     "name": "胡桃木紋",
+     "nameEn": "Walnut veneer",
+     "tex": "walnut",
+     "color": "#6b4a33",
+     "rough": 0.55,
+     "price": 9500
+    },
+    {
+     "id": "white",
+     "name": "霧面白",
+     "nameEn": "Matte white",
+     "color": "#ecebe6",
+     "rough": 0.7,
+     "price": 8000
+    },
+    {
+     "id": "green",
+     "name": "墨綠烤漆",
+     "nameEn": "Forest green lacquer",
+     "color": "#2f4a3e",
+     "rough": 0.4,
+     "price": 11000
+    }
+   ]
+  },
+  {
+   "id": "paint",
+   "name": "牆面塗料",
+   "nameEn": "Wall paint",
+   "unit": "坪",
+   "basis": "wallArea",
+   "options": [
+    {
+     "id": "warm",
+     "name": "暖白",
+     "nameEn": "Warm white",
+     "color": "#eeeae2",
+     "rough": 0.9,
+     "price": 780
+    },
+    {
+     "id": "greige",
+     "name": "燕麥灰",
+     "nameEn": "Greige",
+     "color": "#d6cfc3",
+     "rough": 0.9,
+     "price": 820
+    },
+    {
+     "id": "sage",
+     "name": "鼠尾草綠",
+     "nameEn": "Sage",
+     "color": "#c3c9b6",
+     "rough": 0.9,
+     "price": 860
+    }
+   ]
+  }
+ ],
+ "defaultFinishes": {
+  "floor": "oak",
+  "counter": "quartz",
+  "cabinet": "walnut",
+  "paint": "warm"
+ },
+ "story": {
+  "nodes": [
+   {
+    "id": "plan",
+    "pos": [
+     4,
+     62,
+     7.6
+    ],
+    "look": [
+     4,
+     0,
+     7
+    ],
+    "fov": 13,
+    "hold": 1.1
+   },
+   {
+    "id": "aerial",
+    "pos": [
+     16.5,
+     15.5,
+     25
+    ],
+    "look": [
+     3.6,
+     0.6,
+     6.6
+    ],
+    "fov": 36,
+    "travel": 1.7,
+    "hold": 1.5
+   },
+   {
+    "pos": [
+     1.1,
+     1.7,
+     17.4
+    ],
+    "look": [
+     1.1,
+     1.5,
+     12.5
+    ],
+    "fov": 58,
+    "travel": 1.0
+   },
+   {
+    "id": "entrance",
+    "room": "entrance",
+    "pos": [
+     1.0,
+     1.6,
+     13.55
+    ],
+    "look": [
+     5.2,
+     1.2,
+     10.8
+    ],
+    "fov": 64,
+    "travel": 0.6,
+    "hold": 0.8
+   },
+   {
+    "pos": [
+     2.2,
+     1.6,
+     12.25
+    ],
+    "look": [
+     6.2,
+     1.4,
+     11.4
+    ],
+    "travel": 0.45
+   },
+   {
+    "id": "living",
+    "room": "living",
+    "pos": [
+     7.35,
+     1.6,
+     13.35
+    ],
+    "look": [
+     3.4,
+     1.0,
+     9.6
+    ],
+    "travel": 0.7,
+    "hold": 0.8
+   },
+   {
+    "id": "kitchen",
+    "room": "kitchen",
+    "pos": [
+     7.4,
+     1.6,
+     7.6
+    ],
+    "look": [
+     4.0,
+     1.0,
+     1.6
+    ],
+    "travel": 0.9,
+    "hold": 0.8
+   },
+   {
+    "id": "stair",
+    "room": "stair1",
+    "pos": [
+     2.0,
+     1.6,
+     6.55
+    ],
+    "look": [
+     0.6,
+     2.9,
+     10.5
+    ],
+    "travel": 0.8,
+    "hold": 0.5
+   },
+   {
+    "pos": [
+     0.65,
+     1.75,
+     6.55
+    ],
+    "look": [
+     0.65,
+     2.7,
+     11.0
+    ],
+    "travel": 0.4
+   },
+   {
+    "pos": [
+     0.65,
+     3.05,
+     8.3
+    ],
+    "look": [
+     0.9,
+     3.75,
+     12.2
+    ],
+    "travel": 0.6
+   },
+   {
+    "id": "climbTop",
+    "pos": [
+     0.72,
+     4.45,
+     10.3
+    ],
+    "look": [
+     3.0,
+     4.5,
+     9.2
+    ],
+    "travel": 0.6
+   },
+   {
+    "pos": [
+     2.25,
+     4.8,
+     10.15
+    ],
+    "look": [
+     3.8,
+     4.7,
+     9.45
+    ],
+    "travel": 0.4
+   },
+   {
+    "pos": [
+     2.75,
+     4.8,
+     9.45
+    ],
+    "look": [
+     6,
+     4.6,
+     9.45
+    ],
+    "travel": 0.35
+   },
+   {
+    "pos": [
+     3.9,
+     4.8,
+     9.45
+    ],
+    "look": [
+     7,
+     4.5,
+     10.5
+    ],
+    "travel": 0.35
+   },
+   {
+    "id": "master",
+    "room": "master",
+    "pos": [
+     7.35,
+     4.8,
+     9.0
+    ],
+    "look": [
+     4.2,
+     3.9,
+     12.4
+    ],
+    "travel": 0.6,
+    "hold": 0.9
+   },
+   {
+    "id": "outro",
+    "pos": [
+     21,
+     12.5,
+     26
+    ],
+    "look": [
+     3.6,
+     3.6,
+     6.4
+    ],
+    "fov": 36,
+    "travel": 1.6,
+    "hold": 1.4
+   }
   ],
-  "defaultFinishes": { "floor": "oak", "counter": "quartz", "cabinet": "walnut", "paint": "warm" }
+  "rise": {
+   "1F": [
+    "plan",
+    "aerial"
+   ],
+   "2F": [
+    "stair",
+    "climbTop"
+   ]
+  },
+  "real": "aerial",
+  "explode": "outro",
+  "captions": {
+   "rise": [
+    "牆體從圖面直接長出來",
+    "牆厚、門窗開口、樓梯，全部讀自同一份平面資料，不需要重新建模。",
+    "Walls rise straight from the drawing — every dimension comes from the plan data."
+   ],
+   "real": [
+    "套上材質、光線與家具",
+    "每一項材質和家具都是清單上的一行，換材質，總價跟著更新。",
+    "Finishes, light and furniture — each one is a line on the quote."
+   ],
+   "outro": [
+    "兩層樓，一份資料",
+    "平面圖、3D 模型、材質與報價都來自同一個來源。換你走走看。",
+    "Two floors, one dataset. Walk it yourself."
+   ]
+  }
+ }
 }

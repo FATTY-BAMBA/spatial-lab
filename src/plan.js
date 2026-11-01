@@ -54,6 +54,7 @@ export function wallFrame(w) {
 // Split a wall into solid pieces. Each piece: {s0, s1, y0, y1} in wall-local metres
 // (s along the wall from a, y from the level floor). Ends extend by t/2 so corners close.
 export function wallPieces(w, height) {
+  height = w.h || height;
   const { len } = wallFrame(w);
   const ext = w.t / 2;
   const ops = [...(w.openings || [])].sort((p, q) => p.offset - q.offset);
@@ -87,17 +88,21 @@ export function collisionSegments(level) {
   for (const v of level.voids || []) {
     if (v.railFrom) segs.push({ ax: v.railFrom[0], az: v.railFrom[1], bx: v.railTo[0], bz: v.railTo[1], r: 0.03 });
   }
+  for (const r of level.railings || []) segs.push({ ax: r.a[0], az: r.a[1], bx: r.b[0], bz: r.b[1], r: 0.05 });
   return segs;
 }
 
 // Footprint (axis aligned) of a furniture item, honouring 0/90/180/270 rotation.
 export function itemFootprint(f) {
-  const quarter = Math.round(((f.rot || 0) % 360 + 360) % 360 / 90) % 2 === 1;
-  const w = quarter ? f.d : f.w, d = quarter ? f.w : f.d;
+  const a = ((f.rot || 0) * Math.PI) / 180;
+  const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+  const sc = f.scale || 1;
+  const w = (f.w * c + f.d * s) * sc, d = (f.w * s + f.d * c) * sc;
   return { x0: f.x - w / 2, x1: f.x + w / 2, z0: f.z - d / 2, z1: f.z + d / 2 };
 }
 
-export const NON_BLOCKING = new Set(['rug', 'pendant']);
+export const NON_BLOCKING = new Set(['rug', 'pendant', 'linear', 'uppercab', 'hood', 'tvwall', 'headboard', 'curtain', 'heater']);
+export const isBlocking = f => !NON_BLOCKING.has(f.kind) && !f.decor && !(f.y > 0.5);
 
 // Quantities used by the quote.
 export function quantities(plan) {
@@ -111,6 +116,7 @@ export function quantities(plan) {
     }
     const clear = L.height - 0.2; // ceiling height
     for (const w of L.walls) {
+      if (w.outdoor) continue;
       const { len } = wallFrame(w);
       const faces = w.ext ? 1 : 2;
       let a = len * clear;

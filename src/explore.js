@@ -1,18 +1,19 @@
 // Explore mode: first-person walk with wall/furniture collision and real stair climbing,
 // plus an orbit "overview" camera for level cutaways.
 import * as THREE from 'three';
-import { collisionSegments, itemFootprint, NON_BLOCKING, pointInPolygon, stairHeightAt } from './plan.js';
+import { collisionSegments, itemFootprint, isBlocking, pointInPolygon, stairHeightAt } from './plan.js';
 
 const EYE = 1.6, RADIUS = 0.24, STEP = 0.5;
 
 export function createExplore(plan, camera, dom) {
   const levels = plan.levels;
   const segs = Object.fromEntries(levels.map(L => [L.id, collisionSegments(L)]));
-  const boxes = Object.fromEntries(levels.map(L => [L.id, L.furniture.filter(f => !NON_BLOCKING.has(f.kind)).map(itemFootprint)]));
-  const stair = plan.stairs[0];
-  const rise = levels[1].elevation - levels[0].elevation;
+  const boxes = Object.fromEntries(levels.map(L => [L.id, L.furniture.filter(isBlocking).map(itemFootprint)]));
+  const stair = plan.stairs[0] || null;
+  const multi = levels.length > 1;
+  const rise = multi ? levels[1].elevation - levels[0].elevation : 3;
 
-  const walk = { x: 7.3, z: 13.3, y: 0, yaw: 0, pitch: -0.08, vy: 0 };
+  const walk = { x: 1, z: 1, y: levels[0].elevation, yaw: 0, pitch: -0.08, vy: 0 };
   const orbit = { theta: 0.8, phi: 0.98, radius: 34, target: new THREE.Vector3(5.6, 2.6, 6.2) };
   let mode = 'walk';
   const keys = new Set();
@@ -20,10 +21,11 @@ export function createExplore(plan, camera, dom) {
   let active = false;
   let tween = null;
 
-  function levelAtY(y) { return y < rise / 2 ? levels[0] : levels[1]; }
+  function levelAtY(y) { return !multi || y < rise / 2 ? levels[0] : levels[1]; }
 
   function floorAt(x, z, y) {
-    if (x >= stair.x0 && x <= stair.x1 && z >= stair.zStart && z <= stair.zEnd) {
+    if (!multi) return levels[0].elevation;
+    if (stair && x >= stair.x0 && x <= stair.x1 && z >= stair.zStart && z <= stair.zEnd) {
       const h = stairHeightAt(stair, z, rise);
       return Math.abs(h - y) <= STEP ? h : null;
     }
@@ -128,7 +130,7 @@ export function createExplore(plan, camera, dom) {
     tween = { t: 0, dur, from: { ...walk }, to };
   }
 
-  function setMode(m) { mode = m; tween = null; dom.dataset.view = m; }
+  function setMode(m) { if (m !== mode) tween = null; mode = m; dom.dataset.view = m; }
 
   // ---- input ----
   let drag = null;

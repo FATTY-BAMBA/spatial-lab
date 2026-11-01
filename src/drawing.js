@@ -9,7 +9,9 @@ const SANS = '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif';
 const MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
 
 export function planFrame(plan, margin = 2.2) {
-  const b = bbox(plan.project.footprint);
+  const pts = [...plan.project.footprint];
+  for (const L of plan.levels) for (const r of L.rooms) pts.push(...r.polygon);
+  const b = bbox(pts);
   return { x0: b.x0 - margin, z0: b.z0 - margin, w: b.x1 - b.x0 + margin * 2, h: b.z1 - b.z0 + margin * 2 };
 }
 
@@ -47,7 +49,13 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.closePath();
     if (opts.highlight === r.id) { ctx.fillStyle = 'rgba(200,138,30,0.16)'; ctx.fill(); }
     else if (opts.paper) { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill(); }
-    if (r.finish === 'tile') {
+    if (r.outdoor) {
+      ctx.save(); ctx.clip();
+      ctx.strokeStyle = 'rgba(31,35,40,0.13)'; ctx.lineWidth = Math.max(1, s / 160);
+      const b = bbox(r.polygon); ctx.beginPath();
+      for (let k = -(b.z1 - b.z0); k < b.x1 - b.x0; k += 0.25) { ctx.moveTo(X(b.x0 + k), Z(b.z0)); ctx.lineTo(X(b.x0 + k + (b.z1 - b.z0)), Z(b.z1)); }
+      ctx.stroke(); ctx.restore();
+    } else if (r.finish === 'tile') {
       ctx.save(); ctx.clip();
       ctx.strokeStyle = 'rgba(31,35,40,0.16)'; ctx.lineWidth = Math.max(1, s / 160);
       const b = bbox(r.polygon); ctx.beginPath();
@@ -135,6 +143,15 @@ export function drawLevel(plan, level, opts = {}) {
         if (side > 0) ctx.arc(a0, 0, r, Math.PI / 2, 0, true); else ctx.arc(a0, 0, r, -Math.PI / 2, 0, false);
         ctx.stroke(); ctx.setLineDash([]);
         if (o.main) { ctx.lineWidth = Math.max(2, s / 50); ctx.beginPath(); ctx.moveTo(a0, side * r); ctx.lineTo(a0 + px(0.04), side * r); ctx.stroke(); ctx.lineWidth = Math.max(1, s / 110); }
+      } else if (o.type === 'slider') {
+        const n = o.panels || 2, pw = (a1 - a0) / n;
+        ctx.lineWidth = Math.max(1.5, s / 70);
+        for (let i = 0; i < n; i++) {
+          const off = (i % 2 ? 1 : -1) * t * 0.18;
+          ctx.beginPath(); ctx.moveTo(a0 + i * pw - (i ? px(0.04) : 0), off); ctx.lineTo(a0 + (i + 1) * pw + (i < n - 1 ? px(0.04) : 0), off); ctx.stroke();
+        }
+        ctx.lineWidth = Math.max(1, s / 110);
+        ctx.beginPath(); ctx.moveTo(a0, -t / 2); ctx.lineTo(a0, t / 2); ctx.moveTo(a1, -t / 2); ctx.lineTo(a1, t / 2); ctx.stroke();
       } else if (o.type === 'passage') {
         ctx.setLineDash([px(0.1), px(0.06)]);
         ctx.beginPath(); ctx.moveTo(a0, -t / 2); ctx.lineTo(a1, -t / 2); ctx.moveTo(a0, t / 2); ctx.lineTo(a1, t / 2); ctx.stroke();
@@ -144,9 +161,20 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.restore();
   }
 
+  // Railings: double thin line
+  for (const rl of level.railings || []) {
+    const dx = rl.b[0] - rl.a[0], dz = rl.b[1] - rl.a[1], len = Math.hypot(dx, dz);
+    const nx = -dz / len * 0.04, nz = dx / len * 0.04;
+    ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, s / 90);
+    ctx.beginPath();
+    ctx.moveTo(X(rl.a[0] + nx), Z(rl.a[1] + nz)); ctx.lineTo(X(rl.b[0] + nx), Z(rl.b[1] + nz));
+    ctx.moveTo(X(rl.a[0] - nx), Z(rl.a[1] - nz)); ctx.lineTo(X(rl.b[0] - nx), Z(rl.b[1] - nz));
+    ctx.stroke();
+  }
+
   // Room labels
   for (const r of level.rooms) {
-    const [cx, cz] = r.labelAt || labelPoint(r, level);
+    const [cx, cz] = r.labelAt || labelPoint(r);
     const area = polygonArea(r.polygon);
     const b = bbox(r.polygon);
     ctx.save();
@@ -175,21 +203,9 @@ export function drawLevel(plan, level, opts = {}) {
   return { canvas, frame, pxPerM: s };
 }
 
-function labelPoint(r, level) {
-  // centroid, nudged out of furniture-heavy zones for a few known rooms
+function labelPoint(r) {
   const c = polygonCentroid(r.polygon);
-  const b = bbox(r.polygon);
-  if (r.id === 'kitchen') return [c[0] + 0.3, 7.0];
-  if (r.id === 'living') return [c[0] + 0.6, 12.4];
-  if (r.id === 'master') return [6.6, 9.4];
-  if (r.id === 'bed2') return [c[0] - 0.4, 4.0];
-  if (r.id === 'walkin') return [5.1, 2.0];
-  if (r.id === 'study') return [c[0] + 0.3, 3.2];
-  if (r.id === 'stair1') return [1.75, 8.6];
-  if (r.id === 'landing') return [2.3, 8.3];
-  if (r.id === 'mbath') return [2.0, 12.3];
-  if (r.id === 'entrance') return [1.35, 12.2];
-  return [Math.max(b.x0 + 0.6, c[0]), c[1]];
+  return pointInPolygon(c, r.polygon) ? c : r.polygon[0].map((v, i) => v + (i ? 0.6 : 0.6));
 }
 
 function sideFor(rooms, w, mx, mz, nx, nz) {
@@ -208,6 +224,14 @@ function drawItem(ctx, f, X, Z, px) {
   ctx.rotate((-(f.rot || 0) * Math.PI) / 180);
   const w = px(f.w), d = px(f.d);
   const k = f.kind;
+  if (f.decor || k === 'heater') { ctx.restore(); return; }
+  if (k === 'uppercab' || k === 'hood' || k === 'linear') { ctx.setLineDash([px(0.06), px(0.04)]); ctx.strokeRect(-w / 2, -d / 2, w, d); ctx.setLineDash([]); ctx.restore(); return; }
+  if (k === 'curtain') { ctx.beginPath(); for (let x = -w / 2; x <= w / 2; x += px(0.02)) { const y = Math.sin((x / px(1)) * 18) * px(0.03); x === -w / 2 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke(); ctx.restore(); return; }
+  if (k === 'roundtable') { ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return; }
+  if (k === 'model' && /Plant/.test(f.model || '')) { ctx.beginPath(); ctx.arc(0, 0, w * 0.45, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, w * 0.2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return; }
+  if (k === 'model' && /Pouf/.test(f.model || '')) { ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return; }
+  if (k === 'model' && /Sofa/.test(f.model || '')) { roundRect(ctx, -w / 2, -d / 2, w, d, px(0.25)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-w / 2 + px(0.2), -d / 2 + px(0.25)); ctx.quadraticCurveTo(0, -d / 2 + px(0.4), w / 2 - px(0.2), -d / 2 + px(0.25)); ctx.stroke(); ctx.restore(); return; }
+  if (k === 'model' && /Chair/.test(f.model || '')) { roundRect(ctx, -w / 2, -d / 2, w, d, px(0.12)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-w / 2 + px(0.05), -d / 2 + px(0.15)); ctx.lineTo(w / 2 - px(0.05), -d / 2 + px(0.15)); ctx.stroke(); ctx.restore(); return; }
   if (k === 'pendant') {
     ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, Math.PI * 2); ctx.moveTo(-w / 2, 0); ctx.lineTo(w / 2, 0); ctx.moveTo(0, -w / 2); ctx.lineTo(0, w / 2);
     ctx.setLineDash([px(0.03), px(0.03)]); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); return;

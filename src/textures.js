@@ -137,6 +137,97 @@ function veins(ctx, n, r, rgba, count) {
   }
 }
 
+// Bump maps for grout lines and plaster (white = high, black = grout)
+function groutCanvas(n, cols, rows, line, r, noise = 0) {
+  const [c, ctx] = canvas(n);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, n, n);
+  if (noise) grain(ctx, n, noise, r || rng(41));
+  ctx.fillStyle = '#000';
+  for (let i = 0; i <= cols; i++) ctx.fillRect((i * n) / cols - line / 2, 0, line, n);
+  for (let j = 0; j <= rows; j++) ctx.fillRect(0, (j * n) / rows - line / 2, n, line);
+  return c;
+}
+const bumpMakers = {
+  marble: () => finish(groutCanvas(1024, 4, 2, 3, rng(1), 6), 2.4),
+  tile: () => finish(groutCanvas(512, 4, 4, 4, rng(2), 8), 1.2),
+  paving: () => finish(groutCanvas(1024, 8, 8, 6, rng(3), 20), 4.8),
+  balcony: () => finish(groutCanvas(512, 2, 2, 5, rng(4), 18), 1.2),
+  plaster: () => {
+    const n = 512, [c, ctx] = canvas(n), r = rng(51);
+    ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, n, n);
+    for (let k = 0; k < 1400; k++) { ctx.fillStyle = `rgba(${r() < 0.5 ? 255 : 0},${r() < 0.5 ? 255 : 0},${r() < 0.5 ? 255 : 0},0.035)`; const s = 6 + r() * 30; ctx.beginPath(); ctx.arc(r() * n, r() * n, s, 0, 7); ctx.fill(); }
+    grain(ctx, n, 18, r);
+    return finish(c, 1.6);
+  },
+};
+
+// Photographic PBR set shipped in assets/textures (three.js example hardwood, 2:1 image)
+let hardwood = null;
+function loadHardwood() {
+  if (hardwood) return hardwood;
+  const L = new THREE.TextureLoader();
+  const mk = (f, srgb) => {
+    const t = L.load(`assets/textures/${f}`);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    t.repeat.set(1 / 2.6, 1 / 1.3);
+    return t;
+  };
+  hardwood = { map: mk('hardwood2_diffuse.jpg', true), bumpMap: mk('hardwood2_bump.jpg'), roughnessMap: mk('hardwood2_roughness.jpg') };
+  return hardwood;
+}
+
+export function texSet(name) {
+  if (name === 'hardwood') return loadHardwood();
+  const map = tex(name);
+  const bump = bumpMakers[name] ? bumpCache(name) : null;
+  return { map, bumpMap: bump, roughnessMap: null };
+}
+const bcache = new Map();
+function bumpCache(name) { if (!bcache.has(name)) bcache.set(name, bumpMakers[name]()); return bcache.get(name); }
+export const bumpTex = bumpCache;
+
+makers.balcony = () => {
+  const n = 512, [c, ctx] = canvas(n), r = rng(61);
+  ctx.fillStyle = '#a9a49b'; ctx.fillRect(0, 0, n, n);
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { const t = 160 + r() * 20; ctx.fillStyle = `rgb(${t},${t - 4},${t - 10})`; ctx.fillRect(i * n / 2 + 3, j * n / 2 + 3, n / 2 - 6, n / 2 - 6); }
+  grain(ctx, n, 16, r);
+  return finish(c, 1.2);
+};
+makers.facade = () => { // 4 bays x 6 floors of a city tower, 12 m x 18 m
+  const W = 512, H = 768, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d'), r = rng(71);
+  ctx.fillStyle = '#b4b6b5'; ctx.fillRect(0, 0, W, H);
+  const bw = W / 4, fh = H / 6;
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 6; j++) {
+    const g = 62 + r() * 40, lit = r() < 0.05;
+    ctx.fillStyle = lit ? `rgb(${170 + r() * 30},${165 + r() * 25},${140})` : `rgb(${g},${g + 14},${g + 26})`;
+    ctx.fillRect(i * bw + bw * 0.12, j * fh + fh * 0.18, bw * 0.76, fh * 0.6);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(i * bw + bw * 0.12, j * fh + fh * 0.18, bw * 0.76, fh * 0.12);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(i * bw, j * fh + fh * 0.84, bw, fh * 0.06);
+  }
+  grain(ctx, W, 10, r);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.repeat.set(1 / 12, 1 / 18);
+  return t;
+};
+
+makers.curtainwall = () => { // glass curtain wall: 1.5 m mullions, 3 m floors
+  const W = 256, H = 256, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d'), r = rng(81);
+  const grd = ctx.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#5d7484'); grd.addColorStop(1, '#3c4d5a');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 4; j++) { ctx.fillStyle = `rgba(255,255,255,${r() * 0.07})`; ctx.fillRect(i * W / 8, j * H / 4, W / 8, H / 4); }
+  ctx.fillStyle = '#9aa3a8';
+  for (let i = 0; i <= 8; i++) ctx.fillRect(i * W / 8 - 1, 0, 2, H);
+  for (let j = 0; j <= 4; j++) ctx.fillRect(0, j * H / 4 - 3, W, 6);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.repeat.set(1 / 12, 1 / 12);
+  return t;
+};
+
 const cache = new Map();
 export function tex(name) {
   if (!makers[name]) return null;

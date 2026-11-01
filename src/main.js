@@ -4,31 +4,84 @@ import { drawLevel, planFrame, worldFromCanvas } from './drawing.js';
 import { createWorld } from './scene.js';
 import { createStory } from './story.js';
 import { createExplore } from './explore.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const PROJECTS = { apartment: 'data/apartment.json', townhouse: 'data/house.json' };
 
 const $ = s => document.querySelector(s);
 const fmt = n => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function boot() {
-  const plan = await loadPlan('data/house.json');
+  const params = new URLSearchParams(location.search);
+  const projectKey = PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
+  const plan = await loadPlan(PROJECTS[projectKey]);
+  document.body.dataset.project = projectKey;
+  document.querySelectorAll('[data-project-link]').forEach(a => a.setAttribute('aria-current', String(a.dataset.projectLink === projectKey)));
+  // quality tier: high (AO + bloom + MSAA), med (no post), lite (no shadows)
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const tier = ['high', 'med', 'lite'].includes(params.get('q')) ? params.get('q') : params.has('lite') ? 'lite' : coarse || (navigator.deviceMemory && navigator.deviceMemory <= 4) ? 'med' : 'high';
   await Promise.all([
     document.fonts.load('700 20px "Noto Sans TC"'), document.fonts.load('500 20px "Noto Sans TC"'),
     document.fonts.load('500 20px "IBM Plex Mono"'), document.fonts.load('600 20px "IBM Plex Mono"'),
   ]).catch(() => {});
 
   const canvas = $('#gl');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  const lite = new URLSearchParams(location.search).has('lite');
-  renderer.setPixelRatio(lite ? 1 : Math.min(devicePixelRatio, 2));
-  renderer.shadowMap.enabled = !lite;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: tier !== 'high', powerPreference: 'high-performance' });
+  const pixelRatio = tier === 'lite' ? 1 : Math.min(devicePixelRatio, tier === 'high' ? 1.75 : 2);
+  renderer.setPixelRatio(pixelRatio);
+  renderer.shadowMap.enabled = tier !== 'lite';
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 0.86;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.06, 600);
-  const world = createWorld(plan, renderer);
-  const story = createStory();
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.06, 3000);
+  const world = await createWorld(plan, renderer, { shadows: tier !== 'lite', shadowSize: tier === 'high' ? 2048 : 1024 });
+  const story = createStory(plan.story);
+  let composer = null, gtao = null;
+  if (tier === 'high') {
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    composer = new EffectComposer(renderer, rt);
+    composer.addPass(new RenderPass(world.scene, camera));
+    gtao = new GTAOPass(world.scene, camera, 1, 1, undefined,
+      { radius: 0.55, distanceExponent: 1.6, thickness: 1.2, scale: 1.25, samples: 16, distanceFallOff: 1, screenSpaceRadius: false },
+      { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+    gtao.blendIntensity = 1.0;
+    composer.addPass(gtao);
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.22, 0.5, 1.6));
+    composer.addPass(new OutputPass());
+  }
+  const fp = bbox(plan.project.footprint);
+  const isInside = p => plan.levels.some(L => p.y > L.elevation && p.y < L.elevation + L.height - 0.2) && p.x > fp.x0 && p.x < fp.x1 && p.z > fp.z0 - 1.5 && p.z < fp.z1 + 1.5;
+
+  // hero + captions from project data
+  {
+    const pr = plan.project;
+    let interior = 0;
+    for (const L of plan.levels) for (const r of L.rooms) if (!r.outdoor) interior += polygonArea(r.polygon);
+    const fb = bbox(pr.footprint);
+    const st = pr.stats || [];
+    const cells = [
+      ['案名 Project', pr.name],
+      st[0] ? [st[0].label, st[0].value] : ['基地 Footprint', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
+      ['室內面積 Interior', `${interior.toFixed(1)} m² · ${toPing(interior).toFixed(1)} 坪`],
+      st[1] ? [st[1].label, st[1].value] : ['基地 Footprint', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
+    ];
+    $('#titleblock').innerHTML = cells.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+    for (const key of ['rise', 'real', 'outro']) {
+      const c = story.captions[key];
+      if (!c) continue;
+      const el = $(`#cap-${key}`);
+      el.querySelector('h2').textContent = c[0];
+      el.querySelector('p').textContent = c[1];
+      el.querySelector('.en').textContent = c[2];
+    }
+  }
   const explore = createExplore(plan, camera, canvas);
 
   const roomsById = {};
@@ -138,13 +191,26 @@ async function boot() {
 
   // ---------------- modes ----------------
   let mode = 'story';
-  let cutaway = '2F';
+  const levelIds = plan.levels.map(L => L.id);
+  let cutaway = String(levelIds.length - 1); // index of highest visible level, or 'x' for exploded
+  {
+    const seg = $('#level-seg');
+    seg.innerHTML = '';
+    if (levelIds.length > 1) {
+      levelIds.forEach((id, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.cut = String(i); b.textContent = levelIds.slice(0, i + 1).join('+'); seg.appendChild(b); });
+      const x = document.createElement('button'); x.type = 'button'; x.dataset.cut = 'x'; x.textContent = '分層展開'; seg.appendChild(x);
+    }
+    const pl = $('#plan-levels');
+    pl.innerHTML = '';
+    for (const L of plan.levels) { const b = document.createElement('button'); b.type = 'button'; b.dataset.level = L.id; b.textContent = `${L.id} ${L.name}`; pl.appendChild(b); }
+    pl.hidden = levelIds.length < 2;
+  }
   let realTarget = 1, realNow = 1;
   const storyScroll = $('#story-scroll');
   storyScroll.style.height = `${story.total * 88 + 100}vh`;
 
   let lenis = null;
-  if (window.Lenis && !reduceMotion) {
+  if (window.Lenis && !reduceMotion && !params.has('nolenis')) {
     lenis = new window.Lenis({ lerp: 0.085, smoothWheel: true });
   }
 
@@ -163,12 +229,12 @@ async function boot() {
       lenis?.stop();
     }
     if (m === 'explore') {
-      world.setLevelVisible('1F', true); world.setRise('1F', 1);
+      for (const id of levelIds) world.setRise(id, 1);
       applyCutaway();
       realTarget = sketchMode ? 0 : 1;
       if (prev === 'story') {
         const stop = story.stopAt(beatNow);
-        const room = stop ? roomsById[stop.room] : roomsById.living;
+        const room = stop ? roomsById[stop.room] : roomsById.living || Object.values(roomsById)[0];
         explore.goToRoom(room, room.level, 0.001);
       }
       setView(explore.mode);
@@ -188,13 +254,13 @@ async function boot() {
 
   function applyCutaway() {
     const walking = explore.mode === 'walk';
-    const show2 = walking || cutaway !== '1F';
-    world.setLevelVisible('2F', show2); world.setRise('2F', 1);
+    const top = walking || cutaway === 'x' ? levelIds.length - 1 : +cutaway;
+    levelIds.forEach((id, i) => world.setLevelVisible(id, i <= top));
     world.setExplode(!walking && cutaway === 'x' ? 1 : 0);
     document.querySelectorAll('#level-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cut === cutaway)));
-    $('#level-seg').hidden = walking;
+    $('#level-seg').hidden = walking || levelIds.length < 2;
   }
-  document.querySelectorAll('#level-seg button').forEach(b => b.addEventListener('click', () => { cutaway = b.dataset.cut; applyCutaway(); }));
+  $('#level-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { cutaway = b.dataset.cut; applyCutaway(); } });
 
   let sketchMode = false;
   $('#sketch-toggle').addEventListener('click', e => {
@@ -228,7 +294,7 @@ async function boot() {
   }
 
   // ---------------- plan view ----------------
-  let planLevel = '1F';
+  let planLevel = levelIds[0];
   let planHover = null;
   const planCanvas = $('#plan-canvas');
   let planGeom = null;
@@ -236,7 +302,7 @@ async function boot() {
     const L = plan.levels.find(l => l.id === planLevel);
     const frame = planFrame(plan, 2.2);
     const box = $('#plan-stage').getBoundingClientRect();
-    const s = Math.max(40, Math.min(box.width / frame.w, box.height / frame.h)) * Math.min(devicePixelRatio, 2);
+    const s = Math.max(12, Math.min(box.width / frame.w, box.height / frame.h)) * Math.min(devicePixelRatio, 2);
     drawLevel(plan, L, { pxPerM: s, frame, paper: true, canvas: planCanvas, highlight: planHover });
     planCanvas.style.width = `${(frame.w * s) / Math.min(devicePixelRatio, 2)}px`;
     planGeom = { frame, s, L };
@@ -260,7 +326,7 @@ async function boot() {
     }
     $('#schedule tfoot').innerHTML = `<tr><td>${L.id} 室內合計</td><td></td><td class="num">${sum.toFixed(1)}</td><td class="num">${toPing(sum).toFixed(1)}</td></tr>`;
   }
-  document.querySelectorAll('#plan-levels button').forEach(b => b.addEventListener('click', () => { planLevel = b.dataset.level; drawPlanView(); }));
+  $('#plan-levels').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { planLevel = b.dataset.level; drawPlanView(); } });
   function roomAtPlan(e) {
     if (!planGeom) return null;
     const rect = planCanvas.getBoundingClientRect();
@@ -283,9 +349,10 @@ async function boot() {
   function resize() {
     const w = innerWidth, h = innerHeight;
     renderer.setSize(w, h, false);
+    if (composer) { composer.setPixelRatio(pixelRatio); composer.setSize(w, h); }
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    story.layout(w / h);
+    story.layout(w / h, world.frame);
     if (mode === 'plan') drawPlanView();
   }
   addEventListener('resize', resize);
@@ -317,10 +384,11 @@ async function boot() {
       const max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
       beatNow = Math.min(1, Math.max(0, window.scrollY / max)) * story.total;
       const ev = story.eventsAt(beatNow);
-      world.setRise('1F', ev.rise1);
-      world.setLevelVisible('1F', true);
-      world.setLevelVisible('2F', ev.rise2 > 0.001);
-      world.setRise('2F', ev.rise2);
+      levelIds.forEach((id, i) => {
+        const t = ev.rise[id] ?? 1;
+        world.setRise(id, t);
+        world.setLevelVisible(id, i === 0 || t > 0.001);
+      });
       world.setReal(ev.real);
       world.setExplode(ev.explode);
       story.cameraAt(beatNow, camera);
@@ -340,7 +408,8 @@ async function boot() {
         spots.querySelectorAll('.spot').forEach(b => b.classList.toggle('on', !!r && b.dataset.room === r.id));
       } else showPlate(null);
     }
-    if (mode !== 'plan') renderer.render(world.scene, camera);
+    world.setInterior(isInside(camera.position));
+    if (mode !== 'plan') { if (composer) composer.render(); else renderer.render(world.scene, camera); }
     requestAnimationFrame(frame);
   }
   document.body.dataset.mode = 'story';

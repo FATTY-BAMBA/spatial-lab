@@ -1,0 +1,1877 @@
+{
+ "schema": "primestride.spatial/plan@0.2",
+ "project": {
+  "id": "demo-xinyi-apartment",
+  "name": "大樓住宅示範案",
+  "nameEn": "City Apartment (demo)",
+  "type": "apartment",
+  "typeLabel": "3房2廳2衛",
+  "note": "Sample project for the demo. Layout, items and prices are illustrative.",
+  "units": "m",
+  "footprint": [
+   [
+    0,
+    0
+   ],
+   [
+    11.4,
+    0
+   ],
+   [
+    11.4,
+    9
+   ],
+   [
+    0,
+    9
+   ]
+  ],
+  "site": {
+   "floor": 9,
+   "floorHeight": 3.0,
+   "towerBox": [
+    -0.6,
+    -3.6,
+    12.0,
+    10.8
+   ],
+   "city": true
+  },
+  "sun": [
+   0.55,
+   0.5,
+   0.67
+  ],
+  "stats": [
+   {
+    "label": "格局 Layout",
+    "value": "3房2廳2衛"
+   },
+   {
+    "label": "樓層 Floor",
+    "value": "9F / 14F"
+   }
+  ]
+ },
+ "levels": [
+  {
+   "id": "9F",
+   "name": "九樓",
+   "nameEn": "Unit floor",
+   "elevation": 0,
+   "height": 2.95,
+   "walls": [
+    {
+     "id": "E0",
+     "a": [
+      0,
+      0
+     ],
+     "b": [
+      11.4,
+      0
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 0.25,
+       "width": 1.0,
+       "sill": 0,
+       "head": 2.15,
+       "main": true
+      },
+      {
+       "type": "window",
+       "offset": 1.8,
+       "width": 1.3,
+       "sill": 1.05,
+       "head": 2.1
+      },
+      {
+       "type": "door",
+       "offset": 3.3,
+       "width": 0.75,
+       "sill": 0,
+       "head": 2.1,
+       "glazed": true
+      },
+      {
+       "type": "window",
+       "offset": 4.55,
+       "width": 0.6,
+       "sill": 1.5,
+       "head": 2.1
+      },
+      {
+       "type": "window",
+       "offset": 6.1,
+       "width": 1.6,
+       "sill": 0.9,
+       "head": 2.2
+      },
+      {
+       "type": "window",
+       "offset": 9.3,
+       "width": 1.4,
+       "sill": 0.9,
+       "head": 2.2
+      }
+     ]
+    },
+    {
+     "id": "E1",
+     "a": [
+      11.4,
+      0
+     ],
+     "b": [
+      11.4,
+      9
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 1.0,
+       "width": 1.2,
+       "sill": 0.9,
+       "head": 2.2
+      },
+      {
+       "type": "window",
+       "offset": 3.75,
+       "width": 0.6,
+       "sill": 1.5,
+       "head": 2.1
+      },
+      {
+       "type": "window",
+       "offset": 6.0,
+       "width": 1.8,
+       "sill": 0.9,
+       "head": 2.2
+      }
+     ]
+    },
+    {
+     "id": "E2",
+     "a": [
+      11.4,
+      9
+     ],
+     "b": [
+      0,
+      9
+     ],
+     "t": 0.2,
+     "ext": true,
+     "openings": [
+      {
+       "type": "window",
+       "offset": 0.5,
+       "width": 2.8,
+       "sill": 0.5,
+       "head": 2.3
+      },
+      {
+       "type": "slider",
+       "offset": 4.2,
+       "width": 6.8,
+       "sill": 0,
+       "head": 2.4,
+       "panels": 4
+      }
+     ]
+    },
+    {
+     "id": "E3",
+     "a": [
+      0,
+      9
+     ],
+     "b": [
+      0,
+      0
+     ],
+     "t": 0.2,
+     "ext": true,
+     "party": true,
+     "openings": []
+    },
+    {
+     "id": "I1",
+     "a": [
+      1.5,
+      0
+     ],
+     "b": [
+      1.5,
+      2.6
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "I2",
+     "a": [
+      1.5,
+      2.6
+     ],
+     "b": [
+      4.1,
+      2.6
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "slider",
+       "offset": 0.3,
+       "width": 1.6,
+       "sill": 0,
+       "head": 2.2,
+       "panels": 2
+      }
+     ]
+    },
+    {
+     "id": "I3",
+     "a": [
+      4.1,
+      0
+     ],
+     "b": [
+      4.1,
+      2.6
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "I4",
+     "a": [
+      4.1,
+      2.6
+     ],
+     "b": [
+      5.6,
+      2.6
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 0.3,
+       "width": 0.75,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "I5",
+     "a": [
+      5.6,
+      0
+     ],
+     "b": [
+      5.6,
+      3.0
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "I6",
+     "a": [
+      5.6,
+      3.0
+     ],
+     "b": [
+      11.4,
+      3.0
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 2.1,
+       "width": 0.8,
+       "sill": 0,
+       "head": 2.1
+      },
+      {
+       "type": "door",
+       "offset": 3.4,
+       "width": 0.8,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "I7",
+     "a": [
+      8.6,
+      0
+     ],
+     "b": [
+      8.6,
+      3.0
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "I8",
+     "a": [
+      7.6,
+      4.1
+     ],
+     "b": [
+      9.8,
+      4.1
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 1.3,
+       "width": 0.8,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "I9",
+     "a": [
+      9.8,
+      3.0
+     ],
+     "b": [
+      9.8,
+      5.2
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "I10",
+     "a": [
+      9.8,
+      5.2
+     ],
+     "b": [
+      11.4,
+      5.2
+     ],
+     "t": 0.12,
+     "openings": [
+      {
+       "type": "door",
+       "offset": 0.35,
+       "width": 0.7,
+       "sill": 0,
+       "head": 2.1
+      }
+     ]
+    },
+    {
+     "id": "I11",
+     "a": [
+      7.6,
+      4.1
+     ],
+     "b": [
+      7.6,
+      9.0
+     ],
+     "t": 0.12,
+     "openings": []
+    },
+    {
+     "id": "B1",
+     "a": [
+      0,
+      9
+     ],
+     "b": [
+      0,
+      10.4
+     ],
+     "t": 0.15,
+     "h": 2.95,
+     "outdoor": true,
+     "openings": []
+    },
+    {
+     "id": "B2",
+     "a": [
+      1.5,
+      0
+     ],
+     "b": [
+      1.5,
+      -1.3
+     ],
+     "t": 0.15,
+     "h": 2.95,
+     "outdoor": true,
+     "openings": []
+    },
+    {
+     "id": "B3",
+     "a": [
+      4.1,
+      0
+     ],
+     "b": [
+      4.1,
+      -1.3
+     ],
+     "t": 0.15,
+     "h": 2.95,
+     "outdoor": true,
+     "openings": []
+    }
+   ],
+   "railings": [
+    {
+     "a": [
+      0,
+      10.4
+     ],
+     "b": [
+      7.6,
+      10.4
+     ],
+     "h": 1.1
+    },
+    {
+     "a": [
+      7.6,
+      10.4
+     ],
+     "b": [
+      7.6,
+      9.0
+     ],
+     "h": 1.1
+    },
+    {
+     "a": [
+      1.5,
+      -1.3
+     ],
+     "b": [
+      4.1,
+      -1.3
+     ],
+     "h": 1.1,
+     "solid": true
+    }
+   ],
+   "rooms": [
+    {
+     "id": "entrance",
+     "name": "玄關",
+     "nameEn": "Entrance",
+     "finish": "floor",
+     "polygon": [
+      [
+       0,
+       0
+      ],
+      [
+       1.5,
+       0
+      ],
+      [
+       1.5,
+       2.6
+      ],
+      [
+       0,
+       2.6
+      ]
+     ],
+     "spot": {
+      "pos": [
+       0.85,
+       2.2
+      ],
+      "look": [
+       3.0,
+       7.5
+      ]
+     },
+     "labelAt": [
+      0.95,
+      1.95
+     ]
+    },
+    {
+     "id": "kitchen",
+     "name": "廚房",
+     "nameEn": "Kitchen",
+     "finish": "floor",
+     "polygon": [
+      [
+       1.5,
+       0
+      ],
+      [
+       4.1,
+       0
+      ],
+      [
+       4.1,
+       2.6
+      ],
+      [
+       1.5,
+       2.6
+      ]
+     ],
+     "spot": {
+      "pos": [
+       2.6,
+       2.3
+      ],
+      "look": [
+       3.6,
+       0.6
+      ]
+     },
+     "labelAt": [
+      2.75,
+      2.2
+     ]
+    },
+    {
+     "id": "bath",
+     "name": "衛浴",
+     "nameEn": "Bathroom",
+     "finish": "tile",
+     "wet": true,
+     "polygon": [
+      [
+       4.1,
+       0
+      ],
+      [
+       5.6,
+       0
+      ],
+      [
+       5.6,
+       2.6
+      ],
+      [
+       4.1,
+       2.6
+      ]
+     ],
+     "spot": {
+      "pos": [
+       4.85,
+       2.3
+      ],
+      "look": [
+       4.85,
+       0.3
+      ]
+     },
+     "labelAt": [
+      4.85,
+      0.95
+     ]
+    },
+    {
+     "id": "dining",
+     "name": "餐廳",
+     "nameEn": "Dining",
+     "finish": "floor",
+     "cove": true,
+     "polygon": [
+      [
+       0,
+       2.6
+      ],
+      [
+       5.6,
+       2.6
+      ],
+      [
+       5.6,
+       5.0
+      ],
+      [
+       0,
+       5.0
+      ]
+     ],
+     "spot": {
+      "pos": [
+       5.2,
+       4.7
+      ],
+      "look": [
+       1.0,
+       3.2
+      ]
+     },
+     "labelAt": [
+      4.75,
+      3.45
+     ]
+    },
+    {
+     "id": "living",
+     "name": "客廳",
+     "nameEn": "Living",
+     "finish": "floor",
+     "cove": true,
+     "polygon": [
+      [
+       0,
+       5.0
+      ],
+      [
+       5.6,
+       5.0
+      ],
+      [
+       5.6,
+       4.1
+      ],
+      [
+       7.6,
+       4.1
+      ],
+      [
+       7.6,
+       9.0
+      ],
+      [
+       0,
+       9.0
+      ]
+     ],
+     "spot": {
+      "pos": [
+       6.9,
+       4.6
+      ],
+      "look": [
+       1.0,
+       7.8
+      ]
+     },
+     "labelAt": [
+      6.55,
+      6.2
+     ]
+    },
+    {
+     "id": "hall",
+     "name": "走道",
+     "nameEn": "Hall",
+     "finish": "floor",
+     "circulation": true,
+     "polygon": [
+      [
+       5.6,
+       3.0
+      ],
+      [
+       9.8,
+       3.0
+      ],
+      [
+       9.8,
+       4.1
+      ],
+      [
+       5.6,
+       4.1
+      ]
+     ],
+     "spot": {
+      "pos": [
+       6.0,
+       3.55
+      ],
+      "look": [
+       9.6,
+       3.55
+      ]
+     },
+     "labelAt": [
+      7.0,
+      3.62
+     ]
+    },
+    {
+     "id": "bed2",
+     "name": "次臥",
+     "nameEn": "Bedroom",
+     "finish": "floor",
+     "polygon": [
+      [
+       5.6,
+       0
+      ],
+      [
+       8.6,
+       0
+      ],
+      [
+       8.6,
+       3.0
+      ],
+      [
+       5.6,
+       3.0
+      ]
+     ],
+     "spot": {
+      "pos": [
+       8.1,
+       2.6
+      ],
+      "look": [
+       6.0,
+       0.6
+      ]
+     },
+     "labelAt": [
+      7.2,
+      2.62
+     ]
+    },
+    {
+     "id": "study",
+     "name": "書房",
+     "nameEn": "Study",
+     "finish": "floor",
+     "polygon": [
+      [
+       8.6,
+       0
+      ],
+      [
+       11.4,
+       0
+      ],
+      [
+       11.4,
+       3.0
+      ],
+      [
+       8.6,
+       3.0
+      ]
+     ],
+     "spot": {
+      "pos": [
+       9.4,
+       2.6
+      ],
+      "look": [
+       10.6,
+       0.4
+      ]
+     },
+     "labelAt": [
+      10.25,
+      1.95
+     ]
+    },
+    {
+     "id": "master",
+     "name": "主臥",
+     "nameEn": "Master Bedroom",
+     "finish": "floor",
+     "polygon": [
+      [
+       7.6,
+       4.1
+      ],
+      [
+       9.8,
+       4.1
+      ],
+      [
+       9.8,
+       5.2
+      ],
+      [
+       11.4,
+       5.2
+      ],
+      [
+       11.4,
+       9.0
+      ],
+      [
+       7.6,
+       9.0
+      ]
+     ],
+     "spot": {
+      "pos": [
+       10.9,
+       8.5
+      ],
+      "look": [
+       8.0,
+       5.8
+      ]
+     },
+     "labelAt": [
+      10.45,
+      6.7
+     ]
+    },
+    {
+     "id": "mbath",
+     "name": "主浴",
+     "nameEn": "Master Bath",
+     "finish": "tile",
+     "wet": true,
+     "polygon": [
+      [
+       9.8,
+       3.0
+      ],
+      [
+       11.4,
+       3.0
+      ],
+      [
+       11.4,
+       5.2
+      ],
+      [
+       9.8,
+       5.2
+      ]
+     ],
+     "spot": {
+      "pos": [
+       10.5,
+       4.9
+      ],
+      "look": [
+       10.6,
+       3.2
+      ]
+     },
+     "labelAt": [
+      10.2,
+      3.95
+     ]
+    },
+    {
+     "id": "balcony",
+     "name": "前陽台",
+     "nameEn": "Balcony",
+     "finish": "balcony",
+     "outdoor": true,
+     "polygon": [
+      [
+       0,
+       9.0
+      ],
+      [
+       7.6,
+       9.0
+      ],
+      [
+       7.6,
+       10.4
+      ],
+      [
+       0,
+       10.4
+      ]
+     ],
+     "spot": {
+      "pos": [
+       3.8,
+       9.5
+      ],
+      "look": [
+       7.0,
+       16.0
+      ]
+     },
+     "labelAt": [
+      3.1,
+      9.8
+     ]
+    },
+    {
+     "id": "service",
+     "name": "後陽台",
+     "nameEn": "Service Balcony",
+     "finish": "balcony",
+     "outdoor": true,
+     "polygon": [
+      [
+       1.5,
+       -1.3
+      ],
+      [
+       4.1,
+       -1.3
+      ],
+      [
+       4.1,
+       0
+      ],
+      [
+       1.5,
+       0
+      ]
+     ],
+     "spot": {
+      "pos": [
+       2.8,
+       -0.3
+      ],
+      "look": [
+       2.8,
+       -1.3
+      ]
+     },
+     "labelAt": [
+      3.25,
+      -0.75
+     ]
+    }
+   ],
+   "furniture": [
+    {
+     "kind": "tallcab",
+     "x": 0.3,
+     "z": 1.35,
+     "w": 1.9,
+     "d": 0.4,
+     "rot": 90,
+     "h": 2.4,
+     "name": "玄關櫃",
+     "nameEn": "Entry cabinet",
+     "price": 42000,
+     "cabinet": true
+    },
+    {
+     "kind": "counter",
+     "x": 2.4,
+     "z": 0.4,
+     "w": 1.65,
+     "d": 0.6,
+     "rot": 0,
+     "name": "廚具・水槽段",
+     "nameEn": "Sink run",
+     "counter": true,
+     "cabinet": true,
+     "sink": true
+    },
+    {
+     "kind": "counter",
+     "x": 3.77,
+     "z": 1.68,
+     "w": 1.65,
+     "d": 0.6,
+     "rot": -90,
+     "name": "廚具・爐台段",
+     "nameEn": "Hob run",
+     "counter": true,
+     "cabinet": true,
+     "hob": true
+    },
+    {
+     "kind": "uppercab",
+     "x": 3.9,
+     "z": 1.68,
+     "w": 1.65,
+     "d": 0.35,
+     "rot": -90,
+     "name": "吊櫃",
+     "nameEn": "Upper cabinets",
+     "cabinet": true
+    },
+    {
+     "kind": "hood",
+     "x": 3.85,
+     "z": 1.9,
+     "w": 0.75,
+     "d": 0.5,
+     "rot": -90,
+     "name": "排油煙機",
+     "nameEn": "Range hood",
+     "price": 18000
+    },
+    {
+     "kind": "fridge",
+     "x": 1.92,
+     "z": 1.45,
+     "w": 0.75,
+     "d": 0.7,
+     "rot": 90,
+     "name": "冰箱",
+     "nameEn": "Refrigerator",
+     "price": 52000
+    },
+    {
+     "kind": "toilet",
+     "x": 4.4,
+     "z": 0.45,
+     "w": 0.4,
+     "d": 0.65,
+     "rot": 90,
+     "name": "馬桶",
+     "nameEn": "Toilet",
+     "price": 15000
+    },
+    {
+     "kind": "vanity",
+     "x": 5.3,
+     "z": 0.55,
+     "w": 0.8,
+     "d": 0.45,
+     "rot": -90,
+     "name": "浴櫃",
+     "nameEn": "Vanity",
+     "price": 16000
+    },
+    {
+     "kind": "shower",
+     "x": 4.85,
+     "z": 1.75,
+     "w": 1.4,
+     "d": 0.9,
+     "rot": 0,
+     "name": "淋浴拉門",
+     "nameEn": "Shower screen",
+     "price": 14000
+    },
+    {
+     "kind": "sideboard",
+     "x": 0.33,
+     "z": 3.8,
+     "w": 1.6,
+     "d": 0.45,
+     "rot": 90,
+     "name": "餐邊櫃",
+     "nameEn": "Sideboard",
+     "price": 28000
+    },
+    {
+     "kind": "table",
+     "x": 2.9,
+     "z": 3.8,
+     "w": 1.8,
+     "d": 0.9,
+     "rot": 0,
+     "name": "餐桌",
+     "nameEn": "Dining table",
+     "price": 38000
+    },
+    {
+     "kind": "chair",
+     "x": 2.3,
+     "z": 3.1,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 0,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 3.5,
+     "z": 3.1,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 0,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 2.3,
+     "z": 4.5,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 180,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "chair",
+     "x": 3.5,
+     "z": 4.5,
+     "w": 0.46,
+     "d": 0.5,
+     "rot": 180,
+     "name": "餐椅",
+     "nameEn": "Dining chair",
+     "price": 6800
+    },
+    {
+     "kind": "linear",
+     "x": 2.9,
+     "z": 3.8,
+     "w": 1.2,
+     "d": 0.1,
+     "rot": 0,
+     "name": "餐桌吊燈",
+     "nameEn": "Linear pendant",
+     "price": 12800
+    },
+    {
+     "kind": "model",
+     "model": "GlassVaseFlowers",
+     "x": 2.9,
+     "z": 3.8,
+     "y": 0.76,
+     "w": 0.22,
+     "d": 0.14,
+     "rot": 0,
+     "decor": true,
+     "name": "花器",
+     "nameEn": "Vase",
+     "price": 1800
+    },
+    {
+     "kind": "tvwall",
+     "x": 0.14,
+     "z": 7.0,
+     "w": 3.6,
+     "d": 0.08,
+     "rot": 90,
+     "name": "電視主牆",
+     "nameEn": "TV feature wall",
+     "price": 45000
+    },
+    {
+     "kind": "tvconsole",
+     "x": 0.4,
+     "z": 7.0,
+     "w": 2.8,
+     "d": 0.42,
+     "rot": 90,
+     "name": "電視櫃",
+     "nameEn": "TV console",
+     "price": 26000,
+     "noTv": true
+    },
+    {
+     "kind": "rug",
+     "x": 3.3,
+     "z": 7.0,
+     "w": 2.6,
+     "d": 3.0,
+     "rot": 0,
+     "name": "地毯",
+     "nameEn": "Rug",
+     "price": 9800
+    },
+    {
+     "kind": "model",
+     "model": "GlamVelvetSofa",
+     "x": 4.55,
+     "z": 7.0,
+     "w": 2.19,
+     "d": 1.02,
+     "rot": -90,
+     "name": "絲絨弧形沙發",
+     "nameEn": "Velvet sofa",
+     "price": 72000
+    },
+    {
+     "kind": "roundtable",
+     "x": 2.95,
+     "z": 7.0,
+     "w": 0.9,
+     "d": 0.9,
+     "rot": 0,
+     "name": "大理石茶几",
+     "nameEn": "Marble coffee table",
+     "price": 16000
+    },
+    {
+     "kind": "model",
+     "model": "SheenChair",
+     "x": 2.6,
+     "z": 5.45,
+     "w": 0.83,
+     "d": 0.57,
+     "rot": 155,
+     "name": "單椅",
+     "nameEn": "Lounge chair",
+     "price": 18800
+    },
+    {
+     "kind": "model",
+     "model": "SpecularSilkPouf",
+     "x": 3.0,
+     "z": 8.35,
+     "w": 0.61,
+     "d": 0.61,
+     "rot": 0,
+     "name": "坐墩",
+     "nameEn": "Pouf",
+     "price": 5200
+    },
+    {
+     "kind": "model",
+     "model": "DiffuseTransmissionPlant",
+     "x": 7.05,
+     "z": 8.45,
+     "w": 0.7,
+     "d": 0.66,
+     "rot": 0,
+     "scale": 1.5,
+     "name": "植栽",
+     "nameEn": "Plant",
+     "price": 3200
+    },
+    {
+     "kind": "curtain",
+     "x": 0.75,
+     "z": 8.78,
+     "w": 1.1,
+     "d": 0.18,
+     "rot": 0,
+     "name": "窗簾",
+     "nameEn": "Curtain",
+     "price": 9000
+    },
+    {
+     "kind": "curtain",
+     "x": 7.0,
+     "z": 8.78,
+     "w": 0.9,
+     "d": 0.18,
+     "rot": 0,
+     "name": "窗簾",
+     "nameEn": "Curtain",
+     "price": 9000
+    },
+    {
+     "kind": "bed",
+     "x": 8.66,
+     "z": 6.6,
+     "w": 1.8,
+     "d": 2.1,
+     "rot": 90,
+     "name": "雙人床",
+     "nameEn": "Queen bed",
+     "price": 45000,
+     "noHead": true
+    },
+    {
+     "kind": "nightstand",
+     "x": 7.88,
+     "z": 5.4,
+     "w": 0.45,
+     "d": 0.42,
+     "rot": 90,
+     "name": "床頭櫃",
+     "nameEn": "Nightstand",
+     "price": 6500
+    },
+    {
+     "kind": "nightstand",
+     "x": 7.88,
+     "z": 7.8,
+     "w": 0.45,
+     "d": 0.42,
+     "rot": 90,
+     "name": "床頭櫃",
+     "nameEn": "Nightstand",
+     "price": 6500
+    },
+    {
+     "kind": "headboard",
+     "x": 7.7,
+     "z": 6.6,
+     "w": 3.0,
+     "d": 0.08,
+     "rot": 90,
+     "name": "床頭板",
+     "nameEn": "Headboard panel",
+     "price": 22000
+    },
+    {
+     "kind": "wardrobe",
+     "x": 8.25,
+     "z": 4.46,
+     "w": 1.1,
+     "d": 0.6,
+     "rot": 0,
+     "h": 2.4,
+     "name": "系統衣櫃",
+     "nameEn": "Wardrobe",
+     "price": 32000
+    },
+    {
+     "kind": "model",
+     "model": "DiffuseTransmissionPlant",
+     "x": 11.0,
+     "z": 8.55,
+     "w": 0.7,
+     "d": 0.66,
+     "rot": 0,
+     "scale": 1.1,
+     "name": "植栽",
+     "nameEn": "Plant",
+     "price": 3200
+    },
+    {
+     "kind": "curtain",
+     "x": 9.5,
+     "z": 8.78,
+     "w": 3.2,
+     "d": 0.18,
+     "rot": 0,
+     "sheer": true,
+     "name": "紗簾",
+     "nameEn": "Sheer curtain",
+     "price": 12000
+    },
+    {
+     "kind": "toilet",
+     "x": 11.05,
+     "z": 3.4,
+     "w": 0.4,
+     "d": 0.65,
+     "rot": -90,
+     "name": "馬桶",
+     "nameEn": "Toilet",
+     "price": 15000
+    },
+    {
+     "kind": "vanity",
+     "x": 10.2,
+     "z": 3.3,
+     "w": 0.8,
+     "d": 0.45,
+     "rot": 0,
+     "name": "浴櫃",
+     "nameEn": "Vanity",
+     "price": 18000
+    },
+    {
+     "kind": "shower",
+     "x": 10.65,
+     "z": 4.55,
+     "w": 1.4,
+     "d": 1.0,
+     "rot": 180,
+     "name": "淋浴拉門",
+     "nameEn": "Shower screen",
+     "price": 14000
+    },
+    {
+     "kind": "bed",
+     "x": 6.66,
+     "z": 1.45,
+     "w": 1.5,
+     "d": 2.0,
+     "rot": 90,
+     "name": "雙人床",
+     "nameEn": "Double bed",
+     "price": 32000
+    },
+    {
+     "kind": "wardrobe",
+     "x": 8.25,
+     "z": 1.0,
+     "w": 1.8,
+     "d": 0.6,
+     "rot": -90,
+     "h": 2.4,
+     "name": "系統衣櫃",
+     "nameEn": "Wardrobe",
+     "price": 48000
+    },
+    {
+     "kind": "desk",
+     "x": 10.0,
+     "z": 0.45,
+     "w": 1.4,
+     "d": 0.65,
+     "rot": 0,
+     "name": "書桌",
+     "nameEn": "Desk",
+     "price": 16000
+    },
+    {
+     "kind": "chair",
+     "x": 10.0,
+     "z": 1.15,
+     "w": 0.48,
+     "d": 0.5,
+     "rot": 180,
+     "name": "書桌椅",
+     "nameEn": "Desk chair",
+     "price": 9800
+    },
+    {
+     "kind": "shelf",
+     "x": 8.85,
+     "z": 1.1,
+     "w": 1.8,
+     "d": 0.34,
+     "rot": 90,
+     "h": 2.2,
+     "name": "書櫃",
+     "nameEn": "Bookcase",
+     "price": 22000
+    },
+    {
+     "kind": "model",
+     "model": "DiffuseTransmissionPlant",
+     "x": 0.5,
+     "z": 9.9,
+     "w": 0.7,
+     "d": 0.66,
+     "rot": 40,
+     "scale": 1.3,
+     "name": "植栽",
+     "nameEn": "Plant",
+     "price": 3200
+    },
+    {
+     "kind": "model",
+     "model": "SheenChair",
+     "x": 5.6,
+     "z": 9.75,
+     "w": 0.83,
+     "d": 0.57,
+     "rot": 200,
+     "name": "陽台單椅",
+     "nameEn": "Balcony chair",
+     "price": 18800
+    },
+    {
+     "kind": "washer",
+     "x": 2.0,
+     "z": -0.65,
+     "w": 0.6,
+     "d": 0.6,
+     "rot": 0,
+     "name": "洗衣機",
+     "nameEn": "Washer",
+     "price": 24000
+    },
+    {
+     "kind": "heater",
+     "x": 3.7,
+     "z": -0.25,
+     "w": 0.4,
+     "d": 0.25,
+     "rot": 180,
+     "name": "熱水器",
+     "nameEn": "Water heater",
+     "price": 15000
+    }
+   ]
+  }
+ ],
+ "stairs": [],
+ "finishes": [
+  {
+   "id": "floor",
+   "name": "地坪",
+   "nameEn": "Flooring",
+   "unit": "坪",
+   "basis": "floorArea",
+   "options": [
+    {
+     "id": "oak",
+     "name": "海島型木地板・橡木",
+     "nameEn": "Engineered oak",
+     "tex": "hardwood",
+     "color": "#b8875a",
+     "rough": 0.55,
+     "price": 4800
+    },
+    {
+     "id": "marble",
+     "name": "大理石紋磁磚 60×120",
+     "nameEn": "Marble-look tile",
+     "tex": "marble",
+     "color": "#e9e5dd",
+     "rough": 0.2,
+     "price": 5600
+    },
+    {
+     "id": "terrazzo",
+     "name": "磨石子",
+     "nameEn": "Terrazzo",
+     "tex": "terrazzo",
+     "color": "#d8d2c6",
+     "rough": 0.45,
+     "price": 7800
+    }
+   ]
+  },
+  {
+   "id": "counter",
+   "name": "檯面",
+   "nameEn": "Countertop",
+   "unit": "m",
+   "basis": "counterLength",
+   "options": [
+    {
+     "id": "quartz",
+     "name": "石英石・雪白",
+     "nameEn": "Quartz, snow",
+     "tex": "quartz",
+     "color": "#f1efea",
+     "rough": 0.28,
+     "price": 16000
+    },
+    {
+     "id": "granite",
+     "name": "黑色花崗岩",
+     "nameEn": "Black granite",
+     "tex": "granite",
+     "color": "#2c2b2a",
+     "rough": 0.3,
+     "price": 12000
+    },
+    {
+     "id": "steel",
+     "name": "髮絲紋不鏽鋼",
+     "nameEn": "Brushed steel",
+     "tex": "steel",
+     "color": "#b9bcbd",
+     "rough": 0.35,
+     "metal": 0.85,
+     "price": 20000
+    }
+   ]
+  },
+  {
+   "id": "cabinet",
+   "name": "櫥櫃門板",
+   "nameEn": "Cabinet doors",
+   "unit": "m",
+   "basis": "cabinetLength",
+   "options": [
+    {
+     "id": "walnut",
+     "name": "胡桃木紋",
+     "nameEn": "Walnut veneer",
+     "tex": "walnut",
+     "color": "#6b4a33",
+     "rough": 0.55,
+     "price": 9500
+    },
+    {
+     "id": "white",
+     "name": "霧面白",
+     "nameEn": "Matte white",
+     "color": "#ecebe6",
+     "rough": 0.7,
+     "price": 8000
+    },
+    {
+     "id": "green",
+     "name": "墨綠烤漆",
+     "nameEn": "Forest green lacquer",
+     "color": "#2f4a3e",
+     "rough": 0.4,
+     "price": 11000
+    }
+   ]
+  },
+  {
+   "id": "paint",
+   "name": "牆面塗料",
+   "nameEn": "Wall paint",
+   "unit": "坪",
+   "basis": "wallArea",
+   "options": [
+    {
+     "id": "warm",
+     "name": "暖白",
+     "nameEn": "Warm white",
+     "color": "#eeede8",
+     "rough": 0.9,
+     "price": 780
+    },
+    {
+     "id": "greige",
+     "name": "燕麥灰",
+     "nameEn": "Greige",
+     "color": "#d6cfc3",
+     "rough": 0.9,
+     "price": 820
+    },
+    {
+     "id": "sage",
+     "name": "鼠尾草綠",
+     "nameEn": "Sage",
+     "color": "#c3c9b6",
+     "rough": 0.9,
+     "price": 860
+    }
+   ]
+  }
+ ],
+ "defaultFinishes": {
+  "floor": "oak",
+  "counter": "quartz",
+  "cabinet": "walnut",
+  "paint": "warm"
+ },
+ "story": {
+  "nodes": [
+   {
+    "id": "plan",
+    "pos": [
+     5.7,
+     60,
+     5.6
+    ],
+    "look": [
+     5.7,
+     0,
+     5
+    ],
+    "fov": 13,
+    "hold": 1.1
+   },
+   {
+    "id": "aerial",
+    "pos": [
+     24,
+     19,
+     26
+    ],
+    "look": [
+     5.4,
+     0.4,
+     4.6
+    ],
+    "fov": 34,
+    "travel": 1.7,
+    "hold": 1.5
+   },
+   {
+    "pos": [
+     0.75,
+     1.65,
+     -3.2
+    ],
+    "look": [
+     0.75,
+     1.5,
+     2.0
+    ],
+    "fov": 58,
+    "travel": 1.0
+   },
+   {
+    "id": "entrance",
+    "room": "entrance",
+    "pos": [
+     0.85,
+     1.6,
+     3.05
+    ],
+    "look": [
+     6.3,
+     1.15,
+     6.9
+    ],
+    "fov": 64,
+    "travel": 0.6,
+    "hold": 0.8
+   },
+   {
+    "pos": [
+     1.15,
+     1.6,
+     3.3
+    ],
+    "look": [
+     6.0,
+     1.3,
+     6.4
+    ],
+    "travel": 0.5
+   },
+   {
+    "id": "living",
+    "room": "living",
+    "pos": [
+     6.9,
+     1.55,
+     4.55
+    ],
+    "look": [
+     1.0,
+     1.05,
+     7.9
+    ],
+    "travel": 0.9,
+    "hold": 0.9
+   },
+   {
+    "pos": [
+     5.6,
+     1.6,
+     7.9
+    ],
+    "look": [
+     3.6,
+     1.3,
+     13
+    ],
+    "travel": 0.6
+   },
+   {
+    "id": "view",
+    "room": "balcony",
+    "pos": [
+     3.6,
+     1.6,
+     9.75
+    ],
+    "look": [
+     5.4,
+     0.6,
+     22
+    ],
+    "travel": 0.7,
+    "hold": 0.9
+   },
+   {
+    "id": "dining",
+    "room": "dining",
+    "pos": [
+     5.3,
+     1.6,
+     8.2
+    ],
+    "look": [
+     1.6,
+     1.0,
+     2.6
+    ],
+    "travel": 0.8,
+    "hold": 0.8
+   },
+   {
+    "pos": [
+     6.4,
+     1.6,
+     3.55
+    ],
+    "look": [
+     9.6,
+     1.5,
+     3.55
+    ],
+    "travel": 0.6
+   },
+   {
+    "pos": [
+     9.3,
+     1.6,
+     3.55
+    ],
+    "look": [
+     9.3,
+     1.5,
+     6.5
+    ],
+    "travel": 0.45
+   },
+   {
+    "pos": [
+     9.3,
+     1.6,
+     4.7
+    ],
+    "look": [
+     10.2,
+     1.3,
+     7.5
+    ],
+    "travel": 0.3
+   },
+   {
+    "id": "master",
+    "room": "master",
+    "pos": [
+     10.9,
+     1.6,
+     8.5
+    ],
+    "look": [
+     8.0,
+     1.0,
+     5.7
+    ],
+    "travel": 0.6,
+    "hold": 0.9
+   },
+   {
+    "id": "outro",
+    "pos": [
+     25,
+     15,
+     22
+    ],
+    "look": [
+     5.4,
+     0.3,
+     4.3
+    ],
+    "fov": 36,
+    "travel": 1.6,
+    "hold": 1.4
+   }
+  ],
+  "rise": {
+   "9F": [
+    "plan",
+    "aerial"
+   ]
+  },
+  "real": "aerial",
+  "captions": {
+   "rise": [
+    "牆體從圖面直接長出來",
+    "牆厚、門窗開口、陽台欄杆，全部讀自同一份平面資料，不需要重新建模。",
+    "Walls rise straight from the drawing — every dimension comes from the plan data."
+   ],
+   "real": [
+    "套上材質、光線與家具",
+    "每一項材質和家具都是清單上的一行，換材質，總價跟著更新。",
+    "Finishes, light and furniture — each one is a line on the quote."
+   ],
+   "outro": [
+    "一份資料，從圖面到報價",
+    "平面圖、3D 空間、材質與報價都來自同一個來源。換你走走看。",
+    "One dataset, from drawing to quote. Walk it yourself."
+   ]
+  }
+ }
+}

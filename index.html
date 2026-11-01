@@ -79,6 +79,12 @@ body[data-phase]:not([data-phase="hero"]) .hero { opacity: 0; transform: transla
 .titleblock div:nth-last-child(-n+2) { border-bottom: 0; }
 .titleblock span { display: block; color: var(--graphite); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; }
 .titleblock b { font-weight: 600; font-size: 12px; font-variant-numeric: tabular-nums; }
+.projects { margin-top: 14px; display: flex; align-items: center; gap: 6px; font-size: 13px; flex-wrap: wrap; }
+.projects span { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--graphite); margin-right: 4px; }
+.projects a { color: var(--ink); text-decoration: none; border: 1px solid var(--rule); padding: 4px 10px; border-radius: 999px; background: var(--paper-2); }
+.projects a[aria-current="true"] { background: var(--ink); color: var(--paper-2); border-color: var(--ink); }
+.credits { position: fixed; z-index: 4; right: var(--gutter-r); left: var(--gutter-l); text-align: right; bottom: calc(var(--bottom) + 6px); margin: 0; font-size: 10px; color: var(--graphite); font-family: var(--mono); opacity: .8; pointer-events: none; }
+body:not([data-mode="story"]) .credits { display: none; }
 .scroll-hint { margin-top: 18px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--graphite); display: flex; align-items: center; gap: 8px; }
 .scroll-hint::before { content: ""; width: 1px; height: 26px; background: var(--ink); animation: drip 1.8s ease-in-out infinite; transform-origin: top; }
 @keyframes drip { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
@@ -231,6 +237,7 @@ body.ready .loading { opacity: 0; pointer-events: none; }
   .brand span { display: none; }
   .brand b { font-size: 14px; white-space: nowrap; }
   .scroll-hint { display: none; }
+  .credits { font-size: 9px; }
   .tabs button small { display: none; }
   .tabs button { padding: 6px 11px; }
   #rail { display: none; }
@@ -270,17 +277,13 @@ body.ready .loading { opacity: 0; pointer-events: none; }
 <section class="hero story-only">
   <h1>每一個家，<br>都從一張<em>平面圖</em><br>開始。</h1>
   <p>同一份平面資料，直接長成可以走進去的空間，每一個材質選擇都連到報價清單。</p>
-  <div class="titleblock" aria-label="案件資料">
-    <div><span>案名 Project</span><b>板橋透天示範案</b></div>
-    <div><span>樓層 Levels</span><b>1F / 2F</b></div>
-    <div><span>基地 Footprint</span><b>8.00 × 14.00 m</b></div>
-    <div><span>總樓地板 Gross</span><b>224.0 m² · 67.8 坪</b></div>
-  </div>
+  <div class="titleblock" id="titleblock" aria-label="案件資料"></div>
+  <div class="projects" aria-label="示範案"><span>示範案</span><a href="?p=apartment" data-project-link="apartment">大樓 3房2廳</a><a href="?p=townhouse" data-project-link="townhouse">透天 2F</a></div>
   <div class="scroll-hint">向下捲動 · Scroll to build</div>
 </section>
 <div class="caption story-only" id="cap-rise"><h2>牆體從圖面直接長出來</h2><p>牆厚、門窗開口、樓梯，全部讀自同一份平面資料，不需要重新建模。</p><span class="en">Walls rise straight from the drawing — every dimension comes from the plan data.</span></div>
 <div class="caption story-only" id="cap-real"><h2>套上材質、光線與家具</h2><p>每一項材質和家具都是清單上的一行，換材質，總價跟著更新。</p><span class="en">Finishes, light and furniture — each one is a line on the quote.</span></div>
-<div class="caption story-only" id="cap-outro"><h2>兩層樓，一份資料</h2><p>平面圖、3D 模型、材質與報價都來自同一個來源。換你走走看。</p><button type="button" class="cta" id="cta-explore">進入探索模式 <span>EXPLORE →</span></button></div>
+<div class="caption story-only" id="cap-outro"><h2>一份資料，從圖面到報價</h2><p>平面圖、3D 空間、材質與報價都來自同一個來源。換你走走看。</p><span class="en"></span><button type="button" class="cta" id="cta-explore">進入探索模式 <span>EXPLORE →</span></button></div>
 <nav id="rail" class="story-only" aria-label="導覽停靠點"><i id="progress"></i></nav>
 <div id="story-scroll" aria-hidden="true"></div>
 
@@ -335,10 +338,11 @@ body.ready .loading { opacity: 0; pointer-events: none; }
   </div>
 </section>
 
+<p class="credits">家具模型：Khronos glTF Sample Assets（Eric Chadwick 等，CC BY 4.0 / CC0）· HDRI：Poly Haven（CC0）</p>
 <div id="boot-error" hidden><b>無法載入模型。</b> <code></code></div>
 
 <script src="vendor/lenis.min.js"></script>
-<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/three-addons/" } }</script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
