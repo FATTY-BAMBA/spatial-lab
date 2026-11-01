@@ -4,6 +4,7 @@ import { drawLevel, planFrame, worldFromCanvas } from './drawing.js';
 import { createWorld } from './scene.js';
 import { createStory } from './story.js';
 import { createExplore } from './explore.js';
+import { setupClickWalk, setupMinimap, setupTime, setupCompare } from './features.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
@@ -41,7 +42,7 @@ async function boot() {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const camera = new THREE.PerspectiveCamera(40, 1, 0.06, 3000);
-  const world = await createWorld(plan, renderer, { shadows: tier !== 'lite', shadowSize: tier === 'high' ? 2048 : 1024 });
+  const world = await createWorld(plan, renderer, { shadows: tier !== 'lite', shadowSize: tier === 'high' ? 2048 : 1024, onExposure: v => { renderer.toneMappingExposure = 0.86 * v; } });
   const story = createStory(plan.story);
   let composer = null, gtao = null;
   if (tier === 'high') {
@@ -98,7 +99,8 @@ async function boot() {
     for (const g of plan.finishes) {
       const row = document.createElement('fieldset');
       row.className = 'finish';
-      row.innerHTML = `<legend><span>${g.name}</span><small>${g.nameEn}</small></legend>`;
+      row.innerHTML = `<legend><span>${g.name}</span><small>${g.nameEn}</small><button type="button" class="cmp-btn" data-group="${g.id}">A/B 對比</button></legend>`;
+      row.querySelector('.cmp-btn').addEventListener('click', () => compare.open(g.id));
       const opts = document.createElement('div');
       opts.className = 'swatches';
       for (const o of g.options) {
@@ -189,6 +191,27 @@ async function boot() {
     spots.appendChild(g);
   }
 
+  // ---------------- sprint 2 features ----------------
+  const clickWalk = setupClickWalk({ world, camera, explore, canvas, getMode: () => mode, setView: v => setView(v) });
+  const minimap = setupMinimap({ plan, explore, camera, getMode: () => mode });
+  const tod = setupTime({ world, plan });
+  const compare = setupCompare({
+    plan, world, chosen, renderer,
+    goToFocus: g => {
+      const room = roomsById[g.focus] || roomsById.living;
+      if (mode !== 'explore') setMode('explore');
+      setView('walk');
+      if (room) explore.goToRoom(room, room.level, 1.2);
+    },
+    onAdopt: (gid, oid) => {
+      chosen[gid] = oid;
+      world.applyFinish(gid, oid);
+      const input = document.getElementById(`f-${gid}-${oid}`); if (input) input.checked = true;
+      try { localStorage.setItem('spatial.finishes', JSON.stringify(chosen)); } catch {}
+      renderQuote(true);
+    },
+  });
+
   // ---------------- modes ----------------
   let mode = 'story';
   const levelIds = plan.levels.map(L => L.id);
@@ -221,7 +244,9 @@ async function boot() {
     document.body.dataset.mode = m;
     document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
     explore.active = m === 'explore';
+    if (m !== 'explore') { clickWalk.hide(); compare.close(); }
     if (m === 'story') {
+      tod.reset();
       lenis?.start();
       requestAnimationFrame(() => window.scrollTo(0, storyY));
     } else {
@@ -229,6 +254,8 @@ async function boot() {
       lenis?.stop();
     }
     if (m === 'explore') {
+      document.body.classList.remove('hint-done');
+      clearTimeout(hintTimer); hintTimer = setTimeout(() => document.body.classList.add('hint-done'), 7000);
       for (const id of levelIds) world.setRise(id, 1);
       applyCutaway();
       realTarget = sketchMode ? 0 : 1;
@@ -242,6 +269,7 @@ async function boot() {
     if (m === 'plan') drawPlanView();
   }
   let storyY = 0;
+  let hintTimer = 0;
   document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
   $('#cta-explore').addEventListener('click', () => setMode('explore'));
 
@@ -377,7 +405,8 @@ async function boot() {
   }
 
   function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const rawDt = Math.min(0.25, (now - last) / 1000);
+    const dt = Math.min(0.05, rawDt);
     last = now;
     lenis?.raf(now);
     if (mode === 'story') {
@@ -401,7 +430,8 @@ async function boot() {
       realNow += (realTarget - realNow) * Math.min(1, dt * 4);
       if (Math.abs(realTarget - realNow) < 0.002) realNow = realTarget;
       world.setReal(realNow);
-      explore.step(dt);
+      explore.step(rawDt);
+      clickWalk.update();
       if (explore.mode === 'walk') {
         const r = explore.currentRoom();
         showPlate(r, explore.currentLevel());
@@ -409,7 +439,11 @@ async function boot() {
       } else showPlate(null);
     }
     world.setInterior(isInside(camera.position));
-    if (mode !== 'plan') { if (composer) composer.render(); else renderer.render(world.scene, camera); }
+    minimap.update();
+    if (mode !== 'plan') {
+      const draw = () => (composer ? composer.render() : renderer.render(world.scene, camera));
+      if (!compare.render(draw)) draw();
+    }
     requestAnimationFrame(frame);
   }
   document.body.dataset.mode = 'story';
@@ -419,7 +453,7 @@ async function boot() {
   addEventListener('hashchange', () => { const h = location.hash.replace('#', ''); if (['story', 'explore', 'plan'].includes(h)) setMode(h); });
   requestAnimationFrame(frame);
   document.body.classList.add('ready');
-  window.__spatial = { world, camera, story, explore, setMode, setView, scrollToBeat, plan };
+  window.__spatial = { world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod };
 }
 
 boot().catch(err => {

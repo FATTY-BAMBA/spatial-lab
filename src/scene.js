@@ -12,6 +12,7 @@ import { drawLevel, planFrame } from './drawing.js';
 import { tex, texSet, bumpTex } from './textures.js';
 
 const REAL = { value: 0 };
+let cityGlass = null;
 const SKETCH_RGB = 'vec3(0.86, 0.872, 0.85)';
 const patched = new WeakSet();
 
@@ -76,7 +77,7 @@ export async function createWorld(plan, renderer, opts = {}) {
   // ---------- light ----------
   const fpb = bbox(proj.footprint);
   const center = new THREE.Vector3((fpb.x0 + fpb.x1) / 2, 0, (fpb.z0 + fpb.z1) / 2);
-  const sunDir = new THREE.Vector3(...(proj.sun || [0.55, 0.62, 0.55])).normalize();
+  const sunDir = new THREE.Vector3(...(proj.sun || [0.55, 0.62, 0.55])).normalize(); // replaced by time of day below
   const hemi = new THREE.HemisphereLight('#ffffff', '#cfcabf', 2.2);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight('#fff8f0', 1.0);
@@ -146,7 +147,7 @@ export async function createWorld(plan, renderer, opts = {}) {
     frame: std({ color: '#3a3d40', roughness: 0.45, metalness: 0.5 }),
     concrete: std({ color: '#c9c6bf', roughness: 0.9 }),
     asphalt: std({ color: '#5a5d60', roughness: 0.95 }),
-    facade: std({ color: '#ffffff', map: tex('facade'), roughness: 0.6, envMapIntensity: 0.6 }),
+    facade: std({ color: '#ffffff', map: tex('facade'), roughness: 0.6, envMapIntensity: 0.6, emissive: '#ffd9a0', emissiveMap: tex('facadeNight'), emissiveIntensity: 0 }),
     roof: std({ color: '#9fa09c', roughness: 0.95 }),
     white: std({ color: '#f1f1ef', roughness: 0.4 }),
   };
@@ -194,7 +195,7 @@ export async function createWorld(plan, renderer, opts = {}) {
     for (const r of L.rooms) {
       const mat = r.finish === 'tile' ? M.tile : r.finish === 'balcony' ? M.balcony : finishMats.floor;
       const m = new THREE.Mesh(floorGeo(r.polygon), mat);
-      m.position.y = 0.002; m.receiveShadow = true; m.userData.room = r.id;
+      m.position.y = 0.002; m.receiveShadow = true; m.userData.room = r.id; m.userData.level = L.id;
       group.add(m);
     }
     const { canvas } = drawLevel(plan, L, { pxPerM: 128, frame });
@@ -354,37 +355,65 @@ export async function createWorld(plan, renderer, opts = {}) {
     scene.add(l); fills.push(l);
   }
 
-  // ---------- state ----------
-  const state = { real: 0, explode: 0, interior: false };
-  function setReal(r) {
-    state.real = r;
-    REAL.value = r;
-    const e = smooth(Math.min(1, Math.max(0, r)));
+  // ---------- state + lighting ----------
+  const state = { real: 0, explode: 0, interior: false, hour: proj.hour ?? 15 };
+  const C = { sunDay: new THREE.Color('#fff8f0'), sunLow: new THREE.Color('#ffae6a'), fogDay: horizon.clone(), fogDusk: new THREE.Color('#d9b9a0'), fogNight: new THREE.Color('#1b2230'), skyNight: new THREE.Color('#0f1522'), bgTown: new THREE.Color('#d7dfe2') };
+  const tmpC = new THREE.Color();
+  // south-facing site: south = +z, east = +x. Elevation peaks ~45 deg at noon.
+  function sunDirAt(h) {
+    const az = ((h - 12) / 6) * (Math.PI / 2);
+    const el = Math.max(-0.35, (Math.PI / 4) * Math.sin((Math.PI * (h - 6.2)) / 12));
+    return new THREE.Vector3(-Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize();
+  }
+  const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function applyLighting() {
+    const e = smooth(Math.min(1, Math.max(0, state.real)));
+    const dir = sunDirAt(state.hour);
+    const sinEl = dir.y;
+    const day = ss(-0.04, 0.25, sinEl), warm = 1 - ss(0.05, 0.5, sinEl), night = 1 - ss(-0.1, 0.06, sinEl);
+    state.night = night * e;
+    sun.position.copy(center).addScaledVector(dir.y > 0.02 ? dir : new THREE.Vector3(dir.x, 0.02, dir.z).normalize(), 40);
+    sun.color.copy(C.sunDay).lerp(C.sunLow, warm);
     lineMat.opacity = 0.9 * (1 - e);
     lineMat.visible = lineMat.opacity > 0.01;
     for (const id in levels) levels[id].overlayMat.opacity = 1 - e;
-    hemi.intensity = lerp(2.3, state.interior ? 0.75 : 0.55, e);
-    sun.intensity = lerp(0.9, 2.9, e);
-    scene.environmentIntensity = lerp(0.25, state.interior ? 1.05 : 0.55, e);
+    const hemiDay = state.interior ? 0.75 : 0.55;
+    hemi.intensity = lerp(2.3, lerp(0.08, hemiDay, day), e);
+    hemi.color.set(night > 0.5 ? '#8ea3c4' : '#ffffff');
+    sun.intensity = lerp(0.9, 2.9 * day, e);
+    scene.environmentIntensity = lerp(0.25, (state.interior ? 1.05 : 0.55) * Math.max(0.12, day), e);
     if (sky) {
-      sky.visible = e > 0.35;
+      const u = sky.material.uniforms;
+      u.sunPosition.value.copy(dir);
+      u.rayleigh.value = lerp(1.3, 2.6, warm); u.turbidity.value = lerp(3.2, 6, warm);
+      sky.visible = e > 0.35 && night < 0.95;
       if (cityG) cityG.visible = e > 0.02;
-      scene.background = sky.visible ? null : bgSketch.clone().lerp(horizon, Math.min(1, e / 0.35));
+      if (sky.visible) scene.background = null;
+      else { if (!scene.background) scene.background = new THREE.Color(); scene.background.copy(bgSketch).lerp(night > 0.5 ? C.skyNight : horizon, Math.min(1, e / 0.35)); }
     } else {
       if (!scene.background) scene.background = new THREE.Color();
-      scene.background.copy(bgSketch).lerp(new THREE.Color('#d7dfe2'), e);
+      scene.background.copy(bgSketch).lerp(tmpC.copy(C.bgTown).lerp(C.fogDusk, warm * 0.6).lerp(C.skyNight, night), e);
     }
-    if (scene.fog) { scene.fog.near = lerp(400, 70, e); scene.fog.far = lerp(2000, 520, e); }
-    M.led.emissiveIntensity = 2.2 * e;
-    M.shade.emissiveIntensity = 1.1 * e;
-    for (const g of glows) g.material.emissiveIntensity = 2.4 * e;
-    for (const f of fills) f.intensity = (state.interior ? 2.4 : 1.0) * e;
+    if (scene.fog) {
+      scene.fog.color.copy(C.fogDay).lerp(C.fogDusk, warm * (1 - night)).lerp(C.fogNight, night);
+      scene.fog.near = lerp(400, 70, e); scene.fog.far = lerp(2000, lerp(520, 380, night), e);
+    }
+    const lit = e * (1 + night * 1.6);
+    M.led.emissiveIntensity = 2.2 * lit;
+    M.shade.emissiveIntensity = 1.1 * lit;
+    for (const g of glows) g.material.emissiveIntensity = 2.4 * lit;
+    for (const f of fills) f.intensity = ((state.interior ? 2.4 : 1.0) + night * 5) * e;
+    M.facade.emissiveIntensity = 1.4 * night * e;
+    if (cityGlass) cityGlass.emissiveIntensity = 1.2 * night * e;
+    if (opts.onExposure) opts.onExposure(lerp(1, 1.25, night * e));
   }
+  function setReal(r) { state.real = r; REAL.value = r; applyLighting(); }
+  function setTime(h) { state.hour = h; applyLighting(); }
   function setInterior(v) {
     if (v === state.interior) return;
     state.interior = v;
     for (const c of ceilings) c.castShadow = v;
-    setReal(state.real);
+    applyLighting();
   }
   function setRise(id, t) {
     const L = levels[id]; L.riseT = t;
@@ -413,7 +442,8 @@ export async function createWorld(plan, renderer, opts = {}) {
   for (const [g, o] of Object.entries(plan.defaultFinishes)) applyFinish(g, o);
   setReal(0);
 
-  return { scene, levels, frame, sun, setReal, setRise, setLevelVisible, setExplode, setInterior, applyFinish, state, lineMat };
+  const floors = []; scene.traverse(o => { if (o.isMesh && o.userData.room) floors.push(o); });
+  return { scene, levels, frame, sun, setReal, setTime, sunDirAt, setRise, setLevelVisible, setExplode, setInterior, applyFinish, state, lineMat, floors };
 }
 
 // ---------------------------------------------------------------------------
@@ -579,7 +609,8 @@ function buildCity(ground, tower, M) {
   const conc = [], gl = [];
   for (let i = 0; i < side.length; i += 3) (side[i + 2] < 0 ? gl : conc).push(side[i], side[i + 1], Math.abs(side[i + 2]));
   const topAbs = []; for (let i = 0; i < top.length; i += 3) topAbs.push(top[i], top[i + 1], Math.abs(top[i + 2]));
-  const glassMat = std({ color: '#ffffff', map: tex('curtainwall'), roughness: 0.12, metalness: 0.55, vertexColors: true, side: THREE.DoubleSide, envMapIntensity: 1.2 });
+  const glassMat = std({ color: '#ffffff', map: tex('curtainwall'), roughness: 0.12, metalness: 0.55, vertexColors: true, side: THREE.DoubleSide, envMapIntensity: 1.2, emissive: '#ffe3b5', emissiveMap: tex('curtainNight'), emissiveIntensity: 0 });
+  cityGlass = glassMat;
   g.add(mk(conc, sideMat), mk(gl, glassMat), mk(topAbs, M.roof));
   const groundM = new THREE.Mesh(planeXZ(-400, -400, 800, 800), M.asphalt);
   groundM.position.y = ground; g.add(groundM);

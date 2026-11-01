@@ -51,7 +51,8 @@
     "label": "樓層 Floor",
     "value": "9F / 14F"
    }
-  ]
+  ],
+  "hour": 15.25
  },
  "levels": [
   {
@@ -538,13 +539,14 @@
      ],
      "spot": {
       "pos": [
-       2.6,
-       2.3
+       1.85,
+       2.42
       ],
       "look": [
-       3.6,
-       0.6
-      ]
+       3.8,
+       0.75
+      ],
+      "pitch": -0.32
      },
      "labelAt": [
       2.75,
@@ -1526,7 +1528,8 @@
      "rough": 0.45,
      "price": 7800
     }
-   ]
+   ],
+   "focus": "living"
   },
   {
    "id": "counter",
@@ -1563,7 +1566,8 @@
      "metal": 0.85,
      "price": 20000
     }
-   ]
+   ],
+   "focus": "kitchen"
   },
   {
    "id": "cabinet",
@@ -1597,7 +1601,8 @@
      "rough": 0.4,
      "price": 11000
     }
-   ]
+   ],
+   "focus": "kitchen"
   },
   {
    "id": "paint",
@@ -1630,7 +1635,8 @@
      "rough": 0.9,
      "price": 860
     }
-   ]
+   ],
+   "focus": "living"
   }
  ],
  "defaultFinishes": {

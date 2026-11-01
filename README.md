@@ -4,7 +4,8 @@
 
 **Live demo flow**
 - **導覽 Story**: scroll from the top-down drawing → walls rise from the plan → materials and light → room-by-room walk → up the stair → 2F → exploded two-level view.
-- **探索 Explore**: first-person walk (drag to look, WASD / arrows, *hold to walk* on phones) with wall + furniture collision and real stair climbing between floors. Overview mode with 1F / 1F+2F / exploded cutaways. Finish toggles (flooring, countertop, cabinet doors, wall paint) update the 3D and the quote live.
+- **探索 Explore**: tap/click the floor to walk there; ink mini-map with your position and view cone; time-of-day slider (morning → dusk → night with lit city and interior lights); **A/B 對比** split view per finish with price delta and one-click adopt.
+- Also in Explore: first-person walk (drag to look, WASD / arrows, *hold to walk* on phones) with wall + furniture collision and real stair climbing between floors. Overview mode with 1F / 1F+2F / exploded cutaways. Finish toggles (flooring, countertop, cabinet doors, wall paint) update the 3D and the quote live.
 - **平面圖 Plan**: the ink plan per level, rendered from the same data, plus an auto-computed room schedule (m² / 坪). Click a room to walk into it.
 
 ## Demo projects
@@ -45,10 +46,9 @@ Libraries are vendored in `vendor/` (three.js r170 + addons, Lenis 1.1.13). Thir
 Import the repo in Vercel → Framework preset **Other** → no build command, output directory `.` (root).
 
 ## Next
-1. Experience: click-to-walk, plan mini-map, time-of-day, before/after finish split.
-2. Plan editor: draw walls / place openings / name rooms (writes the same JSON).
-3. DXF import → plan JSON. Then raster floor-plan recognition.
-4. Baked lighting + glTF export per project; client share link.
-5. Push the quote lines into StrideBrain AI 報價.
+1. Plan editor: draw walls / place openings / name rooms (writes the same JSON).
+2. DXF import → plan JSON. Then raster floor-plan recognition.
+3. Baked lighting + glTF export per project; client share link.
+4. Push the quote lines into StrideBrain AI 報價.
 
 Prices in the demo are illustrative.

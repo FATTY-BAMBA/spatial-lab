@@ -41,7 +41,8 @@
    0.55,
    0.62,
    0.55
-  ]
+  ],
+  "hour": 15.25
  },
  "levels": [
   {
@@ -1388,7 +1389,8 @@
      "rough": 0.45,
      "price": 7800
     }
-   ]
+   ],
+   "focus": "living"
   },
   {
    "id": "counter",
@@ -1425,7 +1427,8 @@
      "metal": 0.85,
      "price": 20000
     }
-   ]
+   ],
+   "focus": "kitchen"
   },
   {
    "id": "cabinet",
@@ -1459,7 +1462,8 @@
      "rough": 0.4,
      "price": 11000
     }
-   ]
+   ],
+   "focus": "kitchen"
   },
   {
    "id": "paint",
@@ -1492,7 +1496,8 @@
      "rough": 0.9,
      "price": 860
     }
-   ]
+   ],
+   "focus": "living"
   }
  ],
  "defaultFinishes": {

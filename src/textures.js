@@ -228,6 +228,24 @@ makers.curtainwall = () => { // glass curtain wall: 1.5 m mullions, 3 m floors
   return t;
 };
 
+function nightMask(W, H, cols, rows, frac, seed, box) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d'), r = rng(seed);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const bw = W / cols, fh = H / rows;
+  for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+    if (r() > frac) continue;
+    const k = 0.55 + r() * 0.45, warm = r() < 0.75;
+    ctx.fillStyle = warm ? `rgba(255,${200 + r() * 40},${140 + r() * 40},${k})` : `rgba(${200 + r() * 40},${225},255,${k})`;
+    ctx.fillRect(i * bw + bw * box[0], j * fh + fh * box[1], bw * box[2], fh * box[3]);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+makers.facadeNight = () => { const t = nightMask(512, 768, 4, 6, 0.38, 91, [0.12, 0.18, 0.76, 0.6]); t.repeat.set(1 / 12, 1 / 18); return t; };
+makers.curtainNight = () => { const t = nightMask(256, 256, 8, 4, 0.3, 93, [0.03, 0.06, 0.94, 0.88]); t.repeat.set(1 / 12, 1 / 12); return t; };
+
 const cache = new Map();
 export function tex(name) {
   if (!makers[name]) return null;

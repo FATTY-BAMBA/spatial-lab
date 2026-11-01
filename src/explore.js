@@ -67,9 +67,10 @@ export function createExplore(plan, camera, dom) {
     return [x, z];
   }
 
-  function step(dt) {
+  function step(rawDt) {
+    const dt = Math.min(0.05, rawDt);
     if (tween) {
-      tween.t = Math.min(1, tween.t + dt / tween.dur);
+      tween.t = Math.min(1, tween.t + Math.min(0.25, rawDt) / tween.dur);
       const e = tween.t < 0.5 ? 2 * tween.t * tween.t : 1 - Math.pow(-2 * tween.t + 2, 2) / 2;
       for (const k of ['x', 'z', 'y', 'pitch']) walk[k] = tween.from[k] + (tween.to[k] - tween.from[k]) * e;
       let dy = tween.to.yaw - tween.from.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
@@ -125,9 +126,20 @@ export function createExplore(plan, camera, dom) {
     const L = levels.find(l => l.id === levelId);
     const [x, z] = room.spot.pos, [lx, lz] = room.spot.look;
     const yaw = Math.atan2(-(lx - x), -(lz - z));
-    const to = { x, z, y: L.elevation, yaw, pitch: -0.12 };
+    const to = { x, z, y: L.elevation, yaw, pitch: room.spot.pitch ?? -0.12 };
     if (mode !== 'walk' || !active) { Object.assign(walk, to); setMode('walk'); return; }
     tween = { t: 0, dur, from: { ...walk }, to };
+  }
+
+  // walk to a floor point (x, z on level elevation y), turning toward the direction of travel
+  function walkTo(x, z, y, faceYaw) {
+    const L = levelAtY(y + 0.1);
+    const [rx, rz] = resolve(x, z, L.elevation);
+    const dx = rx - walk.x, dz = rz - walk.z, dist = Math.hypot(dx, dz);
+    const yaw = faceYaw ?? (dist > 0.4 ? Math.atan2(-dx, -dz) : walk.yaw);
+    const to = { x: rx, z: rz, y: L.elevation, yaw, pitch: mode === 'walk' ? walk.pitch * 0.5 : -0.1 };
+    if (mode !== 'walk') { Object.assign(walk, to); setMode('walk'); return; }
+    tween = { t: 0, dur: Math.min(1.6, 0.45 + dist * 0.22), from: { ...walk }, to };
   }
 
   function setMode(m) { if (m !== mode) tween = null; mode = m; dom.dataset.view = m; }
@@ -139,7 +151,7 @@ export function createExplore(plan, camera, dom) {
     if (!active) return;
     dom.setPointerCapture(e.pointerId);
     pinch.set(e.pointerId, [e.clientX, e.clientY]);
-    drag = { x: e.clientX, y: e.clientY };
+    drag = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
   });
   dom.addEventListener('pointermove', e => {
     if (!active || !drag) return;
@@ -156,6 +168,7 @@ export function createExplore(plan, camera, dom) {
       }
       pinch.set(e.pointerId, [e.clientX, e.clientY]);
       const dx = e.clientX - prev[0], dy = e.clientY - prev[1];
+      drag.moved += Math.abs(dx) + Math.abs(dy);
       if (mode === 'walk') {
         walk.yaw += dx * 0.0042; walk.pitch = Math.max(-1.2, Math.min(1.1, walk.pitch + dy * 0.0036));
       } else {
@@ -163,7 +176,12 @@ export function createExplore(plan, camera, dom) {
       }
     }
   });
-  const end = e => { pinch.delete(e.pointerId); if (!pinch.size) drag = null; };
+  const end = e => {
+    const wasTap = drag && pinch.size === 1 && drag.moved < 6 && performance.now() - drag.t < 450 && e.type === 'pointerup';
+    pinch.delete(e.pointerId);
+    if (!pinch.size) drag = null;
+    if (wasTap && api.onTap) api.onTap(e.clientX, e.clientY);
+  };
   dom.addEventListener('pointerup', end);
   dom.addEventListener('pointercancel', end);
   dom.addEventListener('wheel', e => {
@@ -175,8 +193,8 @@ export function createExplore(plan, camera, dom) {
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => keys.clear());
 
-  return {
-    step, goToRoom, setMode,
+  const api = {
+    step, goToRoom, setMode, walkTo, onTap: null,
     get mode() { return mode; },
     set active(v) { active = v; if (!v) { keys.clear(); holdWalk = false; } },
     get active() { return active; },
@@ -188,4 +206,5 @@ export function createExplore(plan, camera, dom) {
       return L.rooms.find(r => pointInPolygon([walk.x, walk.z], r.polygon)) || null;
     },
   };
+  return api;
 }
