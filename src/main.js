@@ -21,6 +21,8 @@ async function boot() {
   const params = new URLSearchParams(location.search);
   const projectKey = PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
   const plan = await loadPlan(PROJECTS[projectKey]);
+  const catalog = await loadPlan('data/styles.json').catch(() => ({ extraOptions: {}, styles: [] }));
+  for (const g of plan.finishes) for (const o of catalog.extraOptions[g.id] || []) if (!g.options.some(x => x.id === o.id)) g.options.push(o);
   document.body.dataset.project = projectKey;
   document.querySelectorAll('[data-project-link]').forEach(a => a.setAttribute('aria-current', String(a.dataset.projectLink === projectKey)));
   // quality tier: high (AO + bloom + MSAA), med (no post), lite (no shadows)
@@ -100,7 +102,7 @@ async function boot() {
       const row = document.createElement('fieldset');
       row.className = 'finish';
       row.innerHTML = `<legend><span>${g.name}</span><small>${g.nameEn}</small><button type="button" class="cmp-btn" data-group="${g.id}">A/B 對比</button></legend>`;
-      row.querySelector('.cmp-btn').addEventListener('click', () => compare.open(g.id));
+      row.querySelector('.cmp-btn').addEventListener('click', () => openFinishCompare(g.id));
       const opts = document.createElement('div');
       opts.className = 'swatches';
       for (const o of g.options) {
@@ -115,7 +117,8 @@ async function boot() {
         b.querySelector('input').addEventListener('change', () => {
           chosen[g.id] = o.id;
           world.applyFinish(g.id, o.id);
-          try { localStorage.setItem('spatial.finishes', JSON.stringify(chosen)); } catch {}
+          markCustom();
+          saveState();
           renderQuote(true);
         });
         opts.appendChild(b);
@@ -195,22 +198,122 @@ async function boot() {
   const clickWalk = setupClickWalk({ world, camera, explore, canvas, getMode: () => mode, setView: v => setView(v) });
   const minimap = setupMinimap({ plan, explore, camera, getMode: () => mode });
   const tod = setupTime({ world, plan });
-  const compare = setupCompare({
-    plan, world, chosen, renderer,
-    goToFocus: g => {
-      const room = roomsById[g.focus] || roomsById.living;
-      if (mode !== 'explore') setMode('explore');
-      setView('walk');
-      if (room) explore.goToRoom(room, room.level, 1.2);
-    },
-    onAdopt: (gid, oid) => {
-      chosen[gid] = oid;
-      world.applyFinish(gid, oid);
-      const input = document.getElementById(`f-${gid}-${oid}`); if (input) input.checked = true;
-      try { localStorage.setItem('spatial.finishes', JSON.stringify(chosen)); } catch {}
-      renderQuote(true);
-    },
-  });
+  const compare = setupCompare({ renderer });
+  function goToFocus(g) {
+    const room = roomsById[g.focus] || roomsById.living;
+    if (mode !== 'explore') setMode('explore');
+    setView('walk');
+    if (room) explore.goToRoom(room, room.level, 1.2);
+  }
+  function syncRadios() {
+    for (const [gid, oid] of Object.entries(chosen)) { const el = document.getElementById(`f-${gid}-${oid}`); if (el) el.checked = true; }
+  }
+  function openFinishCompare(gid) {
+    const g = plan.finishes.find(f => f.id === gid);
+    const a = chosen[gid];
+    let b = (g.options.find(o => o.id !== a) || g.options[0]).id;
+    const opt = id => g.options.find(o => o.id === id);
+    goToFocus(g);
+    compare.open({
+      title: `${g.name} 對比`,
+      applyA: () => world.applyFinish(gid, a),
+      applyB: () => world.applyFinish(gid, b),
+      restore: () => world.applyFinish(gid, chosen[gid]),
+      side: w => {
+        const o = opt(w === 'a' ? a : b), d = opt(b).price - opt(a).price;
+        return w === 'a'
+          ? { tag: 'A 目前', name: o.name, sub: `NT$ ${fmt(o.price)}/${g.unit}` }
+          : { tag: 'B 比較', name: o.name, sub: `NT$ ${fmt(o.price)}/${g.unit} · ${d === 0 ? '同價' : (d > 0 ? '+' : '−') + 'NT$ ' + fmt(Math.abs(d)) + '/' + g.unit}` };
+      },
+      chips: g.options.filter(o => o.id !== a).map(o => ({ id: o.id, label: o.name })),
+      current: b,
+      pick: id => { b = id; },
+      adopt: () => { chosen[gid] = b; world.applyFinish(gid, b); syncRadios(); markCustom(); saveState(); renderQuote(true); },
+    });
+  }
+
+  // ---------------- styles ----------------
+  const ORIGINAL = { id: 'original', name: '原始提案', nameEn: 'Original', tagline: '本案預設材質', finishes: { ...plan.defaultFinishes }, palette: {} };
+  const styles = [ORIGINAL, ...catalog.styles];
+  let styleId = null; // null = custom mix
+  let palette = {};
+  try {
+    const sid = localStorage.getItem(`spatial.style.${projectKey}`);
+    const st = styles.find(x => x.id === sid);
+    if (st) { styleId = st.id; palette = st.palette; Object.assign(chosen, st.finishes); }
+  } catch {}
+  if (styleId === null && !localStorage.getItem('spatial.finishes')) styleId = 'original';
+  function applyState(fin, pal) { for (const [gid, oid] of Object.entries(fin)) world.applyFinish(gid, oid); world.applyPalette(pal); }
+  applyState(chosen, palette);
+  function saveState() {
+    try { localStorage.setItem('spatial.finishes', JSON.stringify(chosen)); localStorage.setItem(`spatial.style.${projectKey}`, styleId || ''); } catch {}
+  }
+  function markCustom() { styleId = null; renderStyles(); }
+  const totalFor = fin => buildQuote(plan, { ...chosen, ...fin }).total;
+  const chipColor = (gid, oid) => { const o = plan.finishes.find(f => f.id === gid).options.find(x => x.id === oid); return o ? o.tint || o.color : '#ccc'; };
+  function selectStyle(id, animate = true) {
+    const st = styles.find(x => x.id === id);
+    const oldFin = { ...chosen }, oldPal = palette;
+    const finish = () => {
+      Object.assign(chosen, st.finishes); palette = st.palette; styleId = st.id;
+      applyState(chosen, palette); syncRadios(); saveState(); renderQuote(true); renderStyles();
+    };
+    if (animate && mode !== 'plan') compare.transition(() => applyState(oldFin, oldPal), () => applyState(st.finishes, st.palette), finish);
+    else finish();
+  }
+  function openStyleCompare(bId) {
+    let b = bId;
+    const cur = { fin: { ...chosen }, pal: palette, name: styleId ? styles.find(x => x.id === styleId).name : '自訂組合' };
+    const curTotal = totalFor(cur.fin);
+    compare.open({
+      title: '風格 對比',
+      applyA: () => applyState(cur.fin, cur.pal),
+      applyB: () => { const st = styles.find(x => x.id === b); applyState(st.finishes, st.palette); },
+      restore: () => applyState(chosen, palette),
+      side: w => {
+        if (w === 'a') return { tag: 'A 目前', name: cur.name, sub: `材質合計 NT$ ${fmt(curTotal)}` };
+        const st = styles.find(x => x.id === b), t = totalFor(st.finishes), d = t - curTotal;
+        return { tag: 'B 比較', name: st.name, sub: `NT$ ${fmt(t)} · ${d === 0 ? '同價' : (d > 0 ? '+' : '−') + 'NT$ ' + fmt(Math.abs(d))}` };
+      },
+      chips: styles.filter(x => x.id !== styleId).map(x => ({ id: x.id, label: x.name })),
+      current: b,
+      pick: id => { b = id; },
+      adopt: () => selectStyle(b, false),
+    });
+  }
+  function renderStyles() {
+    const host = $('#styles');
+    host.innerHTML = '';
+    const base = totalFor(chosen);
+    for (const st of styles) {
+      const t = totalFor(st.finishes), d = t - base;
+      const card = document.createElement('div');
+      card.className = 'style-card';
+      card.dataset.on = String(st.id === styleId);
+      const p = st.palette || {}, f = st.finishes;
+      const chips = [chipColor('paint', f.paint), chipColor('floor', f.floor), chipColor('cabinet', f.cabinet), (p.models && p.models.GlamVelvetSofa) || '#2c3550', p.accent || '#9a5b3c'];
+      card.innerHTML = `<button type="button" class="sc-main" aria-pressed="${st.id === styleId}">
+          <span class="sc-chips">${chips.map(c => `<i style="background:${c}"></i>`).join('')}</span>
+          <span class="sc-name">${st.name}<small>${st.nameEn}</small></span>
+          <span class="sc-tag">${st.tagline || ''}</span>
+          <span class="sc-price">NT$ ${fmt(t)}${st.id === styleId ? '<em>目前</em>' : d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</em>` : ''}</span>
+        </button>
+        ${st.id === styleId ? '' : '<button type="button" class="sc-ab" title="與目前風格分割對比">A/B</button>'}`;
+      card.querySelector('.sc-main').addEventListener('click', () => { if (st.id !== styleId) selectStyle(st.id); });
+      const ab = card.querySelector('.sc-ab');
+      if (ab) ab.addEventListener('click', () => openStyleCompare(st.id));
+      host.appendChild(card);
+    }
+    $('#style-now').textContent = styleId ? styles.find(x => x.id === styleId).name : '自訂組合';
+  }
+  renderStyles();
+  syncRadios();
+  renderQuote(false);
+  document.querySelectorAll('.ptabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.ptabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    $('#tab-styles').hidden = b.dataset.tab !== 'styles';
+    $('#tab-finishes').hidden = b.dataset.tab !== 'finishes';
+  }));
 
   // ---------------- modes ----------------
   let mode = 'story';
@@ -453,7 +556,7 @@ async function boot() {
   addEventListener('hashchange', () => { const h = location.hash.replace('#', ''); if (['story', 'explore', 'plan'].includes(h)) setMode(h); });
   requestAnimationFrame(frame);
   document.body.classList.add('ready');
-  window.__spatial = { world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod };
+  window.__spatial = { world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod, selectStyle, openStyleCompare, openFinishCompare };
 }
 
 boot().catch(err => {

@@ -298,6 +298,35 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
   .cmp-mid { grid-column: 1 / -1; grid-row: 1; }
 }
 
+/* ---------- styles ---------- */
+.ptabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1.5px solid var(--ink); flex: none; }
+.ptabs button { border: 0; background: none; padding: 10px 8px; font-weight: 700; font-size: 14px; }
+.ptabs button small { font-family: var(--mono); font-weight: 400; font-size: 10px; color: var(--graphite); letter-spacing: .08em; }
+.ptabs button[aria-selected="true"] { background: var(--ink); color: var(--paper-2); }
+.ptabs button[aria-selected="true"] small { color: rgba(246,247,243,.7); }
+.panel-note { margin: -6px 0 2px; font-size: 12px; color: var(--graphite); }
+.panel-h b { font-family: var(--body); letter-spacing: 0; text-transform: none; color: var(--ink); }
+#styles { display: grid; gap: 8px; }
+.style-card { position: relative; }
+.sc-main { width: 100%; text-align: left; border: 1px solid var(--rule); background: #fff; padding: 9px 10px; display: grid; grid-template-columns: auto 1fr; grid-template-areas: "chips name" "chips tag" "chips price"; column-gap: 10px; row-gap: 1px; align-items: center; }
+.style-card[data-on="true"] .sc-main { border-color: var(--ink); box-shadow: inset 3px 0 0 var(--tape), inset 0 0 0 1px var(--ink); }
+.sc-main:hover { border-color: var(--ink); }
+.sc-chips { grid-area: chips; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 46px; }
+.sc-chips i { display: block; height: 14px; border: 1px solid rgba(0,0,0,.08); }
+.sc-chips i:first-child { grid-column: span 2; height: 20px; }
+.sc-name { grid-area: name; font-weight: 700; font-size: 15px; display: flex; gap: 6px; align-items: baseline; }
+.sc-name small { font-family: var(--mono); font-weight: 400; font-size: 10px; letter-spacing: .08em; color: var(--graphite); text-transform: uppercase; }
+.sc-tag { grid-area: tag; font-size: 11.5px; color: var(--graphite); }
+.sc-price { grid-area: price; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; display: flex; gap: 8px; align-items: baseline; }
+.sc-price em { font-style: normal; font-size: 11px; padding: 0 5px; border-radius: 3px; background: rgba(31,35,40,.06); }
+.sc-price em.up { color: #8a3b12; } .sc-price em.down { color: #2f6b45; }
+.style-card[data-on="true"] .sc-price em { background: var(--tape); color: var(--ink); }
+.sc-ab { position: absolute; top: 8px; right: 8px; border: 1px solid var(--ink); background: var(--paper-2); font-size: 11px; padding: 2px 7px; border-radius: 3px; }
+.sc-ab:hover { background: var(--tape); }
+#compare-handle.sweeping { pointer-events: none; }
+#compare-handle.sweeping i::after { content: none; }
+#compare-handle.sweeping i { width: 3px; background: var(--tape); box-shadow: 0 0 18px rgba(224,169,30,.9); }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -361,9 +390,20 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 
 <aside id="panel" class="explore-only" aria-label="材質與報價">
   <button type="button" id="panel-toggle" aria-expanded="false"><span>材質與報價</span><output id="quote-total-mini"></output></button>
+  <div class="ptabs" role="tablist">
+    <button type="button" role="tab" data-tab="styles" aria-selected="true">風格 <small>Styles</small></button>
+    <button type="button" role="tab" data-tab="finishes" aria-selected="false">材質 <small>Finishes</small></button>
+  </div>
   <div class="panel-scroll">
-    <div class="panel-h"><h2>材質選擇</h2><span>Finishes</span></div>
-    <div id="finishes"></div>
+    <div id="tab-styles">
+      <div class="panel-h"><h2>風格提案</h2><span>目前：<b id="style-now"></b></span></div>
+      <p class="panel-note">一鍵套用整套材質、布料與燈光到這個空間，總價即時更新。</p>
+      <div id="styles"></div>
+    </div>
+    <div id="tab-finishes" hidden>
+      <div class="panel-h"><h2>材質選擇</h2><span>Finishes</span></div>
+      <div id="finishes"></div>
+    </div>
   </div>
   <div class="quote">
     <div class="quote-head"><span>預估總價</span><output id="quote-total">—</output></div>

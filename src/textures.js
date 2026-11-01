@@ -148,6 +148,9 @@ function groutCanvas(n, cols, rows, line, r, noise = 0) {
   return c;
 }
 const bumpMakers = {
+  limewash: () => finish(cloudy(512, '#808080', 60, 127), 1.4),
+  microcement: () => finish(cloudy(512, '#808080', 30, 131), 2.0),
+  concrete: () => finish(cloudy(512, '#808080', 40, 137, 1400), 2.4),
   marble: () => finish(groutCanvas(1024, 4, 2, 3, rng(1), 6), 2.4),
   tile: () => finish(groutCanvas(512, 4, 4, 4, rng(2), 8), 1.2),
   paving: () => finish(groutCanvas(1024, 8, 8, 6, rng(3), 20), 4.8),
@@ -245,6 +248,42 @@ function nightMask(W, H, cols, rows, frac, seed, box) {
 }
 makers.facadeNight = () => { const t = nightMask(512, 768, 4, 6, 0.38, 91, [0.12, 0.18, 0.76, 0.6]); t.repeat.set(1 / 12, 1 / 18); return t; };
 makers.curtainNight = () => { const t = nightMask(256, 256, 8, 4, 0.3, 93, [0.03, 0.06, 0.94, 0.88]); t.repeat.set(1 / 12, 1 / 12); return t; };
+
+// cloudy mineral surfaces: microcement floor, board-formed concrete, limewash walls
+function cloudy(n, base, spread, seed, pores = 0) {
+  const [c, ctx] = canvas(n), r = rng(seed);
+  ctx.fillStyle = base; ctx.fillRect(0, 0, n, n);
+  for (let k = 0; k < 260; k++) {
+    const x = r() * n, y = r() * n, rad = 20 + r() * 120, v = (r() - 0.5) * spread;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    const col = v > 0 ? `rgba(255,255,255,${v / 255})` : `rgba(0,0,0,${-v / 255})`;
+    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    for (const dx of [-n, 0, n]) for (const dy of [-n, 0, n]) { ctx.save(); ctx.translate(dx, dy); ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.fill(); ctx.restore(); }
+  }
+  for (let k = 0; k < pores; k++) { ctx.fillStyle = `rgba(0,0,0,${0.15 + r() * 0.25})`; ctx.beginPath(); ctx.arc(r() * n, r() * n, 0.6 + r() * 1.6, 0, 7); ctx.fill(); }
+  grain(ctx, n, 10, r);
+  return c;
+}
+makers.microcement = () => finish(cloudy(1024, '#b9b4ab', 26, 101), 3.0);
+makers.concrete = () => {
+  const c = cloudy(1024, '#a3a29d', 30, 103, 1600);
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = 'rgba(40,40,40,0.25)'; ctx.lineWidth = 2;
+  for (let x = 0; x <= 1024; x += 512) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1024); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(0, 512); ctx.lineTo(1024, 512); ctx.stroke();
+  return finish(c, 2.4);
+};
+makers.limewash = () => finish(cloudy(1024, '#ddd5c8', 34, 107), 2.2);
+makers.calacatta = () => {
+  const n = 1024, [c, ctx] = canvas(n), r = rng(109);
+  ctx.fillStyle = '#f2efe9'; ctx.fillRect(0, 0, n, n);
+  veins(ctx, n, r, 'rgba(150,132,110,', 14);
+  veins(ctx, n, r, 'rgba(90,86,82,', 6);
+  grain(ctx, n, 4, r);
+  return finish(c, 1.6);
+};
+makers.honedstone = () => finish(cloudy(512, '#8f8b84', 22, 113, 900), 1.0);
 
 const cache = new Map();
 export function tex(name) {

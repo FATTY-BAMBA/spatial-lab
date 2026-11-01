@@ -154,6 +154,7 @@ export async function createWorld(plan, renderer, opts = {}) {
   const glass = patch(new THREE.MeshPhysicalMaterial({ color: '#a9bfc5', roughness: 0.04, metalness: 0, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 }));
   const sheer = patch(new THREE.MeshStandardMaterial({ color: '#f6f3ec', map: tex('fabric'), transparent: true, opacity: 0.62, side: THREE.DoubleSide, roughness: 1, depthWrite: false }));
   const curtainMat = std({ color: '#cbbfae', map: tex('fabric'), side: THREE.DoubleSide, roughness: 1 });
+  const curtainMatRef = curtainMat;
 
   // ---------- site ----------
   const siteG = new THREE.Group();
@@ -435,15 +436,46 @@ export async function createWorld(plan, renderer, opts = {}) {
       m.bumpScale = groupId === 'paint' ? 0.6 : 1.4;
       m.needsUpdate = true;
     }
-    m.color.set(set.map ? '#ffffff' : o.color);
+    m.color.set(set.map ? o.tint || '#ffffff' : o.color);
     m.roughness = set.roughnessMap ? 1 : o.rough ?? 0.6;
     m.metalness = o.metal ?? 0;
+    if (groupId === 'paint' && o.tex) m.bumpScale = 1.2;
+  }
+
+  // ---------- style palettes: fabrics, woods, metals, model tints, light temperature ----------
+  const paletteTargets = { fabric: M.fabric, upholster: M.upholster, linen: M.linen, duvet: M.duvet, accent: M.accent, wood: M.wood, lightWood: M.lightWood, oakSlat: M.oakSlat, metal: M.metal, curtain: curtainMatRef };
+  const paletteDefaults = Object.fromEntries(Object.entries(paletteTargets).map(([k, m]) => [k, m.color.getHex()]));
+  const modelMats = {};
+  for (const [name, root] of Object.entries(models)) {
+    if (!root) continue;
+    const mats = new Set();
+    root.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => mats.add(m)); });
+    // the largest-textured material is the upholstery; keep originals to restore
+    modelMats[name] = [...mats].map(m => ({ m, map: m.map, color: m.color.clone(), sheen: m.sheenColor ? m.sheenColor.clone() : null }));
+  }
+  const LIGHT = { warm: '#ffd9ad', neutral: '#fff1de', cool: '#f4f6ff' };
+  function applyPalette(p = {}) {
+    for (const [k, m] of Object.entries(paletteTargets)) m.color.set(p[k] ?? paletteDefaults[k]);
+    for (const [name, list] of Object.entries(modelMats)) {
+      const tint = p.models && p.models[name];
+      for (const e of list) {
+        const isFabric = /fabric|silk|velvet/i.test(e.m.name || '');
+        const want = tint && isFabric ? null : e.map;
+        if (e.m.map !== want) { e.m.map = want; e.m.needsUpdate = true; }
+        if (tint && isFabric) { e.m.color.set(tint); if (e.m.sheenColor) e.m.sheenColor.set(tint).multiplyScalar(0.6); }
+        else { e.m.color.copy(e.color); if (e.sheen) e.m.sheenColor.copy(e.sheen); }
+      }
+    }
+    const lc = LIGHT[p.light || 'warm'];
+    M.led.emissive.set(lc); M.shade.emissive.set(lc);
+    for (const gl of glows) gl.material.emissive.set(lc);
+    for (const f of fills) f.color.set(lc);
   }
   for (const [g, o] of Object.entries(plan.defaultFinishes)) applyFinish(g, o);
   setReal(0);
 
   const floors = []; scene.traverse(o => { if (o.isMesh && o.userData.room) floors.push(o); });
-  return { scene, levels, frame, sun, setReal, setTime, sunDirAt, setRise, setLevelVisible, setExplode, setInterior, applyFinish, state, lineMat, floors };
+  return { scene, levels, frame, sun, setReal, setTime, sunDirAt, setRise, setLevelVisible, setExplode, setInterior, applyFinish, applyPalette, state, lineMat, floors, modelMats };
 }
 
 // ---------------------------------------------------------------------------

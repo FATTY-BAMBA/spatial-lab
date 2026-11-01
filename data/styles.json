@@ -1,0 +1,78 @@
+{
+  "extraOptions": {
+    "floor": [
+      { "id": "lightoak", "name": "淺色橡木地板", "nameEn": "Pale oak", "tex": "hardwood", "tint": "#f3e6d4", "rough": 0.55, "price": 5200 },
+      { "id": "darkoak", "name": "深色煙燻橡木", "nameEn": "Smoked oak", "tex": "hardwood", "tint": "#86644a", "rough": 0.5, "price": 5800 },
+      { "id": "microcement", "name": "微水泥", "nameEn": "Microcement", "tex": "microcement", "color": "#b9b4ab", "rough": 0.55, "price": 9800 },
+      { "id": "concrete", "name": "清水模地坪", "nameEn": "Polished concrete", "tex": "concrete", "color": "#a3a29d", "rough": 0.45, "price": 8600 }
+    ],
+    "counter": [
+      { "id": "calacatta", "name": "義大利白大理石", "nameEn": "Calacatta marble", "tex": "calacatta", "color": "#f2efe9", "rough": 0.15, "price": 32000 },
+      { "id": "honed", "name": "霧面灰石材", "nameEn": "Honed grey stone", "tex": "honedstone", "color": "#8f8b84", "rough": 0.6, "price": 18000 }
+    ],
+    "cabinet": [
+      { "id": "oak", "name": "淺橡木紋", "nameEn": "Light oak", "tex": "walnut", "tint": "#ead3b2", "rough": 0.6, "price": 9000 },
+      { "id": "latte", "name": "奶茶色烤漆", "nameEn": "Latte lacquer", "color": "#d8c4ad", "rough": 0.45, "price": 10500 },
+      { "id": "black", "name": "霧黑烤漆", "nameEn": "Matte black", "color": "#232425", "rough": 0.5, "price": 11500 },
+      { "id": "darkwood", "name": "深胡桃木", "nameEn": "Dark walnut", "tex": "walnut", "tint": "#7a5a44", "rough": 0.5, "price": 10500 }
+    ],
+    "paint": [
+      { "id": "cream", "name": "奶油白", "nameEn": "Cream", "color": "#efe6d6", "rough": 0.9, "price": 820 },
+      { "id": "limewash", "name": "礦物塗料", "nameEn": "Limewash", "tex": "limewash", "color": "#ddd5c8", "rough": 0.95, "price": 2600 },
+      { "id": "pure", "name": "純白", "nameEn": "Pure white", "color": "#f3f2ee", "rough": 0.9, "price": 760 },
+      { "id": "cement", "name": "水泥灰", "nameEn": "Cement grey", "tex": "microcement", "tint": "#b8b6b1", "rough": 0.9, "price": 2200 }
+    ]
+  },
+  "styles": [
+    {
+      "id": "cream", "name": "奶油風", "nameEn": "Cream", "tagline": "柔和米白、圓潤家具、暖光",
+      "finishes": { "floor": "lightoak", "counter": "quartz", "cabinet": "latte", "paint": "cream" },
+      "palette": {
+        "fabric": "#e9e0d3", "upholster": "#e2d5c3", "linen": "#f4eee5", "duvet": "#f3ece1", "accent": "#c8a07a",
+        "wood": "#efd9bd", "lightWood": "#f0dfc6", "oakSlat": "#ead6bb", "metal": "#b49a78", "curtain": "#efe6d8",
+        "models": { "GlamVelvetSofa": "#efe4d4", "SheenChair": "#d9b48f", "SpecularSilkPouf": "#e6d6c0" },
+        "light": "warm"
+      }
+    },
+    {
+      "id": "wabi", "name": "侘寂風", "nameEn": "Wabi-sabi", "tagline": "礦物牆面、微水泥、深木與亞麻",
+      "finishes": { "floor": "microcement", "counter": "honed", "cabinet": "darkwood", "paint": "limewash" },
+      "palette": {
+        "fabric": "#cfc6b7", "upholster": "#bdb2a0", "linen": "#d8cfc1", "duvet": "#d9d0c2", "accent": "#7f6c58",
+        "wood": "#7b5d46", "lightWood": "#8a6c52", "oakSlat": "#6d5442", "metal": "#3a3632", "curtain": "#d2c8b8",
+        "models": { "GlamVelvetSofa": "#c3b8a6", "SheenChair": "#8b7863", "SpecularSilkPouf": "#a6977f" },
+        "light": "warm"
+      }
+    },
+    {
+      "id": "luxe", "name": "現代輕奢", "nameEn": "Modern luxe", "tagline": "大理石、黑金、墨綠絲絨",
+      "finishes": { "floor": "marble", "counter": "calacatta", "cabinet": "black", "paint": "pure" },
+      "palette": {
+        "fabric": "#2f4a3e", "upholster": "#3a3f3c", "linen": "#e6e2db", "duvet": "#ece8e1", "accent": "#b08d57",
+        "wood": "#4b3428", "lightWood": "#5c4334", "oakSlat": "#3d2d24", "metal": "#b08d57", "curtain": "#d9d3c9",
+        "models": { "GlamVelvetSofa": "#2c4a3d", "SheenChair": "#a87d4a", "SpecularSilkPouf": "#2c4a3d" },
+        "light": "neutral"
+      }
+    },
+    {
+      "id": "japandi", "name": "日式無印", "nameEn": "Japandi", "tagline": "淺木、純白、自然亞麻",
+      "finishes": { "floor": "oak", "counter": "quartz", "cabinet": "oak", "paint": "pure" },
+      "palette": {
+        "fabric": "#d6ccbb", "upholster": "#cfc2ad", "linen": "#ece5d9", "duvet": "#efe9de", "accent": "#9d8b70",
+        "wood": "#d8bd99", "lightWood": "#dfc7a5", "oakSlat": "#d9c09d", "metal": "#6b6560", "curtain": "#ebe4d6",
+        "models": { "GlamVelvetSofa": "#d5cab8", "SheenChair": "#c4ad8c", "SpecularSilkPouf": "#d8cbb5" },
+        "light": "warm"
+      }
+    },
+    {
+      "id": "industrial", "name": "工業風", "nameEn": "Industrial", "tagline": "清水模、黑鐵、焦糖皮革",
+      "finishes": { "floor": "concrete", "counter": "steel", "cabinet": "black", "paint": "cement" },
+      "palette": {
+        "fabric": "#6b4a33", "upholster": "#3b3a38", "linen": "#8a847a", "duvet": "#cfc9bf", "accent": "#8c5a3a",
+        "wood": "#5b3f2c", "lightWood": "#6a4b35", "oakSlat": "#4c3a2c", "metal": "#1d1e1f", "curtain": "#7c766c",
+        "models": { "GlamVelvetSofa": "#7a4e30", "SheenChair": "#2d2e30", "SpecularSilkPouf": "#5c4b3e" },
+        "light": "neutral"
+      }
+    }
+  ]
+}

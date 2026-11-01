@@ -5,6 +5,7 @@
 **Live demo flow**
 - **導覽 Story**: scroll from the top-down drawing → walls rise from the plan → materials and light → room-by-room walk → up the stair → 2F → exploded two-level view.
 - **探索 Explore**: tap/click the floor to walk there; ink mini-map with your position and view cone; time-of-day slider (morning → dusk → night with lit city and interior lights); **A/B 對比** split view per finish with price delta and one-click adopt.
+- **風格 Styles** (Explore panel, first tab): 原始提案 / 奶油風 / 侘寂風 / 現代輕奢 / 日式無印 / 工業風. Each style is a bundle of finishes + furniture fabric/wood palette + light temperature (`data/styles.json`), applied to the measured space with a wipe transition; cards show the resulting total and the difference; **A/B** splits the screen style vs style.
 - Also in Explore: first-person walk (drag to look, WASD / arrows, *hold to walk* on phones) with wall + furniture collision and real stair climbing between floors. Overview mode with 1F / 1F+2F / exploded cutaways. Finish toggles (flooring, countertop, cabinet doors, wall paint) update the 3D and the quote live.
 - **平面圖 Plan**: the ink plan per level, rendered from the same data, plus an auto-computed room schedule (m² / 坪). Click a room to walk into it.
 

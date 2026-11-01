@@ -136,65 +136,82 @@ export function setupTime({ world, plan }) {
   return { reset() { input.value = def; set(def); }, set };
 }
 
-// ---------------------------------------------------------------- finish A/B split
-export function setupCompare({ plan, world, chosen, onAdopt, goToFocus, renderer }) {
+// ---------------------------------------------------------------- A/B split (finishes or whole styles)
+// cfg: { title, applyA(), applyB(), restore(), side(which) -> {tag,name,sub}, chips: [{id,label}], current: id, pick(id), adopt() }
+export function setupCompare({ renderer }) {
   const bar = $('#compare'), handle = $('#compare-handle');
-  let cmp = null; // { group, a, b, x }
-  function open(groupId) {
-    const g = plan.finishes.find(f => f.id === groupId);
-    const a = chosen[groupId];
-    const b = (g.options.find(o => o.id !== a) || g.options[0]).id;
-    cmp = { group: g, a, b, x: 0.5 };
+  let cmp = null, sweep = null;
+  function open(cfg) {
+    cmp = { ...cfg, x: 0.5 };
+    sweep = null;
     document.body.classList.add('comparing');
+    handle.classList.remove('sweeping');
     bar.hidden = false; handle.hidden = false;
-    goToFocus(g);
     renderBar();
   }
   function close() {
     if (!cmp) return;
-    world.applyFinish(cmp.group.id, chosen[cmp.group.id]);
-    cmp = null;
+    const c = cmp; cmp = null;
+    c.restore();
     document.body.classList.remove('comparing');
     bar.hidden = true; handle.hidden = true;
   }
   function renderBar() {
-    const g = cmp.group;
-    const A = g.options.find(o => o.id === cmp.a), B = g.options.find(o => o.id === cmp.b);
-    const diff = B.price - A.price;
-    bar.querySelector('.cmp-a').innerHTML = `<span class="tag">A 目前</span><b>${A.name}</b><small>NT$ ${fmt(A.price)}/${g.unit}</small>`;
-    bar.querySelector('.cmp-b').innerHTML = `<span class="tag">B 比較</span><b>${B.name}</b><small>NT$ ${fmt(B.price)}/${g.unit} · ${diff === 0 ? '同價' : (diff > 0 ? '+' : '−') + 'NT$ ' + fmt(Math.abs(diff)) + '/' + g.unit}</small>`;
+    const a = cmp.side('a'), b = cmp.side('b');
+    bar.querySelector('.cmp-a').innerHTML = `<span class="tag">${a.tag}</span><b>${a.name}</b><small>${a.sub}</small>`;
+    bar.querySelector('.cmp-b').innerHTML = `<span class="tag">${b.tag}</span><b>${b.name}</b><small>${b.sub}</small>`;
     const chips = bar.querySelector('.cmp-opts');
     chips.innerHTML = '';
-    for (const o of g.options) {
-      if (o.id === cmp.a) continue;
+    for (const o of cmp.chips) {
       const btn = document.createElement('button');
-      btn.type = 'button'; btn.textContent = o.name; btn.setAttribute('aria-pressed', String(o.id === cmp.b));
-      btn.addEventListener('click', () => { cmp.b = o.id; renderBar(); });
+      btn.type = 'button'; btn.textContent = o.label; btn.setAttribute('aria-pressed', String(o.id === cmp.current));
+      btn.addEventListener('click', () => { cmp.current = o.id; cmp.pick(o.id); renderBar(); });
       chips.appendChild(btn);
     }
-    bar.querySelector('.cmp-title').textContent = `${g.name} 對比`;
+    bar.querySelector('.cmp-title').textContent = cmp.title;
     placeHandle();
   }
-  function placeHandle() { handle.style.left = `${cmp.x * 100}%`; }
-  bar.querySelector('.cmp-adopt').addEventListener('click', () => { const id = cmp.b, gid = cmp.group.id; close(); onAdopt(gid, id); });
+  function placeHandle() { handle.style.left = `${(sweep ? sweep.x : cmp.x) * 100}%`; }
+  bar.querySelector('.cmp-adopt').addEventListener('click', () => { const c = cmp; close(); c.adopt(); });
   bar.querySelector('.cmp-close').addEventListener('click', close);
   let dragging = false;
-  handle.addEventListener('pointerdown', e => { dragging = true; handle.setPointerCapture(e.pointerId); e.stopPropagation(); });
+  handle.addEventListener('pointerdown', e => { if (!cmp) return; dragging = true; handle.setPointerCapture(e.pointerId); e.stopPropagation(); });
   handle.addEventListener('pointermove', e => { if (!dragging || !cmp) return; cmp.x = Math.min(0.92, Math.max(0.08, e.clientX / innerWidth)); placeHandle(); });
   handle.addEventListener('pointerup', () => { dragging = false; });
   handle.addEventListener('keydown', e => { if (!cmp) return; if (e.key === 'ArrowLeft') cmp.x = Math.max(0.08, cmp.x - 0.04); if (e.key === 'ArrowRight') cmp.x = Math.min(0.92, cmp.x + 0.04); placeHandle(); });
 
-  // render both halves: A on the left, B on the right
-  function render(draw) {
-    if (!cmp) return false;
-    const w = innerWidth, h = innerHeight, split = Math.round(w * cmp.x);
+  // A wipe from the old state (right) to the new state (left edge sweeping across)
+  function transition(applyOld, applyNew, done, dur = 1.1) {
+    if (cmp) close();
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { applyNew(); done && done(); return; }
+    sweep = { applyOld, applyNew, done, t0: performance.now(), dur: dur * 1000, x: 0 };
+    handle.hidden = false; handle.classList.add('sweeping');
+  }
+
+  function split(draw, x, left, right) {
+    const w = innerWidth, h = innerHeight, sx = Math.round(w * x);
     renderer.setScissorTest(true);
-    world.applyFinish(cmp.group.id, cmp.a);
-    renderer.setScissor(0, 0, split, h); draw();
-    world.applyFinish(cmp.group.id, cmp.b);
-    renderer.setScissor(split, 0, w - split, h); draw();
+    left(); renderer.setScissor(0, 0, sx, h); draw();
+    right(); renderer.setScissor(sx, 0, w - sx, h); draw();
     renderer.setScissorTest(false);
+  }
+  function render(draw) {
+    if (sweep) {
+      const k = Math.min(1, (performance.now() - sweep.t0) / sweep.dur);
+      sweep.x = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      placeHandle();
+      if (k >= 1) {
+        const s = sweep; sweep = null; handle.hidden = true; handle.classList.remove('sweeping');
+        s.applyNew(); s.done && s.done(); draw(); return true;
+      }
+      split(draw, sweep.x, sweep.applyNew, sweep.applyOld);
+      sweep.applyNew();
+      return true;
+    }
+    if (!cmp) return false;
+    split(draw, cmp.x, cmp.applyA, cmp.applyB);
+    cmp.applyA();
     return true;
   }
-  return { open, close, render, get active() { return !!cmp; } };
+  return { open, close, transition, render, get active() { return !!cmp; } };
 }
