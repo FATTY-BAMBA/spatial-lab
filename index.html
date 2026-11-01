@@ -148,7 +148,7 @@ body[data-mode="plan"] #plate { display: none; }
 }
 .spot-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--rule); padding: 4px; border-radius: 6px; width: fit-content; max-width: 100%; }
 .spot-group .lv { font-family: var(--mono); font-weight: 600; font-size: 11px; background: var(--ink); color: var(--paper-2); padding: 4px 7px; border-radius: 3px; }
-.spot { border: 0; background: none; padding: 5px 9px; border-radius: 4px; font-size: 13px; }
+.spot { border: 0; background: none; padding: 5px 9px; border-radius: 4px; font-size: 13px; white-space: nowrap; flex: none; }
 .spot:hover { background: rgba(31, 35, 40, 0.07); }
 .spot.on { background: var(--tape); }
 .walk-hint { position: fixed; z-index: 9; left: 50%; transform: translateX(-50%); top: calc(var(--top) + 118px); transition: opacity .6s ease; font-family: var(--mono); font-size: 11px; color: var(--graphite); background: var(--glass); padding: 6px 10px; border-radius: 4px; white-space: nowrap; }
@@ -287,13 +287,14 @@ body.ready .loading { opacity: 0; pointer-events: none; }
 .cmp-actions { display: flex; gap: 6px; }
 .cmp-actions button { border: 1px solid var(--ink); background: none; font-size: 12.5px; padding: 5px 10px; }
 .cmp-adopt { background: var(--ink) !important; color: var(--paper-2); }
-body.comparing #panel, body.comparing #spots, body.comparing .walk-hint, body.comparing #hold-walk, body.comparing #minimap { display: none !important; }
+body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparing .walk-hint, body.comparing #hold-walk, body.comparing #minimap { display: none !important; }
 @media (max-width: 860px) {
   #minimap { top: auto; bottom: calc(var(--bottom) + 76px); left: auto; right: var(--gutter-r); width: 132px; }
   body[data-mode="explore"] .toolbar { bottom: calc(var(--bottom) + 76px); right: auto; left: var(--gutter-l); align-items: flex-start; }
   #hold-walk { left: auto !important; right: var(--gutter-r); bottom: calc(var(--bottom) + 76px + var(--mm-h, 120px) + 34px) !important; }
   .tod input { width: 110px; }
   #compare { grid-template-columns: 1fr 1fr; }
+  body.comparing .toolbar { display: none; }
   .cmp-mid { grid-column: 1 / -1; grid-row: 1; }
 }
 
