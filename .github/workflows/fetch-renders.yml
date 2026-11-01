@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download renders listed in assets/ai/fetch.txt (format: <path> <url>)
+      - name: Download renders listed in assets/ai/fetch.txt
         run: |
           while read -r path url; do
             [ -z "$path" ] && continue
