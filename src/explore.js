@@ -25,7 +25,7 @@ export function createExplore(plan, camera, dom) {
 
   function floorAt(x, z, y) {
     if (!multi) return levels[0].elevation;
-    if (stair && x >= stair.x0 && x <= stair.x1 && z >= stair.zStart && z <= stair.zEnd) {
+    if (stair && x >= stair.x0 && x <= stair.x1 && z >= Math.min(stair.zStart, stair.zEnd) && z <= Math.max(stair.zStart, stair.zEnd)) {
       const h = stairHeightAt(stair, z, rise);
       return Math.abs(h - y) <= STEP ? h : null;
     }

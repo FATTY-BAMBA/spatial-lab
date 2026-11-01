@@ -19,11 +19,16 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  const projectKey = PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
-  const plan = await loadPlan(PROJECTS[projectKey]);
+  let customPlan = null;
+  if (params.get('p') === 'custom') { try { customPlan = JSON.parse(localStorage.getItem('spatial.custom') || 'null'); } catch {} }
+  const projectKey = customPlan ? 'custom' : PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
+  const plan = customPlan || (await loadPlan(PROJECTS[projectKey]));
+  const editLink = document.getElementById('edit-link');
+  if (editLink) editLink.href = `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
   const catalog = await loadPlan('data/styles.json').catch(() => ({ extraOptions: {}, styles: [] }));
   for (const g of plan.finishes) for (const o of catalog.extraOptions[g.id] || []) if (!g.options.some(x => x.id === o.id)) g.options.push(o);
   document.body.dataset.project = projectKey;
+  try { if (localStorage.getItem('spatial.custom')) document.getElementById('custom-link').hidden = false; } catch {}
   document.querySelectorAll('[data-project-link]').forEach(a => a.setAttribute('aria-current', String(a.dataset.projectLink === projectKey)));
   // quality tier: high (AO + bloom + MSAA), med (no post), lite (no shadows)
   const coarse = matchMedia('(pointer: coarse)').matches;

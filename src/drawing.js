@@ -17,15 +17,21 @@ export function planFrame(plan, margin = 2.2) {
 
 export function drawLevel(plan, level, opts = {}) {
   const s = opts.pxPerM || 128;
-  const frame = opts.frame || planFrame(plan);
   const canvas = opts.canvas || document.createElement('canvas');
-  canvas.width = Math.round(frame.w * s);
-  canvas.height = Math.round(frame.h * s);
+  let frame;
+  if (opts.view) {
+    // draw into an existing canvas at a given pan/zoom (editor)
+    frame = { x0: opts.view.x0, z0: opts.view.z0, w: canvas.width / s, h: canvas.height / s };
+  } else {
+    frame = opts.frame || planFrame(plan);
+    canvas.width = Math.round(frame.w * s);
+    canvas.height = Math.round(frame.h * s);
+  }
   const ctx = canvas.getContext('2d');
   const X = x => (x - frame.x0) * s;
   const Z = z => (z - frame.z0) * s;
   const px = m => m * s;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!opts.view) ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.lineJoin = 'miter';
   ctx.lineCap = 'butt';
 
@@ -35,12 +41,14 @@ export function drawLevel(plan, level, opts = {}) {
   }
 
   // 1 m grid
+  if (!opts.noGrid) {
   ctx.strokeStyle = opts.paper ? 'rgba(31,35,40,0.07)' : 'rgba(31,35,40,0.10)';
   ctx.lineWidth = Math.max(1, s / 110);
   ctx.beginPath();
   for (let x = Math.ceil(frame.x0); x <= frame.x0 + frame.w; x++) { ctx.moveTo(X(x), 0); ctx.lineTo(X(x), canvas.height); }
   for (let z = Math.ceil(frame.z0); z <= frame.z0 + frame.h; z++) { ctx.moveTo(0, Z(z)); ctx.lineTo(canvas.width, Z(z)); }
   ctx.stroke();
+  }
 
   // Room fills
   for (const r of level.rooms) {
@@ -108,6 +116,15 @@ export function drawLevel(plan, level, opts = {}) {
   const rooms = level.rooms;
   for (const w of level.walls) {
     const { len, ux, uz, angle } = wallFrame(w);
+    if (w.kind === 'zone' || w.kind === 'railing') {
+      ctx.save();
+      ctx.strokeStyle = w.kind === 'zone' ? 'rgba(31,35,40,0.45)' : INK;
+      ctx.lineWidth = Math.max(1, s / 90);
+      if (w.kind === 'zone') { ctx.setLineDash([px(0.15), px(0.1)]); ctx.beginPath(); ctx.moveTo(X(w.a[0]), Z(w.a[1])); ctx.lineTo(X(w.b[0]), Z(w.b[1])); ctx.stroke(); }
+      else { const o = 0.04; ctx.beginPath(); for (const k of [o, -o]) { ctx.moveTo(X(w.a[0] - uz * k), Z(w.a[1] + ux * k)); ctx.lineTo(X(w.b[0] - uz * k), Z(w.b[1] + ux * k)); } ctx.stroke(); }
+      ctx.restore();
+      continue;
+    }
     const nx = -uz, nz = ux;
     ctx.save();
     ctx.translate(X(w.a[0]), Z(w.a[1]));
@@ -197,7 +214,7 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.restore();
   }
 
-  drawDimensions(ctx, plan, level, X, Z, px);
+  if (!opts.noDims) drawDimensions(ctx, plan, level, X, Z, px);
 
   if (opts.paper && opts.titleBlock !== false) drawNorth(ctx, X, Z, px, frame);
   return { canvas, frame, pxPerM: s };

@@ -195,7 +195,8 @@ export async function createWorld(plan, renderer, opts = {}) {
 
     for (const r of L.rooms) {
       const mat = r.finish === 'tile' ? M.tile : r.finish === 'balcony' ? M.balcony : finishMats.floor;
-      const m = new THREE.Mesh(floorGeo(r.polygon), mat);
+      const holes = (L.voids || []).map(v => v.polygon).filter(vp => { const c = vp.reduce((a, q) => [a[0] + q[0] / vp.length, a[1] + q[1] / vp.length], [0, 0]); return pointInPolygon(c, r.polygon) && !vp.every(q => r.polygon.some(rp => Math.hypot(rp[0] - q[0], rp[1] - q[1]) < 0.01)); });
+      const m = new THREE.Mesh(floorGeo(r.polygon, holes), mat);
       m.position.y = 0.002; m.receiveShadow = true; m.userData.room = r.id; m.userData.level = L.id;
       group.add(m);
     }
@@ -489,8 +490,9 @@ function planeXZ(x0, z0, w, h) {
   return g;
 }
 
-function floorGeo(poly) {
+function floorGeo(poly, holes = []) {
   const shape = new THREE.Shape(poly.map(([x, z]) => new THREE.Vector2(x, -z)));
+  for (const h of holes) shape.holes.push(new THREE.Path(h.map(([x, z]) => new THREE.Vector2(x, -z))));
   const g = new THREE.ShapeGeometry(shape);
   g.rotateX(-Math.PI / 2);
   return g;
@@ -655,7 +657,7 @@ function buildStair(st, rise, treadMat, M, addEdges) {
   const w = st.x1 - st.x0, cx = (st.x0 + st.x1) / 2;
   for (let i = 0; i < n; i++) {
     const top = (i + 1) * r, h = r + 0.16;
-    const m = addEdges(new THREE.Mesh(boxGeo(w, h, run + 0.02), treadMat));
+    const m = addEdges(new THREE.Mesh(boxGeo(w, h, Math.abs(run) + 0.02), treadMat));
     m.position.set(cx, top - h / 2, st.zStart + (i + 0.5) * run);
     m.castShadow = m.receiveShadow = true;
     g.add(m);

@@ -56,6 +56,10 @@ body[data-mode="story"] #gl { touch-action: pan-y; pointer-events: none; }
 .tabs button small { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--graphite); margin-left: 6px; text-transform: uppercase; }
 .tabs button[aria-pressed="true"] { background: var(--ink); color: var(--paper-2); }
 .tabs button[aria-pressed="true"] small { color: rgba(246, 247, 243, 0.7); }
+.edit-link { color: var(--ink); text-decoration: none; padding: 6px 14px; border-radius: 999px; font-weight: 500; white-space: nowrap; border-left: 1px solid var(--rule); }
+.edit-link small { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--graphite); margin-left: 6px; text-transform: uppercase; }
+.edit-link:hover { background: var(--tape); }
+.projects a.draw-own { border-style: dashed; border-color: var(--ink); }
 
 /* ---------- story ---------- */
 #story-scroll { position: relative; z-index: 1; pointer-events: none; }
@@ -239,7 +243,8 @@ body.ready .loading { opacity: 0; pointer-events: none; }
   .brand b { font-size: 14px; white-space: nowrap; }
   .scroll-hint { display: none; }
   .credits { font-size: 9px; }
-  .tabs button small { display: none; }
+  .tabs button small, .edit-link small { display: none; }
+  .edit-link { padding: 6px 10px; }
   .tabs button { padding: 6px 11px; }
   #rail { display: none; }
   .hero { top: calc(var(--top) + 70px); }
@@ -339,6 +344,7 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
     <button type="button" data-mode="story" aria-pressed="true">導覽<small>Story</small></button>
     <button type="button" data-mode="explore" aria-pressed="false">探索<small>Explore</small></button>
     <button type="button" data-mode="plan" aria-pressed="false">平面圖<small>Plan</small></button>
+    <a id="edit-link" class="edit-link" href="editor.html">編輯平面<small>Edit</small></a>
   </nav>
 </header>
 
@@ -349,7 +355,7 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
   <h1>每一個家，<br>都從一張<em>平面圖</em><br>開始。</h1>
   <p>同一份平面資料，直接長成可以走進去的空間，每一個材質選擇都連到報價清單。</p>
   <div class="titleblock" id="titleblock" aria-label="案件資料"></div>
-  <div class="projects" aria-label="示範案"><span>示範案</span><a href="?p=apartment" data-project-link="apartment">大樓 3房2廳</a><a href="?p=townhouse" data-project-link="townhouse">透天 2F</a></div>
+  <div class="projects" aria-label="示範案"><span>示範案</span><a href="?p=apartment" data-project-link="apartment">大樓 3房2廳</a><a href="?p=townhouse" data-project-link="townhouse">透天 2F</a><a href="?p=custom" data-project-link="custom" id="custom-link" hidden>我的平面</a><a href="editor.html" class="draw-own">＋ 畫我的平面</a></div>
   <div class="scroll-hint">向下捲動 · Scroll to build</div>
 </section>
 <div class="caption story-only" id="cap-rise"><h2>牆體從圖面直接長出來</h2><p>牆厚、門窗開口、樓梯，全部讀自同一份平面資料，不需要重新建模。</p><span class="en">Walls rise straight from the drawing — every dimension comes from the plan data.</span></div>

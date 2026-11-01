@@ -9,6 +9,17 @@
 - Also in Explore: first-person walk (drag to look, WASD / arrows, *hold to walk* on phones) with wall + furniture collision and real stair climbing between floors. Overview mode with 1F / 1F+2F / exploded cutaways. Finish toggles (flooring, countertop, cabinet doors, wall paint) update the 3D and the quote live.
 - **平面圖 Plan**: the ink plan per level, rendered from the same data, plus an auto-computed room schedule (m² / 坪). Click a room to walk into it.
 
+## Plan editor (`editor.html`)
+Draw your own plan and open it in 3D:
+- **牆 W**: click-to-click walls with snapping (endpoints, walls, orthogonal/45°, alignment, 5 cm grid); type a length (`360` = cm, `3.6` = m) + Enter.
+- **門 D / 窗 N / 拉門 S**: click a wall to place; drag along the wall to move; edit width / sill / head in the panel.
+- **分界 Z**: dashed boundary to split an open space into rooms (客廳 / 餐廳); not built in 3D.
+- Rooms are **detected automatically** from closed walls, with m² / 坪; exterior walls are found and thickened automatically.
+- **家具 F**: furniture catalogue (sofa, beds, dining set, kitchen run, bath fixtures…), R to rotate.
+- **樓梯 T**: drag the stair footprint; the floor above is created with the exterior walls copied and the stairwell cut out.
+- **Trace a real plan**: *匯入平面圖照片* (photo/scan) → *比例* tool: click two points of a known dimension and type it. *匯入 DXF*: plan drawn as underlay with endpoint snapping; **自動辨識牆體** pairs parallel wall lines into walls, finds door/window/slider gaps (glazing lines → window), closes corners, and names rooms from the drawing's text. Try *開啟範例 → DXF 範例* (`samples/sample-2br-apartment.dxf`).
+- Undo/redo, autosave in the browser, JSON download/open, **在 3D 中查看** builds spots, a door-aware camera tour and quantities automatically (`?p=custom`).
+
 ## Demo projects
 - `?p=apartment` (default): 大樓住宅 3房2廳2衛, 9F of a 14F tower, front balcony + service balcony, city and mountain view.
 - `?p=townhouse`: 透天 2F with a real stair between levels.
