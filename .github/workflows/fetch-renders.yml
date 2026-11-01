@@ -1,0 +1,25 @@
+name: fetch-ai-renders
+on:
+  push:
+    paths: ['assets/ai/fetch.txt']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download renders listed in assets/ai/fetch.txt (format: <path> <url>)
+        run: |
+          while read -r path url; do
+            [ -z "$path" ] && continue
+            [ -f "$path" ] && continue
+            mkdir -p "$(dirname "$path")"
+            curl -sfL -o "$path" "$url" && echo "got $path"
+          done < assets/ai/fetch.txt
+      - name: Commit
+        run: |
+          git config user.name "render-bot"; git config user.email "render-bot@users.noreply.github.com"
+          git add assets/ai
+          git diff --cached --quiet || (git commit -m "Fetch AI renders" && git push)
