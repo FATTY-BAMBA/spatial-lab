@@ -110,11 +110,16 @@ export function detectRooms(level) {
     const base = old || { id: `r${Date.now().toString(36)}${i}`, name: biggest && area > 15 ? '客廳' : area > 7 ? '臥室' : '房間', nameEn: biggest && area > 15 ? 'Living' : area > 7 ? 'Bedroom' : 'Room', finish: 'floor' };
     return { ...base, polygon: poly, labelAt: old && old.labelPinned ? old.labelAt : c };
   });
-  // give unnamed duplicates a number (臥室 1, 臥室 2…)
-  const count = {};
-  for (const r of rooms) if (!prev.some(p => p.id === r.id)) { count[r.name] = (count[r.name] || 0) + 1; }
-  const seen = {};
-  for (const r of rooms) if (!prev.some(p => p.id === r.id) && (count[r.name] > 1 || rooms.some(o => o !== r && o.name === r.name && prev.some(p => p.id === o.id)))) { seen[r.name] = (seen[r.name] || 0) + 1; r.name = `${r.name} ${seen[r.name] + (rooms.some(o => o.name === r.name.replace(/ \d+$/, '') && prev.some(p => p.id === o.id)) ? 1 : 0)}`; }
+  // new rooms: one 客廳 at most, the rest numbered (臥室 1, 臥室 2… / 房間 1…)
+  const isNew = r => !prev.some(p => p.id === r.id);
+  const taken = new Set(rooms.filter(r => !isNew(r)).map(r => r.name));
+  for (const r of rooms) {
+    if (!isNew(r)) continue;
+    if (r.name === '客廳' && !taken.has('客廳')) { taken.add('客廳'); continue; }
+    if (r.name === '客廳') { r.name = '臥室'; r.nameEn = 'Bedroom'; }
+    let n = 1; while (taken.has(`${r.name} ${n}`)) n++;
+    r.name = `${r.name} ${n}`; taken.add(r.name);
+  }
   level.rooms = rooms;
   // walls on the outer boundary are exterior
   if (outer) for (const w of level.walls) {
