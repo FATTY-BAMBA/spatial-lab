@@ -19,3 +19,4 @@ assets/ai/render/master-wabi.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerA
 assets/ai/render/master-luxe.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_042308_89caf442-12d0-4a7b-bf41-a6a5aa2329e4.png
 assets/ai/render/master-japandi.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_042942_e98dcefb-080b-4a92-912b-a6a988eb6ed5.png
 assets/ai/render/master-industrial.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_043517_ec40e7f1-2b22-4472-a972-6b246e46c8cd.png
+assets/ai/video/film-music.m4a https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_084034_90290d55-2631-46c9-85e3-45071495dfeb.m4a
