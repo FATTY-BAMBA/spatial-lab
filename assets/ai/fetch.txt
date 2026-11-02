@@ -1,2 +1,1 @@
-assets/ai/render/test/living_t1.png https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261101_234947_f176a832-1fb7-4de6-b73b-74185cbf6358.png
-
+assets/ai/render/living.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_033545_0bd6f920-c394-4181-a49a-354809b35eb0.png

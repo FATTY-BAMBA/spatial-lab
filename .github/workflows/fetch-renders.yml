@@ -10,16 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download renders listed in assets/ai/fetch.txt
+      - name: Download renders listed in assets/ai/fetch.txt and convert to web JPG + thumbnail
         run: |
+          sudo apt-get -qq install -y imagemagick >/dev/null 2>&1 || true
           while read -r path url; do
             [ -z "$path" ] && continue
             [ -f "$path" ] && continue
             mkdir -p "$(dirname "$path")"
-            curl -sfL -o "$path" "$url" && echo "got $path"
+            curl -sfL -o /tmp/src.img "$url" || { echo "fail $path"; continue; }
+            convert /tmp/src.img -resize '2400x>' -quality 86 "$path"
+            convert /tmp/src.img -resize 480x -quality 78 "${path%.jpg}.thumb.jpg"
+            echo "got $path"
           done < assets/ai/fetch.txt
       - name: Commit
         run: |
           git config user.name "render-bot"; git config user.email "render-bot@users.noreply.github.com"
           git add assets/ai
-          git diff --cached --quiet || (git commit -m "Fetch AI renders" && git push)
+          git diff --cached --quiet || (git commit -m "Fetch AI renders" && git pull --rebase && git push)
