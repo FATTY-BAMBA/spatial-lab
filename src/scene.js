@@ -162,6 +162,10 @@ export async function createWorld(plan, renderer, opts = {}) {
   const sheer = patch(new THREE.MeshStandardMaterial({ color: '#f6f3ec', map: tex('fabric'), transparent: true, opacity: 0.62, side: THREE.DoubleSide, roughness: 1, depthWrite: false }));
   const curtainMat = std({ color: '#cbbfae', map: tex('fabric'), side: THREE.DoubleSide, roughness: 1 });
   const curtainMatRef = curtainMat;
+  // names carry through to exported files (GLB / OBJ material names)
+  for (const k in M) M[k].name = k;
+  for (const k in finishMats) finishMats[k].name = 'finish-' + k;
+  glass.name = 'glass'; sheer.name = 'sheer'; curtainMat.name = 'curtain';
 
   // ---------- site ----------
   const siteG = new THREE.Group();
@@ -219,6 +223,7 @@ export async function createWorld(plan, renderer, opts = {}) {
 
     const rise = new THREE.Group();
     group.add(rise);
+    const tag = cat => { for (const c of rise.children) if (!c.userData.cat) c.userData.cat = cat; };
 
     // walls, skirting, openings
     const wetRooms = L.rooms.filter(r => !r.outdoor && (r.wet || /浴|衛|bath/i.test(r.name || '') || /bath/i.test(r.id || '')));
@@ -244,7 +249,7 @@ export async function createWorld(plan, renderer, opts = {}) {
             for (let i = 16; i < 24; i++) uv.setXY(i, uv.getX(i) + a0, uv.getY(i) + p.y0);
             const t = new THREE.Mesh(geo, M.wallTile), sm = (a0 + a1) / 2, d = side * (w.t / 2 + 0.005);
             t.position.set(w.a[0] + ux * sm + nx * d, p.y0 + th / 2, w.a[1] + uz * sm + nz * d);
-            t.rotation.y = -angle; t.receiveShadow = true; rise.add(t);
+            t.rotation.y = -angle; t.receiveShadow = true; t.userData.cat = 'tile'; rise.add(t);
           }
         }
         const m = addEdges(new THREE.Mesh(boxGeo(plen, h, w.t), finishMats.paint));
@@ -255,7 +260,7 @@ export async function createWorld(plan, renderer, opts = {}) {
         rise.add(m);
         if (p.y0 === 0 && !w.outdoor) {
           const sk = new THREE.Mesh(boxGeo(plen, 0.08, w.t + 0.024), M.trim);
-          sk.position.set(m.position.x, 0.04, m.position.z); sk.rotation.y = -angle; sk.receiveShadow = true;
+          sk.position.set(m.position.x, 0.04, m.position.z); sk.rotation.y = -angle; sk.receiveShadow = true; sk.userData.cat = 'trim';
           rise.add(sk);
         }
       }
@@ -265,7 +270,7 @@ export async function createWorld(plan, renderer, opts = {}) {
         const at = (off, y, depthOff = 0) => [cx + ux * off + nx * depthOff, y, cz + uz * off + nz * depthOff];
         const put = (geo, mat, off, y, dOff = 0, shadow = false) => {
           const b = new THREE.Mesh(geo, mat); b.position.set(...at(off, y, dOff)); b.rotation.y = -angle;
-          b.castShadow = shadow; b.receiveShadow = true; rise.add(b); return b;
+          b.castShadow = shadow; b.receiveShadow = true; b.userData.cat = 'openings'; rise.add(b); return b;
         };
         if (o.type === 'window') {
           put(new THREE.PlaneGeometry(o.width, h), glass, 0, o.sill + h / 2);
@@ -306,11 +311,12 @@ export async function createWorld(plan, renderer, opts = {}) {
           const hx = w.a[0] + ux * o.offset + nx * side * 0.0, hz = w.a[1] + uz * o.offset + nz * side * 0.0;
           leaf.position.set(hx + nx * side * (w.t / 2), 0.01, hz + nz * side * (w.t / 2));
           leaf.rotation.y = -angle - side * (Math.PI / 2) * 1.02;
-          rise.add(leaf);
+          leaf.userData.cat = 'openings'; rise.add(leaf);
         }
       }
     }
 
+    tag('walls');
     // railings
     for (const rl of L.railings || []) {
       const dx = rl.b[0] - rl.a[0], dz = rl.b[1] - rl.a[1], rlen = Math.hypot(dx, dz), ang = Math.atan2(dz, dx);
@@ -328,6 +334,7 @@ export async function createWorld(plan, renderer, opts = {}) {
       }
     }
 
+    tag('railings');
     // ceilings (cast shadows only while the camera is inside, so sun enters through windows)
     const above = plan.levels[li + 1];
     const interior = L.rooms.filter(r => !r.outdoor);
@@ -339,6 +346,7 @@ export async function createWorld(plan, renderer, opts = {}) {
       c.position.y = H - 0.05; rise.add(c); ceilings.push(c);
     }
 
+    tag('ceiling');
     // coves (dropped ceiling band with LED) and downlights
     for (const r of interior) {
       if (r.cove) buildCove(r.polygon, ceilY, rise, M, glows);
@@ -352,6 +360,7 @@ export async function createWorld(plan, renderer, opts = {}) {
       }
     }
 
+    tag('lighting');
     for (const v of L.voids || []) {
       const [ax, az] = v.railFrom, [bx, bz] = v.railTo;
       const len = Math.hypot(bx - ax, bz - az);
@@ -362,14 +371,17 @@ export async function createWorld(plan, renderer, opts = {}) {
       for (let z = az; z <= bz + 0.01; z += len / 4) { const p = new THREE.Mesh(boxGeo(0.04, 1.0, 0.04), M.metal); p.position.set(ax, 0.5, z); rise.add(p); }
     }
 
+    tag('railings');
     for (const st of plan.stairs.filter(s => s.from === L.id)) rise.add(buildStair(st, H, finishMats.floor, M, addEdges));
 
     for (const f of L.furniture) {
       const obj = buildItem(f, { finishMats, M, addEdges, models, glass, sheer, curtainMat, ceilY, glows });
       obj.position.set(f.x, f.y || 0, f.z);
       obj.rotation.y = ((f.rot || 0) * Math.PI) / 180;
+      obj.userData.cat = 'furniture'; obj.userData.item = f;
       rise.add(obj);
     }
+    tag('stairs');
 
     levels[L.id] = { def: L, group, rise, overlay, overlayMat, riseT: 1 };
   });

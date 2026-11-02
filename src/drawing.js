@@ -28,6 +28,7 @@ export function drawLevel(plan, level, opts = {}) {
     canvas.height = Math.round(frame.h * s);
   }
   const ctx = canvas.getContext('2d');
+  const lay = n => ctx.setLayer && ctx.setLayer(n); // CAD layer hook (DXF export); no-op on a real canvas
   const X = x => (x - frame.x0) * s;
   const Z = z => (z - frame.z0) * s;
   const px = m => m * s;
@@ -74,6 +75,7 @@ export function drawLevel(plan, level, opts = {}) {
   }
 
   // Voids (stairwell seen from above): diagonal cross
+  lay('A-FLOR-OVHD');
   for (const v of level.voids || []) {
     const b = bbox(v.polygon);
     ctx.strokeStyle = INK_SOFT; ctx.lineWidth = Math.max(1, s / 90);
@@ -84,6 +86,7 @@ export function drawLevel(plan, level, opts = {}) {
   }
 
   // Stairs
+  lay('A-FLOR-STRS');
   for (const st of plan.stairs) {
     if (st.from !== level.id && st.to !== level.id) continue;
     const n = st.risers - 1, run = (st.zEnd - st.zStart) / n;
@@ -116,6 +119,7 @@ export function drawLevel(plan, level, opts = {}) {
   const rooms = level.rooms;
   for (const w of level.walls) {
     const { len, ux, uz, angle } = wallFrame(w);
+    lay(w.kind === 'zone' ? 'A-ZONE' : w.kind === 'railing' ? 'A-RAIL' : 'A-WALL');
     if (w.kind === 'zone' || w.kind === 'railing') {
       ctx.save();
       ctx.strokeStyle = w.kind === 'zone' ? 'rgba(31,35,40,0.45)' : INK;
@@ -142,6 +146,7 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.strokeStyle = INK;
     for (const o of ops) {
       const a0 = px(o.offset), a1 = px(o.offset + o.width);
+      lay(o.type === 'door' || o.type === 'passage' ? 'A-DOOR' : 'A-GLAZ');
       if (o.type === 'window') {
         ctx.strokeRect(a0, -t / 2, a1 - a0, t);
         ctx.beginPath(); ctx.moveTo(a0, 0); ctx.lineTo(a1, 0); ctx.stroke();
@@ -179,6 +184,7 @@ export function drawLevel(plan, level, opts = {}) {
   }
 
   // Railings: double thin line
+  lay('A-RAIL');
   for (const rl of level.railings || []) {
     const dx = rl.b[0] - rl.a[0], dz = rl.b[1] - rl.a[1], len = Math.hypot(dx, dz);
     const nx = -dz / len * 0.04, nz = dx / len * 0.04;
@@ -190,6 +196,7 @@ export function drawLevel(plan, level, opts = {}) {
   }
 
   // Room labels
+  lay('A-ANNO-TEXT');
   for (const r of level.rooms) {
     const [cx, cz] = r.labelAt || labelPoint(r);
     const area = polygonArea(r.polygon);
@@ -214,8 +221,10 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.restore();
   }
 
+  lay('A-ANNO-DIMS');
   if (!opts.noDims) drawDimensions(ctx, plan, level, X, Z, px);
 
+  lay('A-ANNO-TTLB');
   if (opts.paper && opts.titleBlock !== false) drawNorth(ctx, X, Z, px, frame);
   return { canvas, frame, pxPerM: s };
 }
@@ -235,7 +244,10 @@ function sideFor(rooms, w, mx, mz, nx, nz) {
   return polygonArea(r1.polygon) <= polygonArea(r2.polygon) ? 1 : -1;
 }
 
+const FIXT = new Set(['counter', 'vanity', 'toilet', 'tub', 'shower', 'washer', 'fridge', 'hood', 'uppercab']);
+const CASE = new Set(['tallcab', 'wardrobe', 'shelf', 'shoe', 'tvwall', 'headboard']);
 function drawItem(ctx, f, X, Z, px) {
+  if (ctx.setLayer) ctx.setLayer(FIXT.has(f.kind) ? 'A-FIXT' : CASE.has(f.kind) ? 'A-CASE' : 'A-FURN');
   ctx.save();
   ctx.translate(X(f.x), Z(f.z));
   ctx.rotate((-(f.rot || 0) * Math.PI) / 180);

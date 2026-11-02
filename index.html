@@ -346,7 +346,7 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 .quote-actions .primary { background: var(--ink) !important; color: var(--paper-2) !important; border-color: var(--ink) !important; font-weight: 700; }
 @media (max-width: 560px) {
   .brand b { font-size: 0 !important; } .brand b::before { content: "PS·Lab"; font-size: 14px; }
-  #edit-link { display: none; }
+  #edit-link, #export-open { display: none; }
   .tabs { overflow-x: auto; max-width: calc(100vw - 92px); scrollbar-width: none; }
   .tabs button, .edit-link { padding: 6px 9px !important; }
 }
@@ -362,6 +362,16 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 #film video { width: min(100%, calc((100dvh - 120px) * 16 / 9)); aspect-ratio: 16/9; background: #000; border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
 .film-close { position: absolute; top: calc(var(--top) + 12px); right: var(--gutter-r); width: 40px; height: 40px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); background: none; color: #fff; font-size: 20px; }
 /* AI 效果圖 viewer: dark photo room, real-time frame vs geometry-locked AI render */
+/* export menu */
+.xp { position: fixed; z-index: 40; top: calc(var(--top) + 62px); right: var(--gutter-r); width: 330px; max-width: calc(100vw - 32px); background: var(--paper-2); border: 1px solid var(--ink); border-radius: 14px; padding: 14px; box-shadow: 0 18px 50px rgba(31,35,40,0.22); }
+.xp-h { margin: 0 0 10px; font-weight: 700; font-size: 15px; }
+.xp-h small, .xp button span { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; color: var(--graphite); font-weight: 400; }
+.xp button { display: block; width: 100%; text-align: left; font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+.xp button:hover { border-color: var(--ink); background: #fffaf0; }
+.xp button[disabled] { opacity: 0.5; cursor: progress; }
+.xp button code { font-family: var(--mono); font-size: 12px; background: var(--tape); color: var(--ink); padding: 0 5px; border-radius: 4px; margin-left: 4px; }
+.xp-note { margin: 6px 2px 0; font-size: 12px; color: var(--graphite); line-height: 1.6; }
+.xp-status { margin: 6px 2px 0; font-family: var(--mono); font-size: 11px; color: var(--tape-ink); min-height: 1em; }
 .ai-link { border: 1px solid var(--ink) !important; background: var(--ink) !important; color: var(--paper-2) !important; }
 .ai-link small { color: var(--tape) !important; opacity: 1 !important; }
 #ai { position: fixed; inset: 0; z-index: 60; background: #121314; color: #eceee8; display: grid; grid-template-rows: auto 1fr auto; padding: calc(var(--top) + 12px) var(--gutter-r) calc(var(--bottom) + 12px) var(--gutter-l); gap: 10px; }
@@ -494,8 +504,18 @@ body.pp-on { overflow: hidden; }
     <a id="edit-link" class="edit-link" href="editor.html">編輯平面<small>Edit</small></a>
     <button type="button" id="ai-open" class="ai-link" hidden>AI 效果圖<small>Render</small></button>
     <button type="button" id="proposal-top" class="edit-link">提案<small>Proposal</small></button>
+    <button type="button" id="export-open" class="edit-link" aria-haspopup="dialog" aria-expanded="false">匯出<small>Export</small></button>
   </nav>
 </header>
+
+<div id="export" class="xp" role="dialog" aria-label="匯出 Export" hidden>
+  <p class="xp-h">匯出到貴公司的設計軟體<small>Export to your own tools</small></p>
+  <button type="button" data-fmt="glb"><b>3D 模型 <code>.glb</code></b><span>SketchUp · Blender · D5 Render · Twinmotion</span></button>
+  <button type="button" data-fmt="obj"><b>3D 模型 <code>.obj</code></b><span>3ds Max · Rhino · 其他（.zip，含材質 .mtl）</span></button>
+  <button type="button" data-fmt="dxf"><b>平面圖 <code>.dxf</code></b><span>AutoCAD · 圖層分好 · 單位 mm</span></button>
+  <p class="xp-note">風格：<b class="xp-style">—</b><br>實際尺寸（公尺）· 房間、牆、門窗、家具各自成組 · 純色材質，方便換成自己的材質庫</p>
+  <p class="xp-status" aria-live="polite"></p>
+</div>
 
 <canvas id="gl" data-view="walk" aria-label="3D 模型"></canvas>
 

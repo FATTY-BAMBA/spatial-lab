@@ -25,6 +25,16 @@ Pipeline (`tools/` + `.github/workflows/fetch-renders.yml`):
 
 Quote basis (`plan.quoteBasis`, defaults in `src/plan.js`): price book + date, 含工帶料, waste per finish group, 5% 營業稅, written assumptions — shown under the total and in the proposal.
 
+## 匯出 (export to the designer's tools)
+
+Top bar → 匯出. Exports what is on screen, in the current style:
+
+- **`.glb`**: SketchUp (File → Import), Blender, D5 Render, Twinmotion. Metres; one named group per room floor, wall set, door/window set and furniture item; plain-colour materials (SketchUp turns textured glTF materials white, and designers swap in their own library anyway). Quantised furniture GLBs are converted to float geometry.
+- **`.obj` (zip with `.mtl` + README)**: 3ds Max, Rhino and the rest. Metres, Y up.
+- **`.dxf` (R12, mm)**: the 2D plan for AutoCAD, drawn by the same `drawLevel` code as the screen through a canvas-like recorder (`src/export.js`). Layers: A-WALL (poché as SOLID), A-DOOR, A-GLAZ, A-FURN, A-FIXT, A-CASE, A-AREA (room polygons), A-ANNO-TEXT, A-ANNO-DIMS, A-RAIL, A-FLOR-STRS. Chinese text is written as `\U+XXXX` with a `CJK` text style (msjh.ttc).
+
+The export is geometry, not parametric objects: walls arrive as faces/groups, not native SketchUp or Revit walls.
+
 ## Plan editor (`editor.html`)
 Draw your own plan and open it in 3D:
 - **牆 W**: click-to-click walls with snapping (endpoints, walls, orthogonal/45°, alignment, 5 cm grid); type a length (`360` = cm, `3.6` = m) + Enter.

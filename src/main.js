@@ -7,6 +7,7 @@ import { createExplore } from './explore.js';
 import { setupClickWalk, setupMinimap, setupTime, setupCompare } from './features.js';
 import { setupAI } from './ai.js';
 import { setupProposal } from './proposal.js';
+import { exportGLB, exportOBJ, exportDXF, download } from './export.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
@@ -606,6 +607,27 @@ async function boot() {
     plan, projectKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest,
     onView: id => { if (mode !== 'explore') setMode('explore'); selectStyle(id, true); },
   });
+  { // 匯出: GLB / OBJ for SketchUp, 3ds Max…; DXF plan for AutoCAD
+    const box = $('#export'), btn = $('#export-open'), status = box.querySelector('.xp-status');
+    const style = () => styles.find(s => s.id === styleId);
+    const show = v => { box.hidden = !v; btn.setAttribute('aria-expanded', String(v)); if (v) { const st = style(); box.querySelector('.xp-style').textContent = st ? `${st.name} ${st.nameEn || ''}` : '自訂材質 Custom'; status.textContent = ''; } };
+    btn.addEventListener('click', e => { e.stopPropagation(); show(box.hidden); });
+    document.addEventListener('click', e => { if (!box.hidden && !box.contains(e.target)) show(false); });
+    addEventListener('keydown', e => { if (e.key === 'Escape' && !box.hidden) { show(false); btn.focus(); } });
+    box.querySelectorAll('[data-fmt]').forEach(b => b.addEventListener('click', async () => {
+      const fmt = b.dataset.fmt, st = style(), sid = st ? st.id : 'custom';
+      const title = `${plan.project.name} · ${st ? st.name : '自訂'}`, base = `${projectKey}-${sid}`;
+      box.querySelectorAll('button').forEach(x => { x.disabled = true; }); status.textContent = '產生中… Preparing…';
+      await new Promise(r => setTimeout(r, 30));
+      try {
+        if (fmt === 'glb') download(await exportGLB(world, plan, title), `${base}.glb`);
+        else if (fmt === 'obj') download(await exportOBJ(world, plan, title, base), `${base}-obj.zip`);
+        else download(exportDXF(plan, plan.project.name), `${projectKey}-plan.dxf`);
+        status.textContent = '已下載 Downloaded ✓';
+      } catch (err) { console.error(err); status.textContent = '匯出失敗 Export failed'; }
+      box.querySelectorAll('button').forEach(x => { x.disabled = false; });
+    }));
+  }
   window.__spatial = { ai, proposal, world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod, selectStyle, openStyleCompare, openFinishCompare, photo };
 }
 
