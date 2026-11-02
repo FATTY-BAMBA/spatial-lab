@@ -7,3 +7,5 @@ assets/ai/render/balcony.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qa
 assets/ai/render/living-cream.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035458_74cd4d62-9195-4743-9df1-ef8a4878fa68.png
 assets/ai/render/living-wabi.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035536_a08d2b4a-ca90-4e3d-bc7e-8035845ecef8.png
 assets/ai/render/living-luxe.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035619_c7962453-b5ee-4473-9819-6acd2bc0124a.png
+assets/ai/render/living-japandi.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035704_d5a5464c-f77e-4405-85ee-f8c8d545c073.png
+assets/ai/render/living-industrial.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035743_5207271e-dccf-48ab-9715-ecf0e75357e4.png
