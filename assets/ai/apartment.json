@@ -12,6 +12,31 @@
      "after": "assets/ai/render/living.jpg",
      "thumb": "assets/ai/render/living.thumb.jpg",
      "dusk": "assets/ai/render/living-dusk.jpg"
+    },
+    "cream": {
+     "before": "assets/ai/3d/living-cream.jpg",
+     "after": "assets/ai/render/living-cream.jpg",
+     "thumb": "assets/ai/render/living-cream.thumb.jpg"
+    },
+    "wabi": {
+     "before": "assets/ai/3d/living-wabi.jpg",
+     "after": "assets/ai/render/living-wabi.jpg",
+     "thumb": "assets/ai/render/living-wabi.thumb.jpg"
+    },
+    "luxe": {
+     "before": "assets/ai/3d/living-luxe.jpg",
+     "after": "assets/ai/render/living-luxe.jpg",
+     "thumb": "assets/ai/render/living-luxe.thumb.jpg"
+    },
+    "japandi": {
+     "before": "assets/ai/3d/living-japandi.jpg",
+     "after": "assets/ai/render/living-japandi.jpg",
+     "thumb": "assets/ai/render/living-japandi.thumb.jpg"
+    },
+    "industrial": {
+     "before": "assets/ai/3d/living-industrial.jpg",
+     "after": "assets/ai/render/living-industrial.jpg",
+     "thumb": "assets/ai/render/living-industrial.thumb.jpg"
     }
    }
   },
@@ -36,6 +61,18 @@
      "before": "assets/ai/3d/kitchen.jpg",
      "after": "assets/ai/render/kitchen.jpg",
      "thumb": "assets/ai/render/kitchen.thumb.jpg"
+    }
+   }
+  },
+  {
+   "id": "balcony",
+   "name": "前陽台",
+   "nameEn": "Balcony",
+   "renders": {
+    "original": {
+     "before": "assets/ai/3d/balcony.jpg",
+     "after": "assets/ai/render/balcony.jpg",
+     "thumb": "assets/ai/render/balcony.thumb.jpg"
     }
    }
   }

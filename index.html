@@ -107,6 +107,7 @@ body:not([data-mode="story"]) .credits { display: none; }
 .caption .en { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; margin-top: 6px; display: block; }
 body[data-phase="rise"] #cap-rise, body[data-phase="real"] #cap-real, body[data-phase="outro"] #cap-outro { opacity: 1; transform: none; pointer-events: auto; }
 .cta { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; border: 0; background: var(--ink); color: var(--paper-2); padding: 10px 16px; font-weight: 700; border-radius: 2px; }
+.cta-ai { background: var(--tape); color: var(--ink); margin-left: 6px; }
 .cta span { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.1em; opacity: .75; }
 
 /* room plate — reads like a drawing title block */
@@ -495,7 +496,7 @@ body.pp-on { overflow: hidden; }
 </section>
 <div class="caption story-only" id="cap-rise"><h2>牆體從圖面直接長出來</h2><p>牆厚、門窗開口、樓梯，全部讀自同一份平面資料，不需要重新建模。</p><span class="en">Walls rise straight from the drawing — every dimension comes from the plan data.</span></div>
 <div class="caption story-only" id="cap-real"><h2>套上材質、光線與家具</h2><p>每一項材質和家具都是清單上的一行，換材質，總價跟著更新。</p><span class="en">Finishes, light and furniture — each one is a line on the quote.</span></div>
-<div class="caption story-only" id="cap-outro"><h2>一份資料，從圖面到報價</h2><p>平面圖、3D 空間、材質與報價都來自同一個來源。換你走走看。</p><span class="en"></span><button type="button" class="cta" id="cta-explore">進入探索模式 <span>EXPLORE →</span></button></div>
+<div class="caption story-only" id="cap-outro"><h2>一份資料，從圖面到報價</h2><p>平面圖、3D 空間、材質與報價都來自同一個來源。換你走走看。</p><span class="en"></span><button type="button" class="cta" id="cta-explore">進入探索模式 <span>EXPLORE →</span></button> <button type="button" class="cta cta-ai" id="cta-ai" hidden>✦ AI 效果圖 <span>RENDER →</span></button></div>
 <nav id="rail" class="story-only" aria-label="導覽停靠點"><i id="progress"></i></nav>
 <div id="story-scroll" aria-hidden="true"></div>
 

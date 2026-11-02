@@ -588,6 +588,7 @@ async function boot() {
       setTimeout(() => explore.walkTo(shot.pos[0], shot.pos[2], L.elevation, yaw), 60);
     },
   });
+  if (ai.manifest) { const c = $('#cta-ai'); c.hidden = false; c.addEventListener('click', () => ai.open('living')); }
   const proposal = setupProposal({
     plan, projectKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest,
     onView: id => { if (mode !== 'explore') setMode('explore'); selectStyle(id, true); },
