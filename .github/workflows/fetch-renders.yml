@@ -17,6 +17,7 @@ jobs:
             [ -z "$path" ] && continue
             [ -f "$path" ] && continue
             mkdir -p "$(dirname "$path")"
+            case "$path" in *.mp4) curl -sfL -o "$path" "$url" && echo "got $path"; continue;; esac
             curl -sfL -o /tmp/src.img "$url" || { echo "fail $path"; continue; }
             python3 -c "import sys; from PIL import Image; im=Image.open('/tmp/src.img').convert('RGB'); w=min(2400,im.width); im.resize((w,round(im.height*w/im.width)),Image.LANCZOS).save(sys.argv[1],quality=86); im.resize((480,round(im.height*480/im.width)),Image.LANCZOS).save(sys.argv[2],quality=78)" "$path" "${path%.jpg}.thumb.jpg"
             echo "got $path"
