@@ -12,14 +12,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download renders listed in assets/ai/fetch.txt and convert to web JPG + thumbnail
         run: |
-          sudo apt-get -qq install -y imagemagick >/dev/null 2>&1 || true
+          pip install -q pillow
           while read -r path url; do
             [ -z "$path" ] && continue
             [ -f "$path" ] && continue
             mkdir -p "$(dirname "$path")"
             curl -sfL -o /tmp/src.img "$url" || { echo "fail $path"; continue; }
-            convert /tmp/src.img -resize '2400x>' -quality 86 "$path"
-            convert /tmp/src.img -resize 480x -quality 78 "${path%.jpg}.thumb.jpg"
+            python3 -c "import sys; from PIL import Image; im=Image.open('/tmp/src.img').convert('RGB'); w=min(2400,im.width); im.resize((w,round(im.height*w/im.width)),Image.LANCZOS).save(sys.argv[1],quality=86); im.resize((480,round(im.height*480/im.width)),Image.LANCZOS).save(sys.argv[2],quality=78)" "$path" "${path%.jpg}.thumb.jpg"
             echo "got $path"
           done < assets/ai/fetch.txt
       - name: Commit
