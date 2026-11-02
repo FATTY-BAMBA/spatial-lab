@@ -104,3 +104,12 @@ for i in range(1, len(segs)):
 fc.append(f"[{prev}]fade=in:st=0:d=0.6,fade=out:st={t-0.8:.3f}:d=0.8,format=yuv420p[v]")
 subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', *inputs, '-filter_complex', ';'.join(fc), '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-movflags', '+faststart', OUT], check=True)
 print(f'{OUT}: {t:.1f}s, {len(segs)} segments')
+
+# background music (assets/ai/video/film-music.m4a), faded and loudness-normalised
+music = os.path.join(ROOT, 'assets/ai/video/film-music.m4a')
+if os.path.exists(music):
+    tmp = OUT + '.music.mp4'
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', OUT, '-i', music, '-filter_complex',
+                    f"[1:a]atrim=0:{t:.2f},afade=t=in:st=0:d=0.6,afade=t=out:st={t-2.5:.2f}:d=2.5,loudnorm=I=-16:TP=-1.5:LRA=11[a]",
+                    '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', '-shortest', '-movflags', '+faststart', tmp], check=True)
+    os.replace(tmp, OUT); print('music added')
