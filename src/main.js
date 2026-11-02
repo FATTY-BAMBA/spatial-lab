@@ -581,8 +581,10 @@ async function boot() {
   const ai = await setupAI({
     projectKey, styles: () => styles, currentStyle: () => styleId,
     onStyle: id => selectStyle(id, false),
-    onWalk: shot => {
+    onWalk: m => {
+      const shot = (plan.shots || []).find(x => x.id === m.id);
       if (mode !== 'explore') setMode('explore');
+      if (!shot) return;
       const yaw = Math.atan2(-(shot.look[0] - shot.pos[0]), -(shot.look[2] - shot.pos[2]));
       const L = plan.levels[0];
       setTimeout(() => explore.walkTo(shot.pos[0], shot.pos[2], L.elevation, yaw), 60);
