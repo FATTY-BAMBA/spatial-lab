@@ -3,3 +3,5 @@ assets/ai/render/living-v2.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4
 assets/ai/render/living-dusk.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_033826_a3e9eca2-7614-47cb-8a38-bf9e7ebfb371.png
 assets/ai/render/dining.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_034209_18b34f78-8feb-43e2-9d28-fb47da2ea5d4.png
 assets/ai/render/kitchen.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_034401_357f7b96-35b8-4670-a859-7db325314b1e.png
+assets/ai/render/balcony.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035409_68615fd3-2937-4a30-85da-9fd652728e06.png
+assets/ai/render/living-cream.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035458_74cd4d62-9195-4743-9df1-ef8a4878fa68.png
