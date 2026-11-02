@@ -352,6 +352,15 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 }
 .pp-hero figcaption:empty { display: none; }
 .pp-bar button { white-space: nowrap; }
+/* film */
+.film-pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 8px 14px 8px 8px; border-radius: 999px; background: var(--ink); color: var(--paper-2); text-decoration: none; font-size: 13px; font-weight: 500; pointer-events: auto; }
+.film-pill i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; background: var(--tape); color: var(--ink); display: grid; place-items: center; font-size: 11px; }
+.film-pill:hover { background: #000; }
+.ai-film { margin-left: auto; color: #eceee8; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 6px 12px; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.ai-film + .ai-close { margin-left: 0; }
+#film { position: fixed; inset: 0; z-index: 80; background: rgba(8,9,10,.94); display: grid; place-items: center; padding: calc(var(--top) + 56px) var(--gutter-r) calc(var(--bottom) + 24px) var(--gutter-l); }
+#film video { width: min(100%, calc((100dvh - 120px) * 16 / 9)); aspect-ratio: 16/9; background: #000; border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.film-close { position: absolute; top: calc(var(--top) + 12px); right: var(--gutter-r); width: 40px; height: 40px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); background: none; color: #fff; font-size: 20px; }
 /* AI 效果圖 viewer: dark photo room, real-time frame vs geometry-locked AI render */
 .ai-link { border: 1px solid var(--ink) !important; background: var(--ink) !important; color: var(--paper-2) !important; }
 .ai-link small { color: var(--tape) !important; opacity: 1 !important; }
@@ -496,11 +505,12 @@ body.pp-on { overflow: hidden; }
   <p>同一份平面資料，直接長成可以走進去的空間，每一個材質選擇都連到報價清單。</p>
   <div class="titleblock" id="titleblock" aria-label="案件資料"></div>
   <div class="projects" aria-label="示範案"><span>示範案</span><a href="?p=apartment" data-project-link="apartment">大樓 3房2廳</a><a href="?p=townhouse" data-project-link="townhouse">透天 2F</a><a href="?p=custom" data-project-link="custom" id="custom-link" hidden>我的平面</a><a href="editor.html" class="draw-own">＋ 畫我的平面</a></div>
+  <a class="film-pill" href="assets/ai/video/demo-film.mp4" data-film><i>▶</i> 46 秒看完：平面圖 → 3D → AI 實景 → 提案</a>
   <div class="scroll-hint">向下捲動 · Scroll to build</div>
 </section>
 <div class="caption story-only" id="cap-rise"><h2>牆體從圖面直接長出來</h2><p>牆厚、門窗開口、樓梯，全部讀自同一份平面資料，不需要重新建模。</p><span class="en">Walls rise straight from the drawing — every dimension comes from the plan data.</span></div>
 <div class="caption story-only" id="cap-real"><h2>套上材質、光線與家具</h2><p>每一項材質和家具都是清單上的一行，換材質，總價跟著更新。</p><span class="en">Finishes, light and furniture — each one is a line on the quote.</span></div>
-<div class="caption story-only" id="cap-outro"><h2>一份資料，從圖面到報價</h2><p>平面圖、3D 空間、材質與報價都來自同一個來源。換你走走看。</p><span class="en"></span><button type="button" class="cta" id="cta-explore">進入探索模式 <span>EXPLORE →</span></button> <button type="button" class="cta cta-ai" id="cta-ai" hidden>✦ AI 效果圖 <span>RENDER →</span></button> <a class="cta cta-film" href="assets/ai/video/demo-film.mp4" target="_blank" rel="noopener">▶ 影片 <span>FILM</span></a></div>
+<div class="caption story-only" id="cap-outro"><h2>一份資料，從圖面到報價</h2><p>平面圖、3D 空間、材質與報價都來自同一個來源。換你走走看。</p><span class="en"></span><button type="button" class="cta" id="cta-explore">進入探索模式 <span>EXPLORE →</span></button> <button type="button" class="cta cta-ai" id="cta-ai" hidden>✦ AI 效果圖 <span>RENDER →</span></button> <a class="cta cta-film" href="assets/ai/video/demo-film.mp4" data-film>▶ 影片 <span>FILM</span></a></div>
 <nav id="rail" class="story-only" aria-label="導覽停靠點"><i id="progress"></i></nav>
 <div id="story-scroll" aria-hidden="true"></div>
 
@@ -583,6 +593,7 @@ body.pp-on { overflow: hidden; }
   <div class="ai-top">
     <h2><i>✦</i> AI 效果圖</h2>
     <div class="ai-meta"><b class="ai-room"></b><span class="ai-room-en"></span><span>· <span class="ai-style-now"></span></span><span class="mono">GEOMETRY-LOCKED · 依本案 3D 尺寸生成</span></div>
+    <a class="ai-film" href="assets/ai/video/demo-film.mp4" data-film>▶ 影片</a>
     <button type="button" class="ai-close" aria-label="關閉">×</button>
   </div>
   <div class="ai-wrap">
@@ -610,6 +621,11 @@ body.pp-on { overflow: hidden; }
   <div class="pp-sheet"></div>
 </section>
 
+<!-- film -->
+<section id="film" hidden role="dialog" aria-modal="true" aria-label="Spatial Lab 影片">
+  <video controls playsinline preload="none" poster="assets/ai/render/living-dusk.jpg"></video>
+  <button type="button" class="film-close" aria-label="關閉">×</button>
+</section>
 <p class="credits">家具模型：Khronos glTF Sample Assets（Eric Chadwick 等，CC BY 4.0 / CC0）· HDRI：Poly Haven（CC0）</p>
 <div id="boot-error" hidden><b>無法載入模型。</b> <code></code></div>
 

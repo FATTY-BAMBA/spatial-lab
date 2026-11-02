@@ -591,6 +591,17 @@ async function boot() {
     },
   });
   if (ai.manifest) { const c = $('#cta-ai'); c.hidden = false; c.addEventListener('click', () => ai.open('living')); }
+  { // film player: any [data-film] link opens the in-page player
+    const film = $('#film'), v = film.querySelector('video');
+    const close = () => { v.pause(); film.hidden = true; };
+    document.addEventListener('click', e => {
+      const a = e.target.closest('[data-film]'); if (!a) return;
+      e.preventDefault(); v.src = a.getAttribute('href'); film.hidden = false; v.currentTime = 0; v.play().catch(() => {});
+    });
+    film.querySelector('.film-close').addEventListener('click', close);
+    film.addEventListener('click', e => { if (e.target === film) close(); });
+    addEventListener('keydown', e => { if (e.key === 'Escape' && !film.hidden) close(); });
+  }
   const proposal = setupProposal({
     plan, projectKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest,
     onView: id => { if (mode !== 'explore') setMode('explore'); selectStyle(id, true); },
