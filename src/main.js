@@ -173,7 +173,7 @@ async function boot() {
       const tr = document.createElement('tr'); tr.className = 'foot ' + cls;
       tr.innerHTML = `<td colspan="3">${k}</td><td class="num">${fmt(v)}</td>`; tb.appendChild(tr);
     }
-    $('#quote-basis').innerHTML = `未稅 · ${basis.labour} · 損耗已計入 · 價格基準 ${basis.priceDate.replace('-', '/')} <button type="button" class="basis-i" aria-expanded="false" title="計價依據">ⓘ</button><span class="basis-more" hidden>${basis.priceBook}<br>${basis.notes.join('<br>')}<br>含稅合計 NT$ ${fmt(grand)}</span>`;
+    $('#quote-basis').innerHTML = `參考價 · 未稅 · ${basis.labour} · 損耗已計入 · 價格基準 ${basis.priceDate.replace('-', '/')} <button type="button" class="basis-i" aria-expanded="false" title="計價依據">ⓘ</button><span class="basis-more" hidden>${basis.priceBook}<br>${basis.notes.join('<br>')}<br>含稅合計 NT$ ${fmt(grand)}</span>`;
     $('#quote-basis .basis-i').onclick = e => { const m = $('#quote-basis .basis-more'); m.hidden = !m.hidden; e.currentTarget.setAttribute('aria-expanded', String(!m.hidden)); };
   }
   renderFinishes();

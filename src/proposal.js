@@ -112,7 +112,7 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
             <tr class="s"><td>小計（未稅）</td><td></td><td>${fmt(q.total)}</td></tr>
             <tr><td>營業稅 ${Math.round(q.basis.taxRate * 100)}%</td><td></td><td>${fmt(q.tax)}</td></tr>
             <tr class="g"><td>合計（含稅）</td><td></td><td>NT$ ${fmt(q.grand)}</td></tr></tbody></table>
-          <p class="basis">${q.basis.priceBook} · 價格基準 ${q.basis.priceDate} · ${q.basis.labour} · 損耗已計入<br>${q.basis.notes.join('；')}</p>
+          <p class="basis">參考價格，正式估價以貴公司價目表為準。${q.basis.priceBook} · 價格基準 ${q.basis.priceDate} · ${q.basis.labour} · 損耗已計入<br>${q.basis.notes.join('；')}</p>
           <div class="sign"><div><span>業主確認</span></div><div><span>設計師</span></div><div class="seal"><b>核准</b><i>${approval.at}</i></div></div>
         </div>
       </div>
@@ -123,7 +123,7 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
 
   function render() {
     renderSide('A'); renderSide('B'); renderBar();
-    root.querySelector('.pp-basis').textContent = (() => { const b = quoteOf(styleById(pick.A)).basis; return `計價依據：${b.priceBook}，價格基準 ${b.priceDate}，${b.labour}，地坪損耗 ${Math.round(b.waste.floor * 100)}%、牆面 ${Math.round(b.waste.paint * 100)}%。${b.notes.join('；')}。`; })();
+    root.querySelector('.pp-basis').textContent = (() => { const b = quoteOf(styleById(pick.A)).basis; return `以下價格僅供參考，正式估價將以貴公司價目表為準。計價依據：${b.priceBook}，價格基準 ${b.priceDate}，${b.labour}，地坪損耗 ${Math.round(b.waste.floor * 100)}%、牆面 ${Math.round(b.waste.paint * 100)}%。${b.notes.join('；')}。`; })();
   }
 
   function open() {
