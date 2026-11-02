@@ -512,6 +512,11 @@ async function boot() {
     plate.classList.add('on');
   }
 
+  let photoCam = null, baseFov = camera.fov;
+  function photo(shot) {
+    photoCam = shot || null;
+    if (!shot && camera.fov !== baseFov) { camera.fov = baseFov; camera.updateProjectionMatrix(); }
+  }
   function frame(now) {
     const rawDt = Math.min(0.25, (now - last) / 1000);
     const dt = Math.min(0.05, rawDt);
@@ -546,6 +551,10 @@ async function boot() {
         spots.querySelectorAll('.spot').forEach(b => b.classList.toggle('on', !!r && b.dataset.room === r.id));
       } else showPlate(null);
     }
+    if (photoCam) { // fixed photographer camera (AI render shots)
+      camera.position.set(...photoCam.pos); camera.lookAt(...photoCam.look);
+      if (camera.fov !== (photoCam.fov || 60)) { camera.fov = photoCam.fov || 60; camera.updateProjectionMatrix(); }
+    }
     world.setInterior(isInside(camera.position));
     minimap.update();
     if (mode !== 'plan') {
@@ -561,7 +570,7 @@ async function boot() {
   addEventListener('hashchange', () => { const h = location.hash.replace('#', ''); if (['story', 'explore', 'plan'].includes(h)) setMode(h); });
   requestAnimationFrame(frame);
   document.body.classList.add('ready');
-  window.__spatial = { world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod, selectStyle, openStyleCompare, openFinishCompare };
+  window.__spatial = { world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod, selectStyle, openStyleCompare, openFinishCompare, photo };
 }
 
 boot().catch(err => {

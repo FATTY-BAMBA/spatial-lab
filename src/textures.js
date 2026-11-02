@@ -284,6 +284,25 @@ makers.calacatta = () => {
   return finish(c, 1.6);
 };
 makers.honedstone = () => finish(cloudy(512, '#8f8b84', 22, 113, 900), 1.0);
+makers.walltile = () => { // 60x120 cm large-format stone-look porcelain for wet-room walls
+  const n = 1024, [c, ctx] = canvas(n), r = rng(141), size = 2.4;
+  ctx.fillStyle = '#e4e0d8'; ctx.fillRect(0, 0, n, n);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { const t = (r() - 0.5) * 10; ctx.fillStyle = `rgba(${t > 0 ? 255 : 0},${t > 0 ? 250 : 0},${t > 0 ? 240 : 0},${Math.abs(t) / 100})`; ctx.fillRect(i * n / 4, j * n / 2, n / 4, n / 2); }
+  veins(ctx, n, r, 'rgba(140,130,118,', 12);
+  grain(ctx, n, 4, r);
+  ctx.fillStyle = 'rgba(120,114,106,0.55)';
+  for (let x = 0; x <= n; x += n / 4) ctx.fillRect(x - 1, 0, 2, n);
+  for (let y = 0; y <= n; y += n / 2) ctx.fillRect(0, y - 1, n, 2);
+  return finish(c, size);
+};
+makers.rug = () => { // hand-tufted wool: soft mottling, no visible weave grid
+  const n = 512, [c, ctx] = canvas(n), r = rng(151);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, n, n);
+  for (let k = 0; k < 2600; k++) { const g = r() < 0.5 ? 0 : 255; ctx.fillStyle = `rgba(${g},${g},${g},${0.025 + r() * 0.03})`; const s = 2 + r() * 9; ctx.beginPath(); ctx.arc(r() * n, r() * n, s, 0, 7); ctx.fill(); }
+  grain(ctx, n, 12, r);
+  return finish(c, 1.2);
+};
+bumpMakers.walltile = () => finish(groutCanvas(1024, 4, 2, 3, rng(9), 4), 2.4);
 
 const cache = new Map();
 export function tex(name) {

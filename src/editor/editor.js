@@ -699,11 +699,30 @@ $('#btn-sample').addEventListener('change', async e => {
   const d = await (await fetch(`data/${v}.json`)).json();
   loadDoc(fromBuiltIn(d));
 });
+function zoneEdges(rooms, walls) {
+  const segDist = (p, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1e-9; let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / L2; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dz); };
+  const onBoundary = (p, r) => r.polygon.some((q, i) => segDist(p, q, r.polygon[(i + 1) % r.polygon.length]) < 0.05);
+  const out = [];
+  rooms.forEach((r, ri) => r.polygon.forEach((a, i) => {
+    const b = r.polygon[(i + 1) % r.polygon.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len < 0.2) return;
+    let covered = 0; const n = Math.ceil(len / 0.1);
+    for (let k = 0; k <= n; k++) { const p = [a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]; if (walls.some(w => segDist(p, w.a, w.b) < (w.t || 0.12) / 2 + 0.04)) covered++; }
+    if (covered / (n + 1) > 0.6) return;
+    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if (!rooms.some((o, oi) => oi !== ri && onBoundary(mid, o))) return;
+    if (out.some(([p, q]) => segDist(mid, p, q) < 0.05)) return;
+    out.push([a.slice(), b.slice()]);
+  }));
+  return out;
+}
 function fromBuiltIn(d) {
   const out = { project: { name: d.project.name, type: d.project.type || 'townhouse', floor: d.project.site ? d.project.site.floor : 1 }, levels: [], stairs: JSON.parse(JSON.stringify(d.stairs || [])) };
   for (const L of d.levels) {
     const walls = JSON.parse(JSON.stringify(L.walls)).map(w => { delete w.outdoor; delete w.h; return w; });
     for (const r of L.railings || []) if (!r.solid) walls.push({ id: `rl${walls.length}`, a: r.a, b: r.b, t: 0.06, kind: 'railing', openings: [] }); else walls.push({ id: `rl${walls.length}`, a: r.a, b: r.b, t: 0.15, openings: [] });
+    // open-plan boundaries (客廳/餐廳/走道) have no wall; keep them as zone dividers so rooms stay separate
+    for (const [a, b] of zoneEdges(L.rooms, walls)) walls.push({ id: `zn${walls.length}`, a, b, t: 0.12, kind: 'zone', openings: [] });
     out.levels.push({ id: L.id, name: L.name, elevation: L.elevation, height: L.height, walls, rooms: JSON.parse(JSON.stringify(L.rooms)), furniture: JSON.parse(JSON.stringify(L.furniture)) });
   }
   return out;

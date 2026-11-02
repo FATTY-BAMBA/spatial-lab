@@ -124,7 +124,7 @@ export async function createWorld(plan, renderer, opts = {}) {
     accent: std({ color: '#9a5b3c', map: tex('fabric'), roughness: 0.9 }),
     upholster: std({ color: '#b9ad9c', map: tex('fabric'), roughness: 0.95 }),
     wood: std({ color: '#ffffff', map: tex('walnut'), roughness: 0.5 }),
-    lightWood: std({ color: '#e2cdb0', map: tex('walnut'), roughness: 0.6 }),
+    lightWood: std({ color: '#e2cdb0', map: tex('walnut'), roughness: 0.6, side: THREE.DoubleSide }),
     oakSlat: std({ color: '#d9bf9b', map: tex('walnut'), roughness: 0.55 }),
     metal: std({ color: '#2b2d2f', roughness: 0.35, metalness: 0.7 }),
     brass: std({ color: '#b08d57', roughness: 0.3, metalness: 1.0 }),
@@ -150,6 +150,11 @@ export async function createWorld(plan, renderer, opts = {}) {
     facade: std({ color: '#ffffff', map: tex('facade'), roughness: 0.6, envMapIntensity: 0.6, emissive: '#ffd9a0', emissiveMap: tex('facadeNight'), emissiveIntensity: 0 }),
     roof: std({ color: '#9fa09c', roughness: 0.95 }),
     white: std({ color: '#f1f1ef', roughness: 0.4 }),
+    rug: std({ color: '#e2ddd2', map: tex('rug'), roughness: 1 }),
+    wallTile: std({ map: tex('walltile'), bumpMap: bumpTex('walltile'), bumpScale: 0.8, roughness: 0.22, envMapIntensity: 0.8 }),
+    mirror: std({ color: '#e9eef0', roughness: 0.03, metalness: 1, envMapIntensity: 1.4 }),
+    ceramicIn: std({ color: '#e6e7e4', roughness: 0.15 }),
+    chrome: std({ color: '#dfe2e4', roughness: 0.12, metalness: 1 }),
   };
   const glass = patch(new THREE.MeshPhysicalMaterial({ color: '#a9bfc5', roughness: 0.04, metalness: 0, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 }));
   const sheer = patch(new THREE.MeshStandardMaterial({ color: '#f6f3ec', map: tex('fabric'), transparent: true, opacity: 0.62, side: THREE.DoubleSide, roughness: 1, depthWrite: false }));
@@ -214,12 +219,32 @@ export async function createWorld(plan, renderer, opts = {}) {
     group.add(rise);
 
     // walls, skirting, openings
+    const wetRooms = L.rooms.filter(r => !r.outdoor && (r.wet || /浴|衛|bath/i.test(r.name || '') || /bath/i.test(r.id || '')));
+    const inWet = (x, z) => wetRooms.some(r => pointInPolygon([x, z], r.polygon));
     for (const w of L.walls) {
       const { ux, uz, angle, len } = wallFrame(w);
       const nx = -uz, nz = ux;
       for (const p of wallPieces(w, H)) {
         const plen = p.s1 - p.s0, h = p.y1 - p.y0;
         if (plen <= 0.001 || h <= 0.001) continue;
+        // full-height large-format tile on the faces of wet rooms
+        if (wetRooms.length && !w.outdoor && p.y0 < ceilY) for (const side of [-1, 1]) {
+          const off = side * (w.t / 2 + 0.06), runs = []; let r0 = null;
+          for (let sv = p.s0; sv <= p.s1 + 1e-6; sv += 0.04) {
+            const ss = Math.min(sv, p.s1), inside = inWet(w.a[0] + ux * ss + nx * off, w.a[1] + uz * ss + nz * off);
+            if (inside && r0 === null) r0 = ss; if (!inside && r0 !== null) { runs.push([r0, ss]); r0 = null; }
+          }
+          if (r0 !== null) runs.push([r0, p.s1]);
+          const y1 = Math.min(p.y1, ceilY), th = y1 - p.y0;
+          for (const [a0, a1] of runs) {
+            if (a1 - a0 < 0.02 || th < 0.01) continue;
+            const geo = boxGeo(a1 - a0, th, 0.008), uv = geo.attributes.uv;
+            for (let i = 16; i < 24; i++) uv.setXY(i, uv.getX(i) + a0, uv.getY(i) + p.y0);
+            const t = new THREE.Mesh(geo, M.wallTile), sm = (a0 + a1) / 2, d = side * (w.t / 2 + 0.005);
+            t.position.set(w.a[0] + ux * sm + nx * d, p.y0 + th / 2, w.a[1] + uz * sm + nz * d);
+            t.rotation.y = -angle; t.receiveShadow = true; rise.add(t);
+          }
+        }
         const m = addEdges(new THREE.Mesh(boxGeo(plen, h, w.t), finishMats.paint));
         const s = (p.s0 + p.s1) / 2;
         m.position.set(w.a[0] + ux * s, p.y0 + h / 2, w.a[1] + uz * s);
@@ -457,6 +482,7 @@ export async function createWorld(plan, renderer, opts = {}) {
   const LIGHT = { warm: '#ffd9ad', neutral: '#fff1de', cool: '#f4f6ff' };
   function applyPalette(p = {}) {
     for (const [k, m] of Object.entries(paletteTargets)) m.color.set(p[k] ?? paletteDefaults[k]);
+    M.rug.color.set(p.rug ?? M.linen.color.getHex()).multiplyScalar(p.rug ? 1 : 0.94);
     for (const [name, list] of Object.entries(modelMats)) {
       const tint = p.models && p.models[name];
       for (const e of list) {
@@ -742,11 +768,16 @@ function buildItem(f, ctx) {
       P(new THREE.CylinderGeometry(0.16, 0.22, 0.38, 32), M.metal, 0, 0.19, 0, false);
       break;
     }
-    case 'chair':
-      P(rbox(w, 0.06, d - 0.06, 0.02), M.upholster, 0, 0.46, 0.03);
-      P(rbox(w, 0.4, 0.05, 0.02), M.upholster, 0, 0.7, -d / 2 + 0.04);
-      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) P(new THREE.CylinderGeometry(0.014, 0.011, 0.45, 8), M.lightWood, sx * (w / 2 - 0.05), 0.225, sz * (d / 2 - 0.07), false);
+    case 'chair': { // solid-wood dining chair: upholstered seat, curved back rail, splayed tapered legs
+      P(rbox(w - 0.02, 0.075, d - 0.1, 0.03), M.upholster, 0, 0.465, 0.02, false);
+      P(rbox(w, 0.03, d - 0.08, 0.01), M.lightWood, 0, 0.415, 0.02, false);
+      for (const [sx, sz] of [[1, 1], [-1, 1]]) { const l = P(new THREE.CylinderGeometry(0.017, 0.012, 0.42, 12), M.lightWood, sx * (w / 2 - 0.05), 0.205, sz * (d / 2 - 0.07), false); l.rotation.z = sx * 0.05; l.rotation.x = 0.05; }
+      for (const sx of [1, -1]) { const l = P(new THREE.CylinderGeometry(0.016, 0.012, 0.8, 12), M.lightWood, sx * (w / 2 - 0.05), 0.4, -d / 2 + 0.06, false); l.rotation.x = -0.1; l.rotation.z = sx * 0.04; }
+      const back = new THREE.CylinderGeometry(0.42, 0.42, 0.12, 24, 1, true, Math.PI - 0.6, 1.2);
+      for (const [y, hh] of [[0.76, 1], [0.7, 0.35]]) { const bk = P(back, M.lightWood, 0, y, -d / 2 + 0.05 + 0.231, false); bk.scale.set(w / 0.48, hh, 0.55); }
+      P(boxGeo(w - 0.12, 0.02, 0.02), M.lightWood, 0, 0.22, -d / 2 + 0.07, false);
       break;
+    }
     case 'sofa':
       P(boxGeo(w, 0.18, d), M.metal, 0, 0.09, 0, false);
       P(rbox(w - 0.36, 0.22, d - 0.22, 0.06), M.fabric, 0, 0.29, 0.1);
@@ -768,15 +799,27 @@ function buildItem(f, ctx) {
       P(boxGeo(1.46, 0.84, 0.035), M.screen, 0, 1.38, 0.06, false);
       break;
     }
-    case 'rug': { const m = new THREE.Mesh(rbox(w, 0.012, d, 0.005), M.linen); m.position.y = 0.008; m.receiveShadow = true; g.add(m); break; }
-    case 'bed':
-      P(boxGeo(w, 0.28, d), M.lightWood, 0, 0.14, 0);
-      P(rbox(w - 0.04, 0.22, d - 0.08, 0.07), M.duvet, 0, 0.39, 0.03);
-      P(rbox(w * 0.42, 0.14, 0.36, 0.06), M.linen, -w * 0.23, 0.56, -d / 2 + 0.3, false);
-      P(rbox(w * 0.42, 0.14, 0.36, 0.06), M.linen, w * 0.23, 0.56, -d / 2 + 0.3, false);
-      P(rbox(w - 0.0, 0.05, d * 0.3, 0.02), M.accent, 0, 0.51, d / 2 - d * 0.15 - 0.03, false);
+    case 'rug': {
+      const m = new THREE.Mesh(boxGeo(w, 0.014, d), M.rug); m.position.y = 0.009; m.receiveShadow = true; g.add(m);
+      const b = 0.07; // bound edge in a slightly deeper tone
+      for (const [bw, bd, x, z] of [[w, b, 0, -d / 2 + b / 2], [w, b, 0, d / 2 - b / 2], [b, d - 2 * b, -w / 2 + b / 2, 0], [b, d - 2 * b, w / 2 - b / 2, 0]]) { const e = new THREE.Mesh(boxGeo(bw, 0.016, bd), M.upholster); e.position.set(x, 0.0095, z); e.receiveShadow = true; g.add(e); }
+      break;
+    }
+    case 'bed': { // upholstered base, mattress, draped duvet, layered pillows, folded throw
+      P(rbox(w + 0.04, 0.26, d + 0.02, 0.05), M.upholster, 0, 0.16, 0, false);
+      P(boxGeo(w - 0.1, 0.05, d - 0.1), M.black, 0, 0.025, 0, false);
+      P(rbox(w - 0.04, 0.2, d - 0.06, 0.06), M.white, 0, 0.38, 0, false);
+      P(rbox(w + 0.02, 0.07, d * 0.78, 0.035), M.duvet, 0, 0.48, d * 0.11, false);
+      for (const sx of [-1, 1]) P(rbox(0.05, 0.22, d * 0.74, 0.025), M.duvet, sx * (w / 2 + 0.005), 0.38, d * 0.12, false);
+      P(rbox(w + 0.02, 0.22, 0.05, 0.025), M.duvet, 0, 0.38, d / 2 - 0.0, false);
+      for (const sx of [-1, 1]) { const pl = P(rbox(w * 0.44, 0.16, 0.5, 0.075), M.linen, sx * w * 0.235, 0.58, -d / 2 + 0.24, false); pl.rotation.x = -0.35; }
+      for (const sx of [-1, 1]) { const pl = P(rbox(w * 0.36, 0.13, 0.42, 0.06), M.duvet, sx * w * 0.2, 0.56, -d / 2 + 0.47, false); pl.rotation.x = -0.25; }
+      P(rbox(0.5, 0.11, 0.32, 0.05), M.accent, 0, 0.56, -d / 2 + 0.6, false).rotation.x = -0.2;
+      P(rbox(w + 0.06, 0.04, 0.5, 0.02), M.accent, 0, 0.535, d / 2 - 0.36, false);
+      for (const sx of [-1, 1]) P(rbox(0.04, 0.16, 0.5, 0.02), M.accent, sx * (w / 2 + 0.03), 0.45, d / 2 - 0.36, false);
       if (!f.noHead) P(rbox(w, 1.0, 0.08, 0.03), M.upholster, 0, 0.5, -d / 2 + 0.04);
       break;
+    }
     case 'headboard': P(rbox(w, 1.15, 0.08, 0.03), M.upholster, 0, 0.6, 0); for (let i = 1; i < 6; i++) P(boxGeo(0.006, 1.1, 0.01), M.black, -w / 2 + (i * w) / 6, 0.6, 0.042, false); break;
     case 'nightstand': P(rbox(w, 0.48, d, 0.015), M.lightWood, 0, 0.24, 0); P(new THREE.CylinderGeometry(0.1, 0.12, 0.26, 24, 1, true), M.shade, 0, 0.72, 0, false); P(new THREE.CylinderGeometry(0.015, 0.015, 0.22, 8), M.brass, 0, 0.55, 0, false); break;
     case 'wardrobe': { const h = f.h || 2.3; P(boxGeo(w, h, d), finishMats.cabinet, 0, h / 2, 0); doorLines(Math.round(w / 0.5), h - 0.1, h / 2, d / 2 + 0.003); break; }
@@ -792,15 +835,42 @@ function buildItem(f, ctx) {
       break;
     }
     case 'shoe': P(boxGeo(w, 1.0, d), finishMats.cabinet, 0, 0.6, 0); break;
-    case 'vanity': P(boxGeo(w, 0.45, d), finishMats.cabinet, 0, 0.6, 0); P(boxGeo(w, 0.04, d + 0.02), M.ceramic, 0, 0.84, 0); P(new THREE.CylinderGeometry(0.17, 0.14, 0.12, 32), M.ceramic, 0, 0.9, 0.02, false); P(boxGeo(w * 0.8, 0.75, 0.02), M.steel, 0, 1.45, -d / 2 + 0.015, false); break;
-    case 'toilet': P(rbox(w, 0.38, 0.18, 0.04), M.ceramic, 0, 0.6, -d / 2 + 0.09); P(new THREE.CylinderGeometry(w / 2, w / 2.4, 0.4, 24), M.ceramic, 0, 0.2, 0.08, false); break;
-    case 'tub': P(rbox(w, 0.55, d, 0.05), M.ceramic, 0, 0.275, 0); P(boxGeo(w - 0.14, 0.02, d - 0.14), M.tile, 0, 0.555, 0, false); break;
+    case 'vanity': { // floating cabinet, stone top, rectangular vessel basin, tall mixer, backlit mirror
+      P(boxGeo(w, 0.4, d - 0.02), finishMats.cabinet, 0, 0.62, -0.01, false);
+      P(boxGeo(w - 0.04, 0.004, 0.006), M.black, 0, 0.62, d / 2 - 0.008, false);
+      P(boxGeo(w * 0.4, 0.012, 0.012), M.black, 0, 0.79, d / 2 - 0.005, false);
+      P(boxGeo(w + 0.02, 0.03, d + 0.02), M.stone, 0, 0.835, 0, false);
+      const bw = Math.min(0.48, w * 0.6);
+      P(rbox(bw, 0.13, d * 0.72, 0.035), M.ceramic, 0, 0.915, 0.02, false);
+      P(rbox(bw - 0.04, 0.012, d * 0.72 - 0.04, 0.004), M.ceramicIn, 0, 0.976, 0.02, false);
+      P(new THREE.CylinderGeometry(0.014, 0.016, 0.28, 16), M.chrome, 0, 0.99, -d / 2 + 0.05, false);
+      P(boxGeo(0.024, 0.024, 0.14), M.chrome, 0, 1.12, -d / 2 + 0.11, false);
+      P(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 8), M.chrome, 0.06, 1.03, -d / 2 + 0.05, false).rotation.z = Math.PI / 2;
+      const mw = Math.min(0.75, w * 0.85);
+      P(rbox(mw + 0.03, 0.83, 0.015, 0.12), M.led, 0, 1.52, -d / 2 + 0.005, false).castShadow = false;
+      P(rbox(mw, 0.8, 0.02, 0.11), M.mirror, 0, 1.52, -d / 2 + 0.022, false);
+      break;
+    }
+    case 'toilet': { // one-piece tankless: rounded back, elongated bowl, soft-close seat
+      P(rbox(w * 0.86, 0.36, 0.2, 0.07), M.ceramic, 0, 0.56, -d / 2 + 0.1, false);
+      P(new THREE.CylinderGeometry(0.018, 0.018, 0.012, 20), M.chrome, 0, 0.745, -d / 2 + 0.1, false);
+      const prof = [[0.0, 0], [0.12, 0], [0.13, 0.04], [0.135, 0.18], [0.17, 0.3], [0.19, 0.37], [0.185, 0.385], [0.0, 0.385]].map(([x, y]) => new THREE.Vector2(x, y));
+      const bowl = P(new THREE.LatheGeometry(prof, 40), M.ceramic, 0, 0, 0.06, false); bowl.scale.set(w / 0.4, 1, 1.25);
+      const seat = P(new THREE.CylinderGeometry(0.19, 0.19, 0.025, 40), M.ceramic, 0, 0.4, 0.06, false); seat.scale.set(w / 0.4 * 1.02, 1, 1.27);
+      P(new THREE.CylinderGeometry(0.15, 0.15, 0.002, 40), M.ceramicIn, 0, 0.414, 0.07, false).scale.set(w / 0.4, 1, 1.22);
+      break;
+    }
+    case 'tub': P(rbox(w, 0.55, d, 0.08), M.ceramic, 0, 0.275, 0); P(rbox(w - 0.16, 0.012, d - 0.16, 0.005), M.ceramicIn, 0, 0.552, 0, false); P(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 8), M.chrome, 0, 0.65, -d / 2 + 0.05, false); break;
     case 'shower': {
       P(boxGeo(w, 0.04, d), M.ceramic, 0, 0.02, 0, false);
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.95), glass); gl.position.set(0, 1.0, d / 2); g.add(gl);
       P(boxGeo(w, 0.025, 0.025), M.steel, 0, 1.98, d / 2, false);
-      P(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 8), M.steel, w / 2 - 0.15, 1.4, -d / 2 + 0.05, false);
-      P(new THREE.CylinderGeometry(0.11, 0.11, 0.015, 24), M.steel, w / 2 - 0.15, 2.0, -d / 2 + 0.18, false);
+      P(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 8), M.chrome, w / 2 - 0.15, 1.4, -d / 2 + 0.05, false);
+      P(boxGeo(0.02, 0.02, 0.24), M.chrome, w / 2 - 0.15, 2.0, -d / 2 + 0.16, false);
+      P(rbox(0.26, 0.012, 0.26, 0.004), M.chrome, w / 2 - 0.15, 1.985, -d / 2 + 0.28, false);
+      P(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 16), M.chrome, w / 2 - 0.15, 1.05, -d / 2 + 0.03, false).rotation.x = Math.PI / 2;
+      P(boxGeo(0.4, 0.26, 0.012), M.black, -w / 2 + 0.45, 1.25, -d / 2 + 0.006, false);
+      P(boxGeo(0.06, 0.004, 0.6), M.steel, 0, 0.042, -d / 2 + 0.12, false);
       break;
     }
     case 'plant': {
@@ -821,6 +891,18 @@ function buildItem(f, ctx) {
       break;
     }
     case 'curtain': {
+      if (f.sheer && !f.closed) { // sheer drawn back into two soft stacks, leaving the view open
+        const h = ceilY - 0.35, sw = Math.max(0.35, w * 0.2);
+        for (const sx of [-1, 1]) {
+          const geo = new THREE.PlaneGeometry(sw, h, Math.round(sw * 60), 1);
+          const pp = geo.attributes.position;
+          for (let i = 0; i < pp.count; i++) pp.setZ(i, Math.sin((pp.getX(i) / sw) * Math.PI * sw * 22) * 0.045);
+          geo.computeVertexNormals();
+          const m = new THREE.Mesh(geo, sheer); m.position.set(sx * (w / 2 - sw / 2), 0.02 + h / 2, 0); m.receiveShadow = true; g.add(m);
+        }
+        P(boxGeo(w + 0.1, 0.02, 0.05), M.alu, 0, h + 0.03, 0, false);
+        break;
+      }
       const h = ceilY - 0.35, seg = Math.max(12, Math.round(w * 30));
       const geo = new THREE.PlaneGeometry(w, h, seg, 1);
       const p = geo.attributes.position;
