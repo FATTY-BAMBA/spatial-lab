@@ -9,6 +9,22 @@
 - Also in Explore: first-person walk (drag to look, WASD / arrows, *hold to walk* on phones) with wall + furniture collision and real stair climbing between floors. Overview mode with 1F / 1F+2F / exploded cutaways. Finish toggles (flooring, countertop, cabinet doors, wall paint) update the 3D and the quote live.
 - **平面圖 Plan**: the ink plan per level, rendered from the same data, plus an auto-computed room schedule (m² / 坪). Click a room to walk into it.
 
+## AI 效果圖 (geometry-locked renders)
+
+`AI 效果圖` in the top bar opens a dark viewer: each real-time 3D frame sits under a photoreal render made from that exact frame, with a drag split, day/dusk toggle, style chips, download, and "walk into this space".
+
+Pipeline (`tools/` + `.github/workflows/fetch-renders.yml`):
+1. Photo cameras live in the plan JSON (`shots`: pos, look, fov). `window.__spatial.photo(shot)` locks the camera; captures are saved to `assets/ai/3d/<shot>[-<style>].jpg`.
+2. Each capture is rendered with Nano Banana Pro (Higgsfield) using a prompt that locks camera, walls, openings and furniture and only upgrades materials/light (and swaps placeholder towers for the real skyline).
+3. Render URLs go into `assets/ai/fetch.txt`; the GitHub Action downloads them, writes web JPGs + thumbnails to `assets/ai/render/`.
+4. `python3 tools/ai_manifest.py apartment` writes `assets/ai/apartment.json`, which the viewer and proposal read.
+
+## 提案模式 (proposal)
+
+`提案` / `建立提案 →`: two schemes side by side (any two styles), each with its AI render, finish list, 材質工程 vs 家具暫估, 未稅/含稅 totals and the price difference. `核准此方案` stamps the scheme with time + reference number (stored per project in localStorage), unlocks a one-page A4 proposal (print / PDF) and the StrideBrain hand-off (demo stub).
+
+Quote basis (`plan.quoteBasis`, defaults in `src/plan.js`): price book + date, 含工帶料, waste per finish group, 5% 營業稅, written assumptions — shown under the total and in the proposal.
+
 ## Plan editor (`editor.html`)
 Draw your own plan and open it in 3D:
 - **牆 W**: click-to-click walls with snapping (endpoints, walls, orthogonal/45°, alignment, 5 cm grid); type a length (`360` = cm, `3.6` = m) + Enter.

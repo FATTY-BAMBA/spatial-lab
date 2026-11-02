@@ -12,6 +12,7 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
   const root = $('#ai'), stage = root.querySelector('.ai-stage'), imgA = root.querySelector('.ai-a'), imgB = root.querySelector('.ai-b');
   const handle = root.querySelector('.ai-handle'), thumbs = root.querySelector('.ai-thumbs'), chips = root.querySelector('.ai-styles');
   const dayBtn = root.querySelector('.ai-tod'), dl = root.querySelector('.ai-dl'), walkBtn = root.querySelector('.ai-walk');
+  const playBtn = root.querySelector('.ai-play'), vid = root.querySelector('.ai-vid');
   let shot = manifest.shots[0], style = 'original', dusk = false, split = 0.5, anim = 0;
 
   const rendersOf = (s, st) => (s.renders || {})[st];
@@ -43,6 +44,7 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
     imgA.onload = imgB.onload = done; imgA.onerror = imgB.onerror = done;
     imgA.src = r.before; imgB.src = after;
     dl.href = after; dl.download = `${manifest.project || 'spatial'}-${shot.id}-${style}${dusk ? '-dusk' : ''}.jpg`;
+    stopVideo(); playBtn.hidden = !(shot.video && style === 'original');
     dayBtn.hidden = !r.dusk; dayBtn.setAttribute('aria-pressed', String(dusk));
     dayBtn.textContent = dusk ? '黃昏 ☾' : '白天 ☀';
     root.querySelector('.ai-room').textContent = shot.name;
@@ -79,12 +81,19 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
     load();
     root.querySelector('.ai-close').focus({ preventScroll: true });
   }
-  function close() { cancelAnimationFrame(anim); root.hidden = true; document.body.classList.remove('ai-on'); btn.focus({ preventScroll: true }); }
+  function close() { cancelAnimationFrame(anim); stopVideo(); root.hidden = true; document.body.classList.remove('ai-on'); btn.focus({ preventScroll: true }); }
 
+  function stopVideo() { vid.pause(); vid.hidden = true; root.classList.remove('playing'); }
+  playBtn.addEventListener('click', () => {
+    cancelAnimationFrame(anim); dusk = false;
+    const r = rendersOf(shot, 'original'); imgB.src = r.after; setSplit(0);
+    vid.src = shot.video; vid.hidden = false; root.classList.add('playing'); vid.currentTime = 0; vid.play().catch(() => stopVideo());
+  });
+  vid.addEventListener('ended', () => { vid.hidden = true; root.classList.remove('playing'); });
   // drag / keys
   let drag = false;
   const toSplit = e => { const r = stage.getBoundingClientRect(); setSplit((e.clientX - r.left) / r.width); };
-  stage.addEventListener('pointerdown', e => { if (e.target.closest('button,a')) return; drag = true; cancelAnimationFrame(anim); stage.setPointerCapture(e.pointerId); toSplit(e); });
+  stage.addEventListener('pointerdown', e => { if (e.target.closest('button,a')) return; if (!vid.hidden) stopVideo(); drag = true; cancelAnimationFrame(anim); stage.setPointerCapture(e.pointerId); toSplit(e); });
   stage.addEventListener('pointermove', e => { if (drag) toSplit(e); });
   stage.addEventListener('pointerup', () => { drag = false; });
   handle.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') setSplit(split - 0.05); if (e.key === 'ArrowRight') setSplit(split + 0.05); });

@@ -16,7 +16,11 @@ for sh in plan.get('shots', []):
         dusk = f'assets/ai/render/{sh["id"]}{suf}-dusk.jpg'
         if os.path.exists(dusk): r['dusk'] = dusk
         renders[st] = r
-    if renders: shots.append({'id': sh['id'], 'name': sh['name'], 'nameEn': sh.get('nameEn', ''), 'renders': renders})
+    if renders:
+        e = {'id': sh['id'], 'name': sh['name'], 'nameEn': sh.get('nameEn', ''), 'renders': renders}
+        v = f'assets/ai/video/{sh["id"]}-3d-to-real.mp4'
+        if os.path.exists(v): e['video'] = v
+        shots.append(e)
 out = {'project': project, 'model': 'Nano Banana Pro via Higgsfield', 'shots': shots}
 json.dump(out, open(f'assets/ai/{project}.json', 'w'), ensure_ascii=False, indent=1)
 print(f'{len(shots)} shots,', sum(len(s["renders"]) for s in shots), 'renders')

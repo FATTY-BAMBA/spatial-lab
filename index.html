@@ -365,6 +365,8 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 .ai-wrap { display: grid; place-items: center; min-height: 0; }
 .ai-stage { position: relative; width: min(100%, calc((100dvh - 230px) * 16 / 9)); aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: #000; touch-action: none; cursor: ew-resize; user-select: none; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
 .ai-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.ai-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; background: #000; }
+#ai.playing .ai-handle, #ai.playing .ai-tag, #ai.playing .ai-note { opacity: 0; }
 .ai-tag { position: absolute; top: 12px; padding: 5px 9px; border-radius: 999px; font-size: 12px; background: rgba(18,19,20,.72); backdrop-filter: blur(8px); pointer-events: none; }
 .ai-tag small { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; opacity: .7; margin-left: 6px; }
 .ai-tag.l { left: 12px; } .ai-tag.r { right: 12px; color: #1f2328; background: var(--tape); }
@@ -584,6 +586,7 @@ body.pp-on { overflow: hidden; }
   <div class="ai-wrap">
     <div class="ai-stage">
       <img class="ai-a" alt="即時 3D 畫面"><img class="ai-b" alt="AI 效果圖">
+      <video class="ai-vid" muted playsinline preload="none" hidden></video>
       <span class="ai-tag l">即時 3D<small>REAL-TIME</small></span><span class="ai-tag r">AI 效果圖<small>RENDER</small></span>
       <div class="ai-handle" tabindex="0" role="slider" aria-label="拖曳比較" aria-valuemin="0" aria-valuemax="100"></div>
       <span class="ai-note">牆體、開口、家具位置與尺寸皆鎖定自平面資料</span>
@@ -591,7 +594,7 @@ body.pp-on { overflow: hidden; }
   </div>
   <div class="ai-bottom">
     <div class="ai-thumbs" aria-label="空間"></div>
-    <div class="ai-actions"><div class="ai-styles" aria-label="風格"></div><span class="sep"></span><button type="button" class="ai-tod" aria-pressed="false" hidden>白天 ☀</button><a class="ai-dl" href="#" download>下載高解析</a><button type="button" class="ai-walk">走進這個空間 →</button></div>
+    <div class="ai-actions"><div class="ai-styles" aria-label="風格"></div><span class="sep"></span><button type="button" class="ai-play" hidden>▶ 3D → 實景</button><button type="button" class="ai-tod" aria-pressed="false" hidden>白天 ☀</button><a class="ai-dl" href="#" download>下載高解析</a><button type="button" class="ai-walk">走進這個空間 →</button></div>
   </div>
 </section>
 

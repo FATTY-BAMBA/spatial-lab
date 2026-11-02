@@ -38,7 +38,8 @@
      "after": "assets/ai/render/living-industrial.jpg",
      "thumb": "assets/ai/render/living-industrial.thumb.jpg"
     }
-   }
+   },
+   "video": "assets/ai/video/living-3d-to-real.mp4"
   },
   {
    "id": "dining",
@@ -61,6 +62,30 @@
      "before": "assets/ai/3d/kitchen.jpg",
      "after": "assets/ai/render/kitchen.jpg",
      "thumb": "assets/ai/render/kitchen.thumb.jpg"
+    }
+   }
+  },
+  {
+   "id": "master",
+   "name": "主臥",
+   "nameEn": "Master bedroom",
+   "renders": {
+    "original": {
+     "before": "assets/ai/3d/master.jpg",
+     "after": "assets/ai/render/master.jpg",
+     "thumb": "assets/ai/render/master.thumb.jpg"
+    }
+   }
+  },
+  {
+   "id": "bath",
+   "name": "衛浴",
+   "nameEn": "Bathroom",
+   "renders": {
+    "original": {
+     "before": "assets/ai/3d/bath.jpg",
+     "after": "assets/ai/render/bath.jpg",
+     "thumb": "assets/ai/render/bath.thumb.jpg"
     }
    }
   },
