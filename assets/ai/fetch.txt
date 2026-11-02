@@ -12,3 +12,4 @@ assets/ai/render/living-industrial.jpg https://d8j0ntlcm91z4.cloudfront.net/user
 assets/ai/render/master.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_040154_ea948909-13d6-412e-8a47-fe1f1d8ef593.png
 assets/ai/video/living-3d-to-real.mp4 https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_035958_0b2bf5bb-f436-4077-a147-cbef7179ad85.mp4
 assets/ai/render/bath.jpg https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_040408_7f9d2586-91e3-44f1-b5fd-2ed78274a1c3.png
+assets/ai/video/balcony-golden.mp4 https://d8j0ntlcm91z4.cloudfront.net/user_3JerAB4qaYeDwjJ7tU5KyRJsual/hf_20261102_040428_096704fa-dfde-4b27-b83a-92d35c4d74cd.mp4
