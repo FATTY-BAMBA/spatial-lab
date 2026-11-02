@@ -74,6 +74,11 @@
      "before": "assets/ai/3d/master.jpg",
      "after": "assets/ai/render/master.jpg",
      "thumb": "assets/ai/render/master.thumb.jpg"
+    },
+    "cream": {
+     "before": "assets/ai/3d/master-cream.jpg",
+     "after": "assets/ai/render/master-cream.jpg",
+     "thumb": "assets/ai/render/master-cream.thumb.jpg"
     }
    }
   },
