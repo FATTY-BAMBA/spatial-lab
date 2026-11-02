@@ -30,7 +30,7 @@
   --seal: #c4432f;       /* 印章 red: approval only */
   --sage: #9cc0a4;
   --rust: #e09a78;
-  --glass: rgba(24, 20, 16, 0.74);
+  --glass: rgba(24, 20, 16, 0.88);
   --display: "Noto Serif TC", "Noto Serif CJK TC", "Songti TC", serif;
   --body: "Noto Sans TC", "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   --mono: var(--body);
@@ -58,8 +58,8 @@ button:focus-visible, label:focus-within, a:focus-visible, select:focus-visible,
 #gl { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; touch-action: none; }
 body[data-mode="story"] #gl { touch-action: pan-y; pointer-events: none; }
 
-/* glass surface shared by floating controls */
-.glass, .seg, .chipbtn, .tod, .spot-group, #plate, .caption, #panel, .walk-hint { background: var(--glass); backdrop-filter: blur(14px) saturate(1.1); -webkit-backdrop-filter: blur(14px) saturate(1.1); border: 1px solid var(--hair); }
+/* floating controls: solid tinted surfaces, no backdrop blur (blur re-runs on every 3D frame) */
+.glass, .seg, .chipbtn, .tod, .spot-group, #plate, .caption, #panel, .walk-hint { background: var(--glass); border: 1px solid var(--hair); }
 
 /* ---------- top bar ---------- */
 .bar {
@@ -74,7 +74,7 @@ body[data-mode="plan"] .bar::before, body.ai-on .bar::before { display: none; }
 .brand svg { flex: none; }
 .brand b { font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: 0.01em; white-space: nowrap; }
 .brand span { font-size: 13px; color: var(--text-2); white-space: nowrap; padding-left: 10px; border-left: 1px solid var(--hair-2); }
-.tabs { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--glass); border: 1px solid var(--hair); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.tabs { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--glass); border: 1px solid var(--hair); }
 .tabs button { border: 0; background: none; padding: 7px 18px; border-radius: 999px; font-weight: 500; font-size: 14px; color: var(--text-2); white-space: nowrap; transition: color .2s, background .2s; }
 .tabs button:hover { color: var(--text); }
 .tabs button[aria-pressed="true"] { background: var(--text); color: var(--night); }
@@ -113,7 +113,7 @@ body:not([data-mode="story"]) { overflow: hidden; }
 .btn { display: inline-flex; align-items: center; gap: 10px; border-radius: 999px; padding: 12px 22px; font-weight: 700; font-size: 15px; text-decoration: none; border: 1px solid transparent; white-space: nowrap; }
 .btn-brass { background: var(--brass); color: var(--on-brass); }
 .btn-brass:hover { background: var(--brass-hi); }
-.btn-ghost { border-color: var(--hair-2); color: var(--text); background: rgba(22, 19, 15, 0.35); backdrop-filter: blur(8px); }
+.btn-ghost { border-color: var(--hair-2); color: var(--text); background: rgba(22, 19, 15, 0.55); }
 .btn-ghost:hover { border-color: var(--text-2); }
 .btn .play { width: 22px; height: 22px; border-radius: 50%; background: var(--on-brass); color: var(--brass); display: grid; place-items: center; font-size: 9px; padding-left: 2px; }
 .projects { margin-top: 28px; display: flex; align-items: center; gap: 6px; font-size: 13px; flex-wrap: wrap; color: var(--text-3); }
@@ -201,7 +201,7 @@ body[data-phase="hero"] #rail { opacity: 0; pointer-events: none; }
 .spot.on { background: var(--text); color: var(--night); }
 .walk-hint { position: fixed; z-index: 9; left: 50%; transform: translateX(-50%); top: calc(var(--top) + var(--bar-h) + 14px); transition: opacity .6s ease; font-size: 12.5px; color: var(--text-2); padding: 7px 14px; border-radius: 999px; white-space: nowrap; }
 body.hint-done .walk-hint, #gl[data-view="orbit"] ~ .walk-hint, #gl[data-view="orbit"] ~ #hold-walk { display: none; }
-#hold-walk { position: fixed; z-index: 10; right: var(--gutter-r); bottom: calc(var(--bottom) + 96px); width: 76px; height: 76px; border-radius: 50%; border: 1px solid var(--hair-2); background: var(--glass); color: var(--text); backdrop-filter: blur(14px); font-weight: 700; font-size: 13px; display: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+#hold-walk { position: fixed; z-index: 10; right: var(--gutter-r); bottom: calc(var(--bottom) + 96px); width: 76px; height: 76px; border-radius: 50%; border: 1px solid var(--hair-2); background: var(--glass); color: var(--text); font-weight: 700; font-size: 13px; display: none; touch-action: none; user-select: none; -webkit-user-select: none; }
 #hold-walk.on { background: var(--brass); color: var(--on-brass); }
 @media (pointer: coarse) { #hold-walk { display: block; } .walk-hint .kb { display: none; } }
 @media (pointer: fine) { .walk-hint .touch { display: none; } }
@@ -328,7 +328,7 @@ body.ready .loading { opacity: 0; pointer-events: none; }
 #compare-handle i::after { content: "A │ B"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--text); color: var(--night); font-size: 12px; font-weight: 700; padding: 7px 10px; border-radius: 999px; white-space: nowrap; }
 #compare { position: fixed; z-index: 13; left: var(--gutter-l); right: var(--gutter-r); bottom: calc(var(--bottom) + 20px); display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; pointer-events: none; }
 #compare > * { pointer-events: auto; }
-.cmp-side { background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--hair); border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; width: fit-content; max-width: 100%; min-width: 0; }
+.cmp-side { background: var(--glass); border: 1px solid var(--hair); border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; width: fit-content; max-width: 100%; min-width: 0; }
 .cmp-b { justify-self: end; text-align: right; }
 .cmp-side .tag { font-size: 11.5px; color: var(--text-3); }
 .cmp-side b { font-size: 15px; }
@@ -381,7 +381,7 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 .ai-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .ai-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; background: #000; }
 #ai.playing .ai-handle, #ai.playing .ai-tag, #ai.playing .ai-note { opacity: 0; }
-.ai-tag { position: absolute; top: 14px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500; background: rgba(15, 13, 10, .72); backdrop-filter: blur(8px); pointer-events: none; }
+.ai-tag { position: absolute; top: 14px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500; background: rgba(15, 13, 10, .72); pointer-events: none; }
 .ai-tag small { display: none; }
 .ai-tag.l { left: 14px; } .ai-tag.r { right: 14px; color: var(--on-brass); background: var(--brass); }
 .ai-handle { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); box-shadow: 0 0 0 1px rgba(0, 0, 0, .25), 0 0 24px rgba(255, 255, 255, .3); transform: translateX(-1px); }
@@ -583,7 +583,7 @@ body.pp-on { overflow: hidden; }
 
 <!-- story -->
 <section class="hero story-only" id="hero">
-  <div class="hero-media"><video id="hero-video" muted playsinline preload="auto" poster="assets/ai/render/living-dusk.jpg" src="assets/ai/video/living-dusk-push.mp4"></video></div>
+  <div class="hero-media"><video id="hero-video" muted playsinline preload="metadata" poster="assets/ai/render/living-dusk.jpg" src="assets/ai/video/living-dusk-push.mp4"></video></div>
   <div class="hero-copy">
     <h1>從平面圖，<br>到可以簽約的提案。</h1>
     <p>匯入一張平面圖，自動長成可以走進去的 3D 空間。換風格、看 AI 實景、報價即時更新，客戶當場核准。</p>

@@ -586,7 +586,9 @@ async function boot() {
     }
     world.setInterior(isInside(camera.position));
     minimap.update();
-    if (mode !== 'plan') {
+    // skip the 3D frame while a full-screen room (AI viewer, proposal, film) covers it
+    const covered = document.body.classList.contains('ai-on') || document.body.classList.contains('pp-on') || !$('#film').hidden;
+    if (mode !== 'plan' && !covered) {
       const draw = () => (composer ? composer.render() : renderer.render(world.scene, camera));
       if (!compare.render(draw)) draw();
     }
