@@ -13,7 +13,7 @@ import { tex, texSet, bumpTex } from './textures.js';
 
 const REAL = { value: 0 };
 let cityGlass = null;
-const SKETCH_RGB = 'vec3(0.86, 0.872, 0.85)';
+const SKETCH_RGB = 'vec3(0.03, 0.026, 0.022)'; // dark massing: the drawing reads as light on a lightbox
 const patched = new WeakSet();
 
 function patch(mat) {
@@ -52,7 +52,7 @@ export async function createWorld(plan, renderer, opts = {}) {
   const proj = plan.project;
   const site = proj.site || null;
   const city = !!(site && site.city);
-  const bgSketch = new THREE.Color('#eceee8');
+  const bgSketch = new THREE.Color('#16130f');
   const horizon = new THREE.Color(city ? '#c9d4da' : '#d7dfe2');
   scene.background = bgSketch.clone();
 
@@ -102,7 +102,7 @@ export async function createWorld(plan, renderer, opts = {}) {
     scene.add(sky);
   }
 
-  const lineMat = new THREE.LineBasicMaterial({ color: '#1f2328', transparent: true, opacity: 0.9, depthWrite: false });
+  const lineMat = new THREE.LineBasicMaterial({ color: '#ede5d7', transparent: true, opacity: 0.9, depthWrite: false });
   const addEdges = (mesh, angle = 25) => {
     const e = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry, angle), lineMat);
     e.raycast = () => {};
@@ -211,7 +211,7 @@ export async function createWorld(plan, renderer, opts = {}) {
       m.position.y = 0.002; m.receiveShadow = true; m.userData.room = r.id; m.userData.level = L.id;
       group.add(m);
     }
-    const { canvas } = drawLevel(plan, L, { pxPerM: 128, frame });
+    const { canvas } = drawLevel(plan, L, { pxPerM: 128, frame, theme: 'dark' });
     const dTex = new THREE.CanvasTexture(canvas);
     dTex.colorSpace = THREE.SRGBColorSpace; dTex.anisotropy = 8;
     const overlayMat = new THREE.MeshBasicMaterial({ map: dTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, fog: false });
@@ -418,11 +418,11 @@ export async function createWorld(plan, renderer, opts = {}) {
     lineMat.opacity = 0.9 * (1 - e);
     lineMat.visible = lineMat.opacity > 0.01;
     for (const id in levels) levels[id].overlayMat.opacity = 1 - e;
-    const hemiDay = state.interior ? 0.75 : 0.55;
+    const hemiDay = state.interior ? 0.52 : 0.55; // inside: let the windows and lamps do the work, so walls don't clip
     hemi.intensity = lerp(2.3, lerp(0.08, hemiDay, day), e);
     hemi.color.set(night > 0.5 ? '#8ea3c4' : '#ffffff');
     sun.intensity = lerp(0.9, 2.9 * day, e);
-    scene.environmentIntensity = lerp(0.25, (state.interior ? 1.05 : 0.55) * Math.max(0.12, day), e);
+    scene.environmentIntensity = lerp(0.25, (state.interior ? 0.8 : 0.55) * Math.max(0.12, day), e);
     if (sky) {
       const u = sky.material.uniforms;
       u.sunPosition.value.copy(dir);
@@ -443,7 +443,7 @@ export async function createWorld(plan, renderer, opts = {}) {
     M.led.emissiveIntensity = 2.2 * lit;
     M.shade.emissiveIntensity = 1.1 * lit;
     for (const g of glows) g.material.emissiveIntensity = 2.4 * lit;
-    for (const f of fills) f.intensity = ((state.interior ? 2.4 : 1.0) + night * 5) * e;
+    for (const f of fills) f.intensity = ((state.interior ? 1.5 : 1.0) + night * 5) * e;
     M.facade.emissiveIntensity = 1.4 * night * e;
     if (cityGlass) cityGlass.emissiveIntensity = 1.2 * night * e;
     if (opts.onExposure) opts.onExposure(lerp(1, 1.25, night * e));

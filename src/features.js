@@ -82,7 +82,7 @@ export function setupMinimap({ plan, explore, camera, getMode }) {
   function drawBase(L) {
     cssW = host.clientWidth || 200;
     s = (cssW / frame.w) * dpr;
-    drawLevel(plan, L, { pxPerM: s, frame, paper: true, titleBlock: false, canvas: base });
+    drawLevel(plan, L, { pxPerM: s, frame, paper: true, titleBlock: false, canvas: base, theme: 'dark', noDims: true });
     over.width = base.width; over.height = base.height;
     host.style.setProperty('--mm-h', `${(frame.h / frame.w) * cssW}px`);
     host.querySelector('.mm-lv').textContent = `${L.id} ${L.name}`;
@@ -101,12 +101,12 @@ export function setupMinimap({ plan, explore, camera, getMode }) {
     const dir = Math.atan2(-Math.cos(yaw), -Math.sin(yaw)); // canvas angle of forward (x, z)
     const R = 2.4 * s;
     const g = ctx.createRadialGradient(X, Z, 0, X, Z, R);
-    g.addColorStop(0, 'rgba(224,169,30,0.55)'); g.addColorStop(1, 'rgba(224,169,30,0)');
+    g.addColorStop(0, 'rgba(201,162,106,0.6)'); g.addColorStop(1, 'rgba(201,162,106,0)');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(X, Z); ctx.arc(X, Z, R, dir - hf, dir + hf); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#1f2328';
+    ctx.fillStyle = '#16130f';
     ctx.beginPath(); ctx.arc(X, Z, 0.16 * s, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#e0a91e'; ctx.lineWidth = 2 * dpr;
+    ctx.strokeStyle = '#c9a26a'; ctx.lineWidth = 2 * dpr;
     ctx.beginPath(); ctx.arc(X, Z, 0.16 * s, 0, Math.PI * 2); ctx.stroke();
   }
   over.addEventListener('click', e => {

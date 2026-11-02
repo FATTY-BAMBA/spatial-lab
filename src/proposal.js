@@ -8,7 +8,7 @@ const fmt = n => Math.round(n).toLocaleString('en-US');
 const pad = n => String(n).padStart(2, '0');
 const stamp = d => `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-export function setupProposal({ plan, projectKey, styles, currentStyle, manifest, onView }) {
+export function setupProposal({ plan, projectKey, styles, currentStyle, manifest, snapshot, onView }) {
   const root = $('#proposal');
   const key = `spatial.approval.${projectKey}`;
   let approval = null;
@@ -42,8 +42,8 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
       <div class="pp-head"><span class="pp-letter">方案 ${side}</span>
         <label class="pp-pick"><span class="sr">風格</span><select>${styles().map(s => `<option value="${s.id}"${s.id === st.id ? ' selected' : ''}>${s.name}</option>`).join('')}</select></label>
         <span class="pp-tag">${st.tagline || ''}</span></div>
-      <figure class="pp-hero">${hero ? `<img src="${hero.r.after}" alt="${st.name} ${hero.s.name} AI 效果圖">` : '<div class="pp-none">此風格尚未生成效果圖</div>'}
-        <figcaption>${hero ? `${hero.s.name} · AI 效果圖` : ''}</figcaption>
+      <figure class="pp-hero">${hero ? `<img src="${hero.r.after}" alt="${st.name} ${hero.s.name} AI 效果圖">` : '<div class="pp-none">正在產生這個風格的 3D 畫面</div>'}
+        <figcaption>${hero ? `${hero.s.name}，AI 效果圖` : ''}</figcaption>
         ${approved ? `<div class="pp-seal"><b>核准</b><span>APPROVED</span><i>${approval.at}</i></div>` : ''}</figure>
       <div class="pp-thumbs">${rest.map(x => `<img src="${x.r.thumb || x.r.after}" alt="${x.s.name}" title="${x.s.name}">`).join('')}</div>
       <ul class="pp-fin">${finishRows(st).map(f => `<li><i style="background:${f.color}"></i><span>${f.group}</span><b>${f.name}</b></li>`).join('')}</ul>
@@ -58,6 +58,13 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
         <button type="button" class="pp-view">在 3D 中查看</button>
         ${approved ? '<button type="button" class="pp-undo">撤銷核准</button>' : `<button type="button" class="pp-approve"${approval ? ' disabled' : ''}>核准此方案</button>`}
       </div>`;
+    if (!hero && snapshot) snapshot(st.id).then(url => {
+      const fig = el.querySelector('.pp-hero');
+      if (!fig || pick[side] !== st.id) return;
+      if (!url) { fig.querySelector('.pp-none').textContent = '這個風格還沒有效果圖'; return; }
+      const img = new Image(); img.alt = `${st.name} 即時 3D 畫面`; img.src = url;
+      fig.querySelector('.pp-none').replaceWith(img); fig.querySelector('figcaption').textContent = '即時 3D 畫面';
+    });
     el.querySelector('select').addEventListener('change', e => { pick[side] = e.target.value; render(); });
     el.querySelector('.pp-view').addEventListener('click', () => { close(); onView(st.id); });
     const ap = el.querySelector('.pp-approve'); if (ap) ap.addEventListener('click', () => approve(st, q));
@@ -76,7 +83,7 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
     const bar = root.querySelector('.pp-bar');
     if (!approval) { bar.innerHTML = '<p>客戶選定後按「核准此方案」：系統記錄核准時間、所選材質與當時價格，並產生一頁式提案。</p>'; return; }
     bar.innerHTML = `<p><b>已核准：${approval.name}</b> · ${approval.at} · 編號 ${approval.ref} · 含稅 NT$ ${fmt(approval.grand)}</p>
-      <div><button type="button" class="pp-print">列印 / 存成 PDF</button><button type="button" class="pp-send primary">送至 StrideBrain →</button></div>`;
+      <div><button type="button" class="pp-print">列印 / 存成 PDF</button><button type="button" class="pp-send primary">送至 StrideBrain</button></div>`;
     bar.querySelector('.pp-print').addEventListener('click', print);
     bar.querySelector('.pp-send').addEventListener('click', send);
   }
@@ -94,8 +101,10 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
     m.querySelector('button').addEventListener('click', () => { m.hidden = true; });
   }
 
-  function print() {
-    const st = styleById(approval.style), q = buildQuote(plan, approval.finishes), { hero, rest } = heroOf(st.id);
+  async function print() {
+    const st = styleById(approval.style), q = buildQuote(plan, approval.finishes), { rest } = heroOf(st.id);
+    let { hero } = heroOf(st.id);
+    if (!hero && snapshot) { const sn = await snapshot(st.id); if (sn) hero = { r: { after: sn }, s: { name: '' } }; }
     const L = plan.levels[0];
     const { canvas } = drawLevel(plan, L, { pxPerM: 60 });
     const sheet = root.querySelector('.pp-sheet');

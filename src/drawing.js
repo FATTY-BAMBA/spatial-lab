@@ -6,7 +6,13 @@ export const INK = '#1f2328';
 export const INK_SOFT = 'rgba(31,35,40,0.55)';
 export const PAPER = '#eceee8';
 const SANS = '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif';
-const MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
+const MONO = SANS; // numbers set in the UI face with tabular figures, not a separate mono
+// Two inks: the light one is the printed sheet (and DXF); the dark one reads like linework on a lightbox.
+const THEMES = {
+  light: { ink: INK, soft: INK_SOFT, paper: PAPER, room: 'rgba(255,255,255,0.55)', grid: 'rgba(31,35,40,0.10)', gridPaper: 'rgba(31,35,40,0.07)', hl: 'rgba(200,138,30,0.16)', hatch: 'rgba(31,35,40,0.13)', tile: 'rgba(31,35,40,0.16)', furn: 'rgba(31,35,40,0.72)', zone: 'rgba(31,35,40,0.45)', glaz: 'rgba(31,35,40,0.08)' },
+  dark: { ink: '#ede5d7', soft: 'rgba(237,229,215,0.5)', paper: '#16130f', room: 'rgba(237,229,215,0.035)', grid: 'rgba(237,229,215,0.06)', gridPaper: 'rgba(237,229,215,0.045)', hl: 'rgba(201,162,106,0.24)', hatch: 'rgba(237,229,215,0.11)', tile: 'rgba(237,229,215,0.1)', furn: 'rgba(237,229,215,0.6)', zone: 'rgba(237,229,215,0.38)', glaz: 'rgba(237,229,215,0.12)' },
+};
+let T = THEMES.light;
 
 export function planFrame(plan, margin = 2.2) {
   const pts = [...plan.project.footprint];
@@ -27,6 +33,7 @@ export function drawLevel(plan, level, opts = {}) {
     canvas.width = Math.round(frame.w * s);
     canvas.height = Math.round(frame.h * s);
   }
+  T = THEMES[opts.theme] || THEMES.light;
   const ctx = canvas.getContext('2d');
   const lay = n => ctx.setLayer && ctx.setLayer(n); // CAD layer hook (DXF export); no-op on a real canvas
   const X = x => (x - frame.x0) * s;
@@ -37,13 +44,13 @@ export function drawLevel(plan, level, opts = {}) {
   ctx.lineCap = 'butt';
 
   if (opts.paper) {
-    ctx.fillStyle = PAPER;
+    ctx.fillStyle = T.paper;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
   // 1 m grid
   if (!opts.noGrid) {
-  ctx.strokeStyle = opts.paper ? 'rgba(31,35,40,0.07)' : 'rgba(31,35,40,0.10)';
+  ctx.strokeStyle = opts.paper ? T.gridPaper : T.grid;
   ctx.lineWidth = Math.max(1, s / 110);
   ctx.beginPath();
   for (let x = Math.ceil(frame.x0); x <= frame.x0 + frame.w; x++) { ctx.moveTo(X(x), 0); ctx.lineTo(X(x), canvas.height); }
@@ -56,17 +63,17 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.beginPath();
     r.polygon.forEach(([x, z], i) => (i ? ctx.lineTo(X(x), Z(z)) : ctx.moveTo(X(x), Z(z))));
     ctx.closePath();
-    if (opts.highlight === r.id) { ctx.fillStyle = 'rgba(200,138,30,0.16)'; ctx.fill(); }
-    else if (opts.paper) { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill(); }
+    if (opts.highlight === r.id) { ctx.fillStyle = T.hl; ctx.fill(); }
+    else if (opts.paper) { ctx.fillStyle = T.room; ctx.fill(); }
     if (r.outdoor) {
       ctx.save(); ctx.clip();
-      ctx.strokeStyle = 'rgba(31,35,40,0.13)'; ctx.lineWidth = Math.max(1, s / 160);
+      ctx.strokeStyle = T.hatch; ctx.lineWidth = Math.max(1, s / 160);
       const b = bbox(r.polygon); ctx.beginPath();
       for (let k = -(b.z1 - b.z0); k < b.x1 - b.x0; k += 0.25) { ctx.moveTo(X(b.x0 + k), Z(b.z0)); ctx.lineTo(X(b.x0 + k + (b.z1 - b.z0)), Z(b.z1)); }
       ctx.stroke(); ctx.restore();
     } else if (r.finish === 'tile') {
       ctx.save(); ctx.clip();
-      ctx.strokeStyle = 'rgba(31,35,40,0.16)'; ctx.lineWidth = Math.max(1, s / 160);
+      ctx.strokeStyle = T.tile; ctx.lineWidth = Math.max(1, s / 160);
       const b = bbox(r.polygon); ctx.beginPath();
       for (let x = b.x0; x <= b.x1; x += 0.3) { ctx.moveTo(X(x), Z(b.z0)); ctx.lineTo(X(x), Z(b.z1)); }
       for (let z = b.z0; z <= b.z1; z += 0.3) { ctx.moveTo(X(b.x0), Z(z)); ctx.lineTo(X(b.x1), Z(z)); }
@@ -78,7 +85,7 @@ export function drawLevel(plan, level, opts = {}) {
   lay('A-FLOR-OVHD');
   for (const v of level.voids || []) {
     const b = bbox(v.polygon);
-    ctx.strokeStyle = INK_SOFT; ctx.lineWidth = Math.max(1, s / 90);
+    ctx.strokeStyle = T.soft; ctx.lineWidth = Math.max(1, s / 90);
     ctx.setLineDash([px(0.12), px(0.08)]);
     ctx.beginPath(); ctx.moveTo(X(b.x0), Z(b.z0)); ctx.lineTo(X(b.x1), Z(b.z1));
     ctx.moveTo(X(b.x1), Z(b.z0)); ctx.lineTo(X(b.x0), Z(b.z1)); ctx.stroke();
@@ -90,7 +97,7 @@ export function drawLevel(plan, level, opts = {}) {
   for (const st of plan.stairs) {
     if (st.from !== level.id && st.to !== level.id) continue;
     const n = st.risers - 1, run = (st.zEnd - st.zStart) / n;
-    ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, s / 80);
+    ctx.strokeStyle = T.ink; ctx.lineWidth = Math.max(1, s / 80);
     ctx.strokeRect(X(st.x0), Z(st.zStart), px(st.x1 - st.x0), px(st.zEnd - st.zStart));
     ctx.beginPath();
     for (let i = 1; i < n; i++) { const z = st.zStart + i * run; ctx.moveTo(X(st.x0), Z(z)); ctx.lineTo(X(st.x1), Z(z)); }
@@ -101,16 +108,16 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.beginPath(); ctx.moveTo(X(cx), Z(st.zStart + 0.25)); ctx.lineTo(X(cx), Z(st.zEnd - 0.3)); ctx.stroke();
     const tip = up ? st.zEnd - 0.2 : st.zStart + 0.2, dir = up ? -1 : 1;
     ctx.beginPath(); ctx.moveTo(X(cx), Z(tip)); ctx.lineTo(X(cx - 0.12), Z(tip + dir * 0.22)); ctx.lineTo(X(cx + 0.12), Z(tip + dir * 0.22)); ctx.closePath();
-    ctx.fillStyle = INK; ctx.fill();
+    ctx.fillStyle = T.ink; ctx.fill();
     if (!up) { ctx.beginPath(); ctx.arc(X(cx), Z(st.zEnd - 0.3), px(0.05), 0, Math.PI * 2); ctx.fill(); }
-    ctx.save(); ctx.translate(X(cx), Z(st.zStart + 0.75)); ctx.fillStyle = INK;
+    ctx.save(); ctx.translate(X(cx), Z(st.zStart + 0.75)); ctx.fillStyle = T.ink;
     ctx.font = `600 ${px(0.16)}px ${MONO}`; ctx.textAlign = 'center';
     ctx.fillText(up ? 'UP 上' : 'DN 下', 0, 0); ctx.restore();
   }
 
   // Furniture (thin outlines)
   if (opts.furniture !== false) {
-    ctx.strokeStyle = 'rgba(31,35,40,0.72)';
+    ctx.strokeStyle = T.furn;
     ctx.lineWidth = Math.max(1, s / 120);
     for (const f of level.furniture) drawItem(ctx, f, X, Z, px);
   }
@@ -122,7 +129,7 @@ export function drawLevel(plan, level, opts = {}) {
     lay(w.kind === 'zone' ? 'A-ZONE' : w.kind === 'railing' ? 'A-RAIL' : 'A-WALL');
     if (w.kind === 'zone' || w.kind === 'railing') {
       ctx.save();
-      ctx.strokeStyle = w.kind === 'zone' ? 'rgba(31,35,40,0.45)' : INK;
+      ctx.strokeStyle = w.kind === 'zone' ? T.zone : T.ink;
       ctx.lineWidth = Math.max(1, s / 90);
       if (w.kind === 'zone') { ctx.setLineDash([px(0.15), px(0.1)]); ctx.beginPath(); ctx.moveTo(X(w.a[0]), Z(w.a[1])); ctx.lineTo(X(w.b[0]), Z(w.b[1])); ctx.stroke(); }
       else { const o = 0.04; ctx.beginPath(); for (const k of [o, -o]) { ctx.moveTo(X(w.a[0] - uz * k), Z(w.a[1] + ux * k)); ctx.lineTo(X(w.b[0] - uz * k), Z(w.b[1] + ux * k)); } ctx.stroke(); }
@@ -136,21 +143,21 @@ export function drawLevel(plan, level, opts = {}) {
     const t = px(w.t);
     const ops = [...(w.openings || [])].sort((a, b) => a.offset - b.offset);
     let cursor = -w.t / 2;
-    ctx.fillStyle = INK;
+    ctx.fillStyle = T.ink;
     for (const o of ops) {
       if (o.offset > cursor) ctx.fillRect(px(cursor), -t / 2, px(o.offset - cursor), t);
       cursor = Math.max(cursor, o.offset + o.width);
     }
     if (cursor < len + w.t / 2) ctx.fillRect(px(cursor), -t / 2, px(len + w.t / 2 - cursor), t);
     ctx.lineWidth = Math.max(1, s / 110);
-    ctx.strokeStyle = INK;
+    ctx.strokeStyle = T.ink;
     for (const o of ops) {
       const a0 = px(o.offset), a1 = px(o.offset + o.width);
       lay(o.type === 'door' || o.type === 'passage' ? 'A-DOOR' : 'A-GLAZ');
       if (o.type === 'window') {
         ctx.strokeRect(a0, -t / 2, a1 - a0, t);
         ctx.beginPath(); ctx.moveTo(a0, 0); ctx.lineTo(a1, 0); ctx.stroke();
-        ctx.fillStyle = 'rgba(31,35,40,0.08)'; ctx.fillRect(a0, -t / 2, a1 - a0, t); ctx.fillStyle = INK;
+        ctx.fillStyle = T.glaz; ctx.fillRect(a0, -t / 2, a1 - a0, t); ctx.fillStyle = T.ink;
       } else if (o.type === 'door') {
         // swing into the smaller adjoining room (or inward for an exterior door)
         const mid = o.offset + o.width / 2;
@@ -188,7 +195,7 @@ export function drawLevel(plan, level, opts = {}) {
   for (const rl of level.railings || []) {
     const dx = rl.b[0] - rl.a[0], dz = rl.b[1] - rl.a[1], len = Math.hypot(dx, dz);
     const nx = -dz / len * 0.04, nz = dx / len * 0.04;
-    ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, s / 90);
+    ctx.strokeStyle = T.ink; ctx.lineWidth = Math.max(1, s / 90);
     ctx.beginPath();
     ctx.moveTo(X(rl.a[0] + nx), Z(rl.a[1] + nz)); ctx.lineTo(X(rl.b[0] + nx), Z(rl.b[1] + nz));
     ctx.moveTo(X(rl.a[0] - nx), Z(rl.a[1] - nz)); ctx.lineTo(X(rl.b[0] - nx), Z(rl.b[1] - nz));
@@ -204,18 +211,18 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.save();
     ctx.translate(X(cx), Z(cz));
     ctx.textAlign = 'center';
-    ctx.fillStyle = INK;
+    ctx.fillStyle = T.ink;
     const big = area > 12;
     ctx.font = `700 ${px(big ? 0.34 : 0.24)}px ${SANS}`;
     ctx.fillText(r.name, 0, 0);
     ctx.font = `500 ${px(big ? 0.14 : 0.11)}px ${MONO}`;
-    ctx.fillStyle = INK_SOFT;
-    ctx.fillText(r.nameEn.toUpperCase(), 0, px(big ? 0.26 : 0.2));
+    ctx.fillStyle = T.soft;
+    ctx.fillText(r.nameEn, 0, px(big ? 0.26 : 0.2));
     ctx.font = `500 ${px(big ? 0.15 : 0.12)}px ${MONO}`;
-    ctx.fillStyle = INK;
+    ctx.fillStyle = T.ink;
     ctx.fillText(`${area.toFixed(1)} m²  ·  ${toPing(area).toFixed(1)} 坪`, 0, px(big ? 0.5 : 0.38));
     if (big) {
-      ctx.fillStyle = INK_SOFT;
+      ctx.fillStyle = T.soft;
       ctx.fillText(`${(b.x1 - b.x0).toFixed(2)} × ${(b.z1 - b.z0).toFixed(2)}`, 0, px(0.72));
     }
     ctx.restore();
@@ -297,7 +304,7 @@ function roundRect(ctx, x, y, w, h, r) {
 
 function drawDimensions(ctx, plan, level, X, Z, px) {
   const fp = bbox(plan.project.footprint);
-  ctx.strokeStyle = INK; ctx.fillStyle = INK;
+  ctx.strokeStyle = T.ink; ctx.fillStyle = T.ink;
   ctx.lineWidth = Math.max(1, px(0.008));
   ctx.font = `500 ${px(0.15)}px ${MONO}`;
   ctx.textAlign = 'center';
@@ -341,7 +348,7 @@ function chainV(ctx, zs, x, X, Z, px) {
 
 function drawNorth(ctx, X, Z, px, frame) {
   const cx = X(frame.x0 + 0.9), cz = Z(frame.z0 + 1.0), r = px(0.35);
-  ctx.strokeStyle = INK; ctx.fillStyle = INK; ctx.lineWidth = Math.max(1, px(0.01));
+  ctx.strokeStyle = T.ink; ctx.fillStyle = T.ink; ctx.lineWidth = Math.max(1, px(0.01));
   ctx.beginPath(); ctx.arc(cx, cz, r, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cx, cz - r * 0.85); ctx.lineTo(cx + r * 0.3, cz + r * 0.5); ctx.lineTo(cx, cz + r * 0.25); ctx.closePath(); ctx.fill();
   ctx.font = `600 ${px(0.16)}px ${MONO}`; ctx.textAlign = 'center'; ctx.fillText('N', cx, cz - r - px(0.08));

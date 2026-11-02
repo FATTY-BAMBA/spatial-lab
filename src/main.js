@@ -38,7 +38,7 @@ async function boot() {
   const tier = ['high', 'med', 'lite'].includes(params.get('q')) ? params.get('q') : params.has('lite') ? 'lite' : coarse || (navigator.deviceMemory && navigator.deviceMemory <= 4) ? 'med' : 'high';
   await Promise.all([
     document.fonts.load('700 20px "Noto Sans TC"'), document.fonts.load('500 20px "Noto Sans TC"'),
-    document.fonts.load('500 20px "IBM Plex Mono"'), document.fonts.load('600 20px "IBM Plex Mono"'),
+    document.fonts.load('900 40px "Noto Serif TC"'), document.fonts.load('400 20px "Noto Sans TC"'),
   ]).catch(() => {});
 
   const canvas = $('#gl');
@@ -53,6 +53,8 @@ async function boot() {
 
   const camera = new THREE.PerspectiveCamera(40, 1, 0.06, 3000);
   const world = await createWorld(plan, renderer, { shadows: tier !== 'lite', shadowSize: tier === 'high' ? 2048 : 1024, onExposure: v => { renderer.toneMappingExposure = 0.86 * v; } });
+  // the opening hold covers the hero render dissolving into the plan, then the plan card
+  if (plan.story && plan.story.nodes && plan.story.nodes[0]) plan.story.nodes[0].hold = Math.max(plan.story.nodes[0].hold || 0, 1.8);
   const story = createStory(plan.story);
   let composer = null, gtao = null;
   if (tier === 'high') {
@@ -77,11 +79,12 @@ async function boot() {
     for (const L of plan.levels) for (const r of L.rooms) if (!r.outdoor) interior += polygonArea(r.polygon);
     const fb = bbox(pr.footprint);
     const st = pr.stats || [];
+    const zh = l => String(l).split(' ')[0];
     const cells = [
-      ['案名 Project', pr.name],
-      st[0] ? [st[0].label, st[0].value] : ['基地 Footprint', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
-      ['室內面積 Interior', `${interior.toFixed(1)} m² · ${toPing(interior).toFixed(1)} 坪`],
-      st[1] ? [st[1].label, st[1].value] : ['基地 Footprint', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
+      ['案名', pr.name],
+      st[0] ? [zh(st[0].label), st[0].value] : ['基地', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
+      ['室內面積', `${interior.toFixed(1)} m²（${toPing(interior).toFixed(1)} 坪）`],
+      st[1] ? [zh(st[1].label), st[1].value] : ['基地', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
     ];
     $('#titleblock').innerHTML = cells.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
     for (const key of ['rise', 'real', 'outro']) {
@@ -94,6 +97,19 @@ async function boot() {
     }
   }
   const explore = createExplore(plan, camera, canvas);
+
+  // hero: open on the AI render of this very plan, then let scrolling dissolve it into the drawing it came from
+  const heroEl = $('#hero'), heroVid = $('#hero-video');
+  if (projectKey !== 'apartment') { document.body.classList.add('no-hero-media'); heroVid.removeAttribute('src'); heroVid.removeAttribute('poster'); }
+  let heroK = -1;
+  function updateHero() {
+    const k = Math.min(1, Math.max(0, window.scrollY / (innerHeight * 0.55)));
+    if (Math.abs(k - heroK) < 0.002) return;
+    heroK = k;
+    heroEl.style.setProperty('--hk', k.toFixed(3));
+    document.body.classList.toggle('hero-gone', k > 0.97);
+    if (k > 0.97 && !heroVid.paused) heroVid.pause();
+  }
 
   const roomsById = {};
   for (const L of plan.levels) for (const r of L.rooms) roomsById[r.id] = { ...r, level: L.id, levelName: L.name };
@@ -389,6 +405,7 @@ async function boot() {
   let hintTimer = 0;
   document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
   $('#cta-explore').addEventListener('click', () => setMode('explore'));
+  $('#hero-start').addEventListener('click', () => { const y = innerHeight * 0.62; if (lenis) lenis.scrollTo(y, { duration: 1.4 }); else window.scrollTo({ top: y, behavior: reduceMotion ? 'auto' : 'smooth' }); });
 
   function setView(v) {
     explore.setMode(v);
@@ -448,7 +465,7 @@ async function boot() {
     const frame = planFrame(plan, 2.2);
     const box = $('#plan-stage').getBoundingClientRect();
     const s = Math.max(12, Math.min(box.width / frame.w, box.height / frame.h)) * Math.min(devicePixelRatio, 2);
-    drawLevel(plan, L, { pxPerM: s, frame, paper: true, canvas: planCanvas, highlight: planHover });
+    drawLevel(plan, L, { pxPerM: s, frame, paper: true, canvas: planCanvas, highlight: planHover, theme: 'dark' });
     planCanvas.style.width = `${(frame.w * s) / Math.min(devicePixelRatio, 2)}px`;
     planGeom = { frame, s, L };
     document.querySelectorAll('#plan-levels button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === planLevel)));
@@ -457,19 +474,21 @@ async function boot() {
   function renderSchedule(L) {
     const tb = $('#schedule tbody');
     tb.innerHTML = '';
-    let sum = 0;
+    let sum = 0, out = 0;
     for (const r of L.rooms) {
-      const a = polygonArea(r.polygon); sum += a;
+      const a = polygonArea(r.polygon); if (r.outdoor) out += a; else sum += a;
       const b = bbox(r.polygon);
       const tr = document.createElement('tr');
       tr.dataset.room = r.id;
-      tr.innerHTML = `<td>${r.name}<small>${r.nameEn}</small></td><td class="num">${(b.x1 - b.x0).toFixed(2)}×${(b.z1 - b.z0).toFixed(2)}</td><td class="num">${a.toFixed(1)}</td><td class="num">${toPing(a).toFixed(1)}</td>`;
+      if (r.outdoor) tr.className = 'out';
+      tr.innerHTML = `<td>${r.name}<small>${r.nameEn}${r.outdoor ? '，戶外' : ''}</small></td><td class="num">${(b.x1 - b.x0).toFixed(2)}×${(b.z1 - b.z0).toFixed(2)}</td><td class="num">${a.toFixed(1)}</td><td class="num">${toPing(a).toFixed(1)}</td>`;
       tr.addEventListener('mouseenter', () => { planHover = r.id; drawPlanView(); });
       tr.addEventListener('mouseleave', () => { planHover = null; drawPlanView(); });
       tr.addEventListener('click', () => { setMode('explore'); setView('walk'); explore.goToRoom(r, L.id); });
       tb.appendChild(tr);
     }
-    $('#schedule tfoot').innerHTML = `<tr><td>${L.id} 室內合計</td><td></td><td class="num">${sum.toFixed(1)}</td><td class="num">${toPing(sum).toFixed(1)}</td></tr>`;
+    $('#schedule tfoot').innerHTML = `<tr><td>${L.id} 室內合計</td><td></td><td class="num">${sum.toFixed(1)}</td><td class="num">${toPing(sum).toFixed(1)}</td></tr>`
+      + (out ? `<tr class="sub"><td>含陽台</td><td></td><td class="num">${(sum + out).toFixed(1)}</td><td class="num">${toPing(sum + out).toFixed(1)}</td></tr>` : '');
   }
   $('#plan-levels').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { planLevel = b.dataset.level; drawPlanView(); } });
   function roomAtPlan(e) {
@@ -544,6 +563,7 @@ async function boot() {
       world.setExplode(ev.explode);
       story.cameraAt(beatNow, camera);
       document.body.dataset.phase = ev.phase;
+      updateHero();
       const stop = story.stopAt(beatNow);
       showPlate(stop ? roomsById[stop.room] : null, stop ? stop.level : '');
       rail.querySelectorAll('button').forEach(b => b.classList.toggle('on', !!stop && b.dataset.stop === stop.id));
@@ -579,6 +599,7 @@ async function boot() {
   addEventListener('hashchange', () => { const h = location.hash.replace('#', ''); if (['story', 'explore', 'plan'].includes(h)) setMode(h); });
   requestAnimationFrame(frame);
   document.body.classList.add('ready');
+  if (!document.body.classList.contains('no-hero-media') && mode === 'story' && window.scrollY < 40) setTimeout(() => heroVid.play().catch(() => {}), 500);
   const ai = await setupAI({
     projectKey, styles: () => styles, currentStyle: () => styleId,
     onStyle: id => selectStyle(id, false),
@@ -603,8 +624,49 @@ async function boot() {
     film.addEventListener('click', e => { if (e.target === film) close(); });
     addEventListener('keydown', e => { if (e.key === 'Escape' && !film.hidden) close(); });
   }
+  // a real-time 3D still of a style, for schemes that have no AI render yet (any plan, any style)
+  const snaps = {};
+  let snapQueue = Promise.resolve();
+  const texturesPending = () => {
+    let pending = false;
+    world.scene.traverse(o => { if (!o.isMesh || pending) return; for (const m of [].concat(o.material)) for (const k of ['map', 'bumpMap', 'roughnessMap']) { const t = m && m[k]; if (t && t.isTexture && !t.isCanvasTexture && !t.image) pending = true; } });
+    return pending;
+  };
+  // queued so two schemes never fight over the scene; waits for photo textures (hardwood) to arrive
+  function snapshot(sid) {
+    if (snaps[sid]) return snaps[sid];
+    const st = styles.find(x => x.id === sid); if (!st) return Promise.resolve(null);
+    snaps[sid] = snapQueue = snapQueue.then(async () => {
+      const L = plan.levels[0];
+      let pos, look, fov = 64;
+      const shot = (plan.shots || []).find(x => x.id === 'living');
+      if (shot) { pos = shot.pos; look = shot.look; fov = shot.fov || fov; }
+      else {
+        const room = L.rooms.filter(r => !r.outdoor && r.spot).sort((x, y) => polygonArea(y.polygon) - polygonArea(x.polygon))[0];
+        if (!room) return null;
+        pos = [room.spot.pos[0], L.elevation + 1.5, room.spot.pos[1]]; look = [room.spot.look[0], L.elevation + 1.1, room.spot.look[1]];
+      }
+      let url = null;
+      applyState(st.finishes, st.palette);
+      for (let i = 0; i < 50 && texturesPending(); i++) await new Promise(r => setTimeout(r, 100));
+      const keep = { p: camera.position.clone(), q: camera.quaternion.clone(), fov: camera.fov, real: world.state.real, inside: world.state.interior };
+      try {
+        applyState(st.finishes, st.palette); world.setReal(1); world.setInterior(true);
+        camera.position.set(...pos); camera.lookAt(...look); camera.fov = fov; camera.updateProjectionMatrix();
+        composer ? composer.render() : renderer.render(world.scene, camera);
+        const src = renderer.domElement, W = 1280, H = 720, k = Math.min(src.width / W, src.height / H);
+        const out = document.createElement('canvas'); out.width = W; out.height = H;
+        out.getContext('2d').drawImage(src, (src.width - W * k) / 2, (src.height - H * k) / 2, W * k, H * k, 0, 0, W, H);
+        url = out.toDataURL('image/jpeg', 0.86);
+      } catch (e) { console.warn('snapshot', e); }
+      applyState(chosen, palette); world.setReal(keep.real); world.setInterior(keep.inside);
+      camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.fov = keep.fov; camera.updateProjectionMatrix();
+      return url;
+    });
+    return snaps[sid];
+  }
   const proposal = setupProposal({
-    plan, projectKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest,
+    plan, projectKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest, snapshot,
     onView: id => { if (mode !== 'explore') setMode('explore'); selectStyle(id, true); },
   });
   { // 匯出: GLB / OBJ for SketchUp, 3ds Max…; DXF plan for AutoCAD

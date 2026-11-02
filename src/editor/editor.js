@@ -210,12 +210,12 @@ function render() {
   if (!doc) return;
   const W = cv.width, H = cv.height;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#eceee8'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#16130f'; ctx.fillRect(0, 0, W, H);
   // grid: 10 cm minor (when zoomed), 1 m major
   const [gx0, gz0] = toWorld(0, 0), [gx1, gz1] = toWorld(W, H);
   const minor = view.s > 90 ? 0.1 : view.s > 25 ? 0.5 : 1;
-  for (const [step, alpha] of [[minor, 0.05], [1, 0.12], [5, 0.2]]) {
-    ctx.strokeStyle = `rgba(31,35,40,${alpha})`; ctx.lineWidth = 1; ctx.beginPath();
+  for (const [step, alpha] of [[minor, 0.035], [1, 0.08], [5, 0.15]]) {
+    ctx.strokeStyle = `rgba(237,229,215,${alpha})`; ctx.lineWidth = 1; ctx.beginPath();
     for (let x = Math.floor(gx0 / step) * step; x < gx1; x += step) { const [sx] = toScreen(x, 0); ctx.moveTo(Math.round(sx) + 0.5, 0); ctx.lineTo(Math.round(sx) + 0.5, H); }
     for (let z = Math.floor(gz0 / step) * step; z < gz1; z += step) { const [, sy] = toScreen(0, z); ctx.moveTo(0, Math.round(sy) + 0.5); ctx.lineTo(W, Math.round(sy) + 0.5); }
     ctx.stroke();
@@ -228,41 +228,41 @@ function render() {
     ctx.globalAlpha = 1;
   }
   if (underlay.dxf) {
-    ctx.globalAlpha = underlay.dxfOpacity; ctx.strokeStyle = '#2d6cb5'; ctx.lineWidth = 1; ctx.beginPath();
+    ctx.globalAlpha = underlay.dxfOpacity; ctx.strokeStyle = '#7fb2e5'; ctx.lineWidth = 1; ctx.beginPath();
     for (const s of underlay.dxf.segs) { if (!underlay.dxfLayers.has(s.layer)) continue; const a = toScreen(...s.a), b = toScreen(...s.b); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
     ctx.stroke();
-    ctx.fillStyle = '#2d6cb5'; ctx.font = `${11 * dpr}px "Noto Sans TC", sans-serif`;
+    ctx.fillStyle = '#7fb2e5'; ctx.font = `${11 * dpr}px "Noto Sans TC", sans-serif`;
     for (const t of underlay.dxf.texts) { const [sx, sy] = toScreen(...t.p); ctx.fillText(t.text, sx, sy); }
     ctx.globalAlpha = 1;
   }
   // lower level as a faint trace guide
   if (lv > 0) {
     ctx.globalAlpha = 0.18;
-    drawLevel(doc, { ...doc.levels[lv - 1], rooms: [], furniture: [] }, { canvas: cv, view, pxPerM: view.s, noGrid: true, noDims: true, furniture: false });
+    drawLevel(doc, { ...doc.levels[lv - 1], rooms: [], furniture: [] }, { canvas: cv, view, pxPerM: view.s, noGrid: true, noDims: true, furniture: false, theme: 'dark' });
     ctx.globalAlpha = 1;
   }
   // the level itself, drawn with the same ink renderer as the 3D floor
   const L = level();
-  drawLevel({ ...doc, stairs: doc.stairs }, L, { canvas: cv, view, pxPerM: view.s, noGrid: true, noDims: true, highlight: sel && sel.type === 'room' ? sel.room.id : null });
+  drawLevel({ ...doc, stairs: doc.stairs }, L, { canvas: cv, view, pxPerM: view.s, noGrid: true, noDims: true, highlight: sel && sel.type === 'room' ? sel.room.id : null, theme: 'dark' });
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   // selection + handles
-  const accent = '#e0a91e';
+  const accent = '#c9a26a';
   const wallPath = (w, extra = 0) => {
     const { ux, uz } = wallFrame(w); const n = [-uz, ux], h = (w.t || 0.12) / 2 + extra;
     const pts = [[w.a[0] + n[0] * h, w.a[1] + n[1] * h], [w.b[0] + n[0] * h, w.b[1] + n[1] * h], [w.b[0] - n[0] * h, w.b[1] - n[1] * h], [w.a[0] - n[0] * h, w.a[1] - n[1] * h]].map(q => toScreen(...q));
     ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q))); ctx.closePath();
   };
   if (hover && (!sel || hover.wall !== sel.wall || hover.item !== sel.item) && tool === 'select') {
-    ctx.strokeStyle = 'rgba(224,169,30,.7)'; ctx.lineWidth = 2 * dpr;
+    ctx.strokeStyle = 'rgba(201,162,106,.7)'; ctx.lineWidth = 2 * dpr;
     if (hover.type === 'wall' || hover.type === 'opening') { wallPath(hover.wall, 0.03); ctx.stroke(); }
     if (hover.type === 'item') { const b = itemFootprint(hover.item); const [x, y] = toScreen(b.x0, b.z0); ctx.strokeRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s); }
   }
   if (sel) {
-    ctx.strokeStyle = accent; ctx.lineWidth = 2.5 * dpr; ctx.fillStyle = 'rgba(224,169,30,.18)';
+    ctx.strokeStyle = accent; ctx.lineWidth = 2.5 * dpr; ctx.fillStyle = 'rgba(201,162,106,.2)';
     if (sel.type === 'wall') {
       wallPath(sel.wall, 0.04); ctx.fill(); ctx.stroke();
-      for (const q of [sel.wall.a, sel.wall.b]) { const [x, y] = toScreen(...q); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 6 * dpr, 0, 7); ctx.fill(); ctx.stroke(); }
+      for (const q of [sel.wall.a, sel.wall.b]) { const [x, y] = toScreen(...q); ctx.fillStyle = '#16130f'; ctx.beginPath(); ctx.arc(x, y, 6 * dpr, 0, 7); ctx.fill(); ctx.stroke(); }
       const { len } = wallFrame(sel.wall); const mid = toScreen((sel.wall.a[0] + sel.wall.b[0]) / 2, (sel.wall.a[1] + sel.wall.b[1]) / 2);
       tag(mid[0], mid[1] - 16 * dpr, m2(len));
     }
@@ -279,7 +279,7 @@ function render() {
   if (tool === 'wall' || tool === 'zone') {
     if (draft && draft.pts.length && draft.cursor) {
       const a = draft.pts[draft.pts.length - 1], b = draft.cursor;
-      ctx.strokeStyle = tool === 'zone' ? 'rgba(31,35,40,.6)' : accent; ctx.lineWidth = (tool === 'zone' ? 1.5 : Math.max(2, 0.12 * view.s)) * dpr / (tool === 'zone' ? 1 : dpr);
+      ctx.strokeStyle = tool === 'zone' ? 'rgba(237,229,215,.6)' : accent; ctx.lineWidth = (tool === 'zone' ? 1.5 : Math.max(2, 0.12 * view.s)) * dpr / (tool === 'zone' ? 1 : dpr);
       if (tool === 'zone') ctx.setLineDash([8, 6]);
       ctx.beginPath(); ctx.moveTo(...toScreen(...a)); ctx.lineTo(...toScreen(...b)); ctx.stroke(); ctx.setLineDash([]);
       const mid = toScreen((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
@@ -289,12 +289,12 @@ function render() {
   if (['door', 'window', 'slider'].includes(tool) && hover && hover.preview) {
     const { w, offset, width } = hover.preview; const { ux, uz } = wallFrame(w);
     const a = [w.a[0] + ux * offset, w.a[1] + uz * offset], b = [a[0] + ux * width, a[1] + uz * width];
-    ctx.fillStyle = hover.preview.ok ? 'rgba(224,169,30,.45)' : 'rgba(200,60,40,.4)'; wallPath({ a, b, t: w.t }, 0.05); ctx.fill();
+    ctx.fillStyle = hover.preview.ok ? 'rgba(201,162,106,.5)' : 'rgba(196,67,47,.5)'; wallPath({ a, b, t: w.t }, 0.05); ctx.fill();
   }
   if (tool === 'item' && pendingItem && hover && hover.p) {
     const f = { ...pendingItem, x: hover.p[0], z: hover.p[1], rot: itemRot };
     const b = itemFootprint(f); const [x, y] = toScreen(b.x0, b.z0);
-    ctx.fillStyle = 'rgba(224,169,30,.25)'; ctx.strokeStyle = accent; ctx.lineWidth = 2 * dpr;
+    ctx.fillStyle = 'rgba(201,162,106,.25)'; ctx.strokeStyle = accent; ctx.lineWidth = 2 * dpr;
     ctx.fillRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s); ctx.strokeRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s);
   }
   if ((tool === 'stair' || tool === 'scale') && draft && draft.a && draft.cursor) {
@@ -305,15 +305,15 @@ function render() {
   }
   if (snap && (tool !== 'select')) {
     const [x, y] = toScreen(...snap.p);
-    ctx.strokeStyle = '#2d6cb5'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(x - 5 * dpr, y - 5 * dpr, 10 * dpr, 10 * dpr);
-    ctx.fillStyle = '#2d6cb5'; ctx.font = `${10 * dpr}px "IBM Plex Mono", monospace`; ctx.fillText(snap.kind, x + 8 * dpr, y - 8 * dpr);
+    ctx.strokeStyle = '#7fb2e5'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(x - 5 * dpr, y - 5 * dpr, 10 * dpr, 10 * dpr);
+    ctx.fillStyle = '#7fb2e5'; ctx.font = `${10 * dpr}px "Noto Sans TC", sans-serif`; ctx.fillText(snap.kind, x + 8 * dpr, y - 8 * dpr);
   }
 }
 function tag(x, y, text, strong) {
-  ctx.font = `600 ${11 * dpr}px "IBM Plex Mono", monospace`;
+  ctx.font = `700 ${11 * dpr}px "Noto Sans TC", sans-serif`;
   const w = ctx.measureText(text).width + 10 * dpr, h = 18 * dpr;
-  ctx.fillStyle = strong ? '#1f2328' : 'rgba(31,35,40,.85)'; ctx.fillRect(x - w / 2, y - h / 2, w, h);
-  ctx.fillStyle = '#f6f7f3'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y + 1);
+  ctx.fillStyle = strong ? '#c9a26a' : 'rgba(237,229,215,.92)'; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+  ctx.fillStyle = '#1b140b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y + 1);
   ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
