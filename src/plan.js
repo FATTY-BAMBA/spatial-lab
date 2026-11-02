@@ -127,8 +127,15 @@ export function quantities(plan) {
   return { floorArea, counterLength, cabinetLength, wallArea, grossArea };
 }
 
+export const DEFAULT_BASIS = {
+  priceBook: 'PrimeStride 示範價目表 v0', priceDate: '2026-11', labour: '含工帶料',
+  waste: { floor: 0.08, counter: 0.05, cabinet: 0.03, paint: 0.1 }, taxRate: 0.05,
+  notes: ['材質單價含施工與一般耗材', '家具為暫估預算，實際依選品', '未含拆除、水電、空調及設計費'],
+};
+export function quoteBasis(plan) { return { ...DEFAULT_BASIS, ...(plan.quoteBasis || {}), waste: { ...DEFAULT_BASIS.waste, ...((plan.quoteBasis || {}).waste || {}) } }; }
+
 export function buildQuote(plan, chosen) {
-  const q = quantities(plan);
+  const q = quantities(plan), basis = quoteBasis(plan);
   const basisQty = {
     floorArea: toPing(q.floorArea),
     counterLength: q.counterLength,
@@ -138,20 +145,22 @@ export function buildQuote(plan, chosen) {
   const lines = [];
   for (const g of plan.finishes) {
     const opt = g.options.find(o => o.id === chosen[g.id]) || g.options[0];
-    const qty = basisQty[g.basis];
-    lines.push({ group: g.name, groupEn: g.nameEn, name: opt.name, unit: g.unit, qty, unitPrice: opt.price, total: Math.round(qty * opt.price), finish: true });
+    const net = basisQty[g.basis], waste = basis.waste[g.id] || 0, qty = net * (1 + waste);
+    lines.push({ group: g.name, groupEn: g.nameEn, gid: g.id, name: opt.name, unit: g.unit, net, waste, qty, unitPrice: opt.price, total: Math.round(qty * opt.price), finish: true, status: 'confirmed' });
   }
   const byName = new Map();
   for (const L of plan.levels) for (const f of L.furniture) {
     if (!f.price) continue;
     const key = f.name + '|' + f.price;
-    const row = byName.get(key) || { group: L.id === '1F' ? '家具・一樓' : '家具・二樓', name: f.name, nameEn: f.nameEn, unit: '件', qty: 0, unitPrice: f.price };
+    const row = byName.get(key) || { group: L.id === '1F' ? '家具・一樓' : '家具・二樓', name: f.name, nameEn: f.nameEn, unit: '件', qty: 0, unitPrice: f.price, status: 'allowance' };
     row.qty += 1;
     byName.set(key, row);
   }
   for (const row of byName.values()) lines.push({ ...row, total: row.qty * row.unitPrice });
   const total = lines.reduce((s, l) => s + l.total, 0);
-  return { lines, total, q };
+  const finishTotal = lines.filter(l => l.finish).reduce((s, l) => s + l.total, 0);
+  const tax = Math.round(total * basis.taxRate);
+  return { lines, total, finishTotal, allowance: total - finishTotal, tax, grand: total + tax, q, basis };
 }
 
 export function stairHeightAt(stair, z, rise) {

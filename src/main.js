@@ -5,6 +5,8 @@ import { createWorld } from './scene.js';
 import { createStory } from './story.js';
 import { createExplore } from './explore.js';
 import { setupClickWalk, setupMinimap, setupTime, setupCompare } from './features.js';
+import { setupAI } from './ai.js';
+import { setupProposal } from './proposal.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
@@ -135,7 +137,7 @@ async function boot() {
 
   let lastTotal = null;
   function renderQuote(animate) {
-    const { lines, total, q } = buildQuote(plan, chosen);
+    const { lines, total, q, tax, grand, basis } = buildQuote(plan, chosen);
     const totalEl = $('#quote-total');
     const from = lastTotal ?? total;
     lastTotal = total;
@@ -163,10 +165,16 @@ async function boot() {
       }
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${l.finish ? `<b>${l.group}</b> ` : ''}${l.name}</td>
-        <td class="num">${l.unit === '件' ? l.qty : l.qty.toFixed(l.unit === 'm' ? 2 : 1)} ${l.unit}</td>
+        <td class="num"${l.waste ? ` title="淨量 ${l.net.toFixed(2)} + 損耗 ${Math.round(l.waste * 100)}%"` : ''}>${l.unit === '件' ? l.qty : l.qty.toFixed(l.unit === 'm' ? 2 : 1)} ${l.unit}${l.waste ? `<small class="w">含損耗 ${Math.round(l.waste * 100)}%</small>` : ''}${l.status === 'allowance' ? '<small class="w">暫估</small>' : ''}</td>
         <td class="num">${fmt(l.unitPrice)}</td><td class="num">${fmt(l.total)}</td>`;
       tb.appendChild(tr);
     }
+    for (const [k, v, cls] of [['小計（未稅）', total, ''], [`營業稅 ${Math.round(basis.taxRate * 100)}%`, tax, ''], ['合計（含稅）', grand, 'sum']]) {
+      const tr = document.createElement('tr'); tr.className = 'foot ' + cls;
+      tr.innerHTML = `<td colspan="3">${k}</td><td class="num">${fmt(v)}</td>`; tb.appendChild(tr);
+    }
+    $('#quote-basis').innerHTML = `未稅 · ${basis.labour} · 損耗已計入 · 價格基準 ${basis.priceDate.replace('-', '/')} <button type="button" class="basis-i" aria-expanded="false" title="計價依據">ⓘ</button><span class="basis-more" hidden>${basis.priceBook}<br>${basis.notes.join('<br>')}<br>含稅合計 NT$ ${fmt(grand)}</span>`;
+    $('#quote-basis .basis-i').onclick = e => { const m = $('#quote-basis .basis-more'); m.hidden = !m.hidden; e.currentTarget.setAttribute('aria-expanded', String(!m.hidden)); };
   }
   renderFinishes();
   renderQuote(false);
@@ -238,10 +246,10 @@ async function boot() {
   }
 
   // ---------------- styles ----------------
-  const ORIGINAL = { id: 'original', name: '原始提案', nameEn: 'Original', tagline: '本案預設材質', finishes: { ...plan.defaultFinishes }, palette: {} };
+  const ORIGINAL = { id: 'original', name: '原始提案', nameEn: 'Original', tagline: '本案預設材質', finishes: { ...plan.defaultFinishes }, palette: plan.defaultPalette || {} };
   const styles = [ORIGINAL, ...catalog.styles];
   let styleId = null; // null = custom mix
-  let palette = {};
+  let palette = ORIGINAL.palette;
   try {
     const sid = localStorage.getItem(`spatial.style.${projectKey}`);
     const st = styles.find(x => x.id === sid);
@@ -570,7 +578,21 @@ async function boot() {
   addEventListener('hashchange', () => { const h = location.hash.replace('#', ''); if (['story', 'explore', 'plan'].includes(h)) setMode(h); });
   requestAnimationFrame(frame);
   document.body.classList.add('ready');
-  window.__spatial = { world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod, selectStyle, openStyleCompare, openFinishCompare, photo };
+  const ai = await setupAI({
+    projectKey, styles: () => styles, currentStyle: () => styleId,
+    onStyle: id => selectStyle(id, false),
+    onWalk: shot => {
+      if (mode !== 'explore') setMode('explore');
+      const yaw = Math.atan2(-(shot.look[0] - shot.pos[0]), -(shot.look[2] - shot.pos[2]));
+      const L = plan.levels[0];
+      setTimeout(() => explore.walkTo(shot.pos[0], shot.pos[2], L.elevation, yaw), 60);
+    },
+  });
+  const proposal = setupProposal({
+    plan, projectKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest,
+    onView: id => { if (mode !== 'explore') setMode('explore'); selectStyle(id, true); },
+  });
+  window.__spatial = { ai, proposal, world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod, selectStyle, openStyleCompare, openFinishCompare, photo };
 }
 
 boot().catch(err => {

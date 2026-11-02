@@ -155,6 +155,8 @@ export async function createWorld(plan, renderer, opts = {}) {
     mirror: std({ color: '#e9eef0', roughness: 0.03, metalness: 1, envMapIntensity: 1.4 }),
     ceramicIn: std({ color: '#e6e7e4', roughness: 0.15 }),
     chrome: std({ color: '#dfe2e4', roughness: 0.12, metalness: 1 }),
+    teak: std({ color: '#c79a6b', map: tex('walnut'), roughness: 0.75 }),
+    cushion: std({ color: '#ece7dc', map: tex('fabric'), roughness: 1 }),
   };
   const glass = patch(new THREE.MeshPhysicalMaterial({ color: '#a9bfc5', roughness: 0.04, metalness: 0, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 }));
   const sheer = patch(new THREE.MeshStandardMaterial({ color: '#f6f3ec', map: tex('fabric'), transparent: true, opacity: 0.62, side: THREE.DoubleSide, roughness: 1, depthWrite: false }));
@@ -869,7 +871,6 @@ function buildItem(f, ctx) {
       P(boxGeo(0.02, 0.02, 0.24), M.chrome, w / 2 - 0.15, 2.0, -d / 2 + 0.16, false);
       P(rbox(0.26, 0.012, 0.26, 0.004), M.chrome, w / 2 - 0.15, 1.985, -d / 2 + 0.28, false);
       P(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 16), M.chrome, w / 2 - 0.15, 1.05, -d / 2 + 0.03, false).rotation.x = Math.PI / 2;
-      P(boxGeo(0.4, 0.26, 0.012), M.black, -w / 2 + 0.45, 1.25, -d / 2 + 0.006, false);
       P(boxGeo(0.06, 0.004, 0.6), M.steel, 0, 0.042, -d / 2 + 0.12, false);
       break;
     }
@@ -913,6 +914,15 @@ function buildItem(f, ctx) {
       P(boxGeo(w + 0.1, 0.02, 0.05), M.alu, 0, h + 0.03, 0, false);
       break;
     }
+    case 'outdoorchair': { // low teak lounge chair with thick outdoor cushions
+      for (const sx of [-1, 1]) { P(boxGeo(0.06, 0.5, d), M.teak, sx * (w / 2 - 0.03), 0.25, 0, false); P(boxGeo(0.08, 0.035, d * 0.85), M.teak, sx * (w / 2 - 0.03), 0.52, 0.03, false); }
+      for (let i = 0; i < 6; i++) P(boxGeo(w - 0.12, 0.02, 0.07), M.teak, 0, 0.26, -d / 2 + 0.12 + i * (d - 0.2) / 5, false);
+      const back = P(boxGeo(w - 0.12, 0.62, 0.04), M.teak, 0, 0.55, -d / 2 + 0.06, false); back.rotation.x = -0.32;
+      P(rbox(w - 0.14, 0.12, d - 0.16, 0.04), M.cushion, 0, 0.33, 0.05, false);
+      const bc = P(rbox(w - 0.16, 0.5, 0.12, 0.05), M.cushion, 0, 0.6, -d / 2 + 0.16, false); bc.rotation.x = -0.32;
+      break;
+    }
+    case 'sidetable': P(new THREE.CylinderGeometry(w / 2, w / 2, 0.03, 32), M.teak, 0, 0.45, 0, false); P(new THREE.CylinderGeometry(0.03, 0.05, 0.44, 12), M.teak, 0, 0.22, 0, false); P(new THREE.CylinderGeometry(w / 2.6, w / 2.4, 0.02, 32), M.teak, 0, 0.01, 0, false); break;
     case 'washer': P(rbox(w, 0.85, d, 0.02), M.white, 0, 0.425, 0); P(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 32), M.screen, 0, 0.5, d / 2 + 0.005, false).rotation.x = Math.PI / 2; break;
     case 'heater': P(rbox(w, 0.62, d, 0.02), M.white, 0, 1.5, 0); break;
     default: P(boxGeo(w, 0.8, d), M.lightWood, 0, 0.4, 0);

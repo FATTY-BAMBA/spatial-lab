@@ -703,16 +703,31 @@ function zoneEdges(rooms, walls) {
   const segDist = (p, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1e-9; let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / L2; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dz); };
   const onBoundary = (p, r) => r.polygon.some((q, i) => segDist(p, q, r.polygon[(i + 1) % r.polygon.length]) < 0.05);
   const out = [];
+  const proj = (p, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1e-9; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / L2)); return [a[0] + t * dx, a[1] + t * dz]; };
+  const snapEnd = p => {
+    for (const [a, b] of out) for (const q of [a, b]) if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.12) return q.slice();
+    let best = null, bd = 0.35;
+    for (const w of walls) { const d = segDist(p, w.a, w.b); if (d < bd) { bd = d; best = proj(p, w.a, w.b); } }
+    for (const [a, b] of out) { const d = segDist(p, a, b); if (d < bd) { bd = d; best = proj(p, a, b); } }
+    return (best || p).map(v => +v.toFixed(3));
+  };
+  const covered = p => walls.some(w => segDist(p, w.a, w.b) < (w.t || 0.12) / 2 + 0.04) || out.some(([a, b]) => segDist(p, a, b) < 0.05);
   rooms.forEach((r, ri) => r.polygon.forEach((a, i) => {
     const b = r.polygon[(i + 1) % r.polygon.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     if (len < 0.2) return;
-    let covered = 0; const n = Math.ceil(len / 0.1);
-    for (let k = 0; k <= n; k++) { const p = [a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]; if (walls.some(w => segDist(p, w.a, w.b) < (w.t || 0.12) / 2 + 0.04)) covered++; }
-    if (covered / (n + 1) > 0.6) return;
-    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    if (!rooms.some((o, oi) => oi !== ri && onBoundary(mid, o))) return;
-    if (out.some(([p, q]) => segDist(mid, p, q) < 0.05)) return;
-    out.push([a.slice(), b.slice()]);
+    const n = Math.ceil(len / 0.05), at = k => [a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n];
+    const runs = []; let k0 = null;
+    for (let k = 0; k <= n; k++) {
+      const p = at(k), open = !covered(p) && rooms.some((o, oi) => oi !== ri && onBoundary(p, o));
+      if (open && k0 === null) k0 = k;
+      if ((!open || k === n) && k0 !== null) { runs.push([k0, open ? k : k - 1]); k0 = null; }
+    }
+    for (const [s0, s1] of runs) {
+      if ((s1 - s0) / n * len < 0.3) continue;
+      // extend each end to the nearest wall/zone so the divider joins the wall graph
+      const p0 = at(Math.max(0, s0 - 1)), p1 = at(Math.min(n, s1 + 1));
+      out.push([snapEnd(p0), snapEnd(p1)]);
+    }
   }));
   return out;
 }

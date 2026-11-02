@@ -59,6 +59,7 @@ body[data-mode="story"] #gl { touch-action: pan-y; pointer-events: none; }
 .edit-link { color: var(--ink); text-decoration: none; padding: 6px 14px; border-radius: 999px; font-weight: 500; white-space: nowrap; border-left: 1px solid var(--rule); }
 .edit-link small { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--graphite); margin-left: 6px; text-transform: uppercase; }
 .edit-link:hover { background: var(--tape); }
+button.edit-link { background: none; border: 0; border-left: 1px solid var(--rule); font: inherit; }
 .projects a.draw-own { border-style: dashed; border-color: var(--ink); }
 
 /* ---------- story ---------- */
@@ -333,6 +334,138 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 #compare-handle.sweeping i { width: 3px; background: var(--tape); box-shadow: 0 0 18px rgba(224,169,30,.9); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+#quote-lines small.w { display: block; font-size: 10px; color: var(--graphite); font-family: var(--mono); }
+#quote-lines tr.foot td { border-top: 1px solid var(--rule); font-size: 12px; }
+#quote-lines tr.foot.sum td { font-weight: 700; border-top: 2px solid var(--ink); }
+.basis { display: block; color: var(--graphite); }
+.basis-i { border: 0; background: none; padding: 0 2px; color: var(--tape-ink); font-size: 13px; }
+.basis-more { display: block; margin-top: 4px; padding: 6px 8px; background: var(--paper-2); border-left: 2px solid var(--tape); line-height: 1.5; }
+.quote-actions .primary { background: var(--ink) !important; color: var(--paper-2) !important; border-color: var(--ink) !important; font-weight: 700; }
+@media (max-width: 560px) {
+  .brand b { font-size: 0 !important; } .brand b::before { content: "PS·Lab"; font-size: 14px; }
+  #edit-link { display: none; }
+  .tabs { overflow-x: auto; max-width: calc(100vw - 92px); scrollbar-width: none; }
+  .tabs button, .edit-link { padding: 6px 9px !important; }
+}
+.pp-hero figcaption:empty { display: none; }
+.pp-bar button { white-space: nowrap; }
+/* AI 效果圖 viewer: dark photo room, real-time frame vs geometry-locked AI render */
+.ai-link { border: 1px solid var(--ink) !important; background: var(--ink) !important; color: var(--paper-2) !important; }
+.ai-link small { color: var(--tape) !important; opacity: 1 !important; }
+#ai { position: fixed; inset: 0; z-index: 60; background: #121314; color: #eceee8; display: grid; grid-template-rows: auto 1fr auto; padding: calc(var(--top) + 12px) var(--gutter-r) calc(var(--bottom) + 12px) var(--gutter-l); gap: 10px; }
+.ai-top { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.ai-top h2 { margin: 0; font-family: var(--display); font-size: 20px; letter-spacing: .02em; white-space: nowrap; }
+.ai-top h2 i { font-style: normal; color: var(--tape); }
+.ai-meta { display: flex; gap: 10px; align-items: baseline; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 13px; color: #b9bdb6; }
+.ai-meta b { color: #fff; font-size: 15px; }
+.ai-meta .mono { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; }
+.ai-close { margin-left: auto; background: none; border: 1px solid rgba(255,255,255,.25); color: #fff; border-radius: 999px; width: 36px; height: 36px; font-size: 18px; flex: none; }
+.ai-wrap { display: grid; place-items: center; min-height: 0; }
+.ai-stage { position: relative; width: min(100%, calc((100dvh - 230px) * 16 / 9)); aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: #000; touch-action: none; cursor: ew-resize; user-select: none; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+.ai-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.ai-tag { position: absolute; top: 12px; padding: 5px 9px; border-radius: 999px; font-size: 12px; background: rgba(18,19,20,.72); backdrop-filter: blur(8px); pointer-events: none; }
+.ai-tag small { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; opacity: .7; margin-left: 6px; }
+.ai-tag.l { left: 12px; } .ai-tag.r { right: 12px; color: #1f2328; background: var(--tape); }
+.ai-handle { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 0 24px rgba(255,255,255,.35); transform: translateX(-1px); }
+.ai-handle::after { content: "◀ ▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; color: #1f2328; font-size: 10px; letter-spacing: 2px; padding: 8px 9px; border-radius: 999px; white-space: nowrap; }
+#ai.scanning .ai-handle { box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 0 40px 8px rgba(224,169,30,.55); }
+#ai.loading .ai-stage::after { content: "載入效果圖…"; position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); font-size: 13px; }
+.ai-note { position: absolute; left: 12px; bottom: 12px; font-size: 11px; color: rgba(255,255,255,.85); background: rgba(18,19,20,.6); padding: 4px 8px; border-radius: 4px; pointer-events: none; }
+.ai-bottom { display: grid; gap: 10px; }
+.ai-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; justify-content: center; }
+.ai-thumbs button { flex: none; width: 116px; padding: 0; border: 2px solid transparent; border-radius: 4px; background: #000; position: relative; overflow: hidden; color: #fff; }
+.ai-thumbs button[aria-pressed="true"] { border-color: var(--tape); }
+.ai-thumbs img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; opacity: .8; }
+.ai-thumbs button[aria-pressed="true"] img { opacity: 1; }
+.ai-thumbs span { position: absolute; left: 6px; bottom: 4px; font-size: 12px; text-shadow: 0 1px 4px #000; }
+.ai-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.ai-styles { display: flex; gap: 6px; flex-wrap: wrap; }
+.ai-actions button, .ai-actions a { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); color: #eceee8; border-radius: 999px; padding: 6px 12px; font-size: 13px; text-decoration: none; }
+.ai-actions [aria-pressed="true"] { background: var(--tape); border-color: var(--tape); color: #1f2328; }
+.ai-actions .ai-walk { background: #eceee8; color: #1f2328; font-weight: 700; }
+.ai-actions .sep { width: 1px; height: 22px; background: rgba(255,255,255,.18); }
+body.ai-on { overflow: hidden; }
+@media (max-width: 720px) {
+  .ai-top h2 { font-size: 17px; } .ai-meta .mono { display: none; }
+  .ai-stage { width: 100%; }
+  .ai-thumbs { justify-content: flex-start; } .ai-thumbs button { width: 92px; }
+  .ai-actions .sep { display: none; }
+}
+
+/* 提案模式 proposal room: paper sheet, two schemes side by side */
+#proposal { position: fixed; inset: 0; z-index: 58; background: var(--paper); overflow-y: auto; padding: calc(var(--top) + 14px) var(--gutter-r) calc(var(--bottom) + 24px) var(--gutter-l); }
+.pp-top { display: flex; align-items: center; gap: 16px; max-width: 1280px; margin: 0 auto 14px; }
+.pp-top h2 { margin: 0; font-family: var(--display); font-size: 24px; white-space: nowrap; }
+.pp-title { display: flex; flex-direction: column; font-size: 12px; color: var(--graphite); border-left: 1px solid var(--rule); padding-left: 14px; min-width: 0; }
+.pp-title b { color: var(--ink); font-size: 14px; }
+.pp-close { margin-left: auto; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper-2); font-size: 18px; flex: none; }
+.pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 1280px; margin: 0 auto; }
+.pp-opt { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; transition: opacity .3s, box-shadow .3s; }
+.pp-opt.approved { box-shadow: 0 0 0 2px #b8322a, 0 18px 40px rgba(0,0,0,.08); }
+.pp-opt.dim { opacity: .55; }
+.pp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pp-letter { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; background: var(--ink); color: var(--paper-2); padding: 4px 8px; border-radius: 2px; }
+.pp-pick select { font: inherit; font-size: 18px; font-family: var(--display); font-weight: 900; border: 0; border-bottom: 2px solid var(--tape); background: none; padding: 2px 4px; }
+.pp-tag { color: var(--graphite); font-size: 13px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.pp-hero { margin: 0; position: relative; aspect-ratio: 16/9; background: #ddd; border-radius: 4px; overflow: hidden; }
+.pp-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-hero figcaption { position: absolute; left: 8px; bottom: 8px; font-size: 11px; color: #fff; background: rgba(0,0,0,.45); padding: 3px 7px; border-radius: 3px; }
+.pp-none { height: 100%; display: grid; place-items: center; color: var(--graphite); font-size: 13px; }
+.pp-seal { position: absolute; right: 14px; top: 14px; width: 112px; height: 112px; border: 3px solid #b8322a; border-radius: 50%; color: #b8322a; display: grid; place-content: center; text-align: center; transform: rotate(-12deg); background: rgba(255,250,245,.82); animation: seal .5s cubic-bezier(.2,1.6,.4,1) both; }
+.pp-seal b { font-family: var(--display); font-size: 26px; line-height: 1; } .pp-seal span { font-family: var(--mono); font-size: 9px; letter-spacing: .14em; } .pp-seal i { font-style: normal; font-family: var(--mono); font-size: 9px; }
+@keyframes seal { from { transform: rotate(-12deg) scale(2.2); opacity: 0; } to { transform: rotate(-12deg) scale(1); opacity: 1; } }
+.pp-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; } .pp-thumbs:empty { display: none; }
+.pp-thumbs img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 3px; display: block; }
+.pp-fin { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 13px; }
+.pp-fin li { display: flex; align-items: center; gap: 6px; min-width: 0; } .pp-fin i { width: 14px; height: 14px; border-radius: 2px; border: 1px solid var(--rule); flex: none; }
+.pp-fin span { color: var(--graphite); flex: none; } .pp-fin b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-sum { margin: 0; font-size: 13px; border-top: 1px solid var(--rule); padding-top: 6px; }
+.pp-sum div { display: flex; justify-content: space-between; padding: 2px 0; } .pp-sum dt { color: var(--graphite); } .pp-sum dd { margin: 0; font-family: var(--mono); }
+.pp-sum .tot dt, .pp-sum .tot dd { color: var(--ink); font-weight: 700; font-size: 16px; }
+.pp-delta { font-family: var(--mono); font-size: 13px; padding: 6px 10px; border-radius: 4px; background: rgba(31,35,40,.06); width: fit-content; }
+.pp-delta.up { background: rgba(224,169,30,.18); color: var(--tape-ink); } .pp-delta.down { background: rgba(60,130,90,.14); color: #2e6b47; }
+.pp-btns { display: flex; gap: 8px; margin-top: auto; }
+.pp-btns button, .pp-bar button { flex: 1; border: 1px solid var(--ink); background: none; padding: 9px 10px; font-weight: 700; border-radius: 2px; }
+.pp-btns .pp-approve { background: #b8322a; border-color: #b8322a; color: #fff; }
+.pp-btns button[disabled] { opacity: .35; cursor: not-allowed; }
+.pp-bar { max-width: 1280px; margin: 16px auto 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px dashed var(--rule); border-radius: 6px; }
+.pp-bar p { margin: 0; flex: 1 1 320px; font-size: 13px; } .pp-bar > div { display: flex; gap: 8px; }
+.pp-bar .primary { background: var(--ink); color: var(--paper-2); }
+.pp-basis { max-width: 1280px; margin: 10px auto 0; font-size: 12px; color: var(--graphite); }
+.pp-modal { position: fixed; inset: 0; z-index: 70; background: rgba(18,19,20,.5); display: grid; place-items: center; padding: 16px; }
+.pp-card { background: var(--paper-2); border-radius: 8px; padding: 22px; max-width: 440px; width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,.3); }
+.pp-card h3 { margin: 6px 0 2px; font-family: var(--display); } .pp-card .mono { font-family: var(--mono); font-size: 12px; color: var(--graphite); margin: 0 0 10px; }
+.pp-card ol { padding-left: 18px; font-size: 13px; } .pp-card li.done::marker { color: #2e6b47; }
+.pp-card button { margin-top: 8px; width: 100%; background: var(--ink); color: var(--paper-2); border: 0; padding: 10px; font-weight: 700; }
+.pp-demo { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; background: var(--tape); padding: 2px 6px; border-radius: 2px; }
+.pp-sheet { display: none; }
+body.pp-on { overflow: hidden; }
+@media (max-width: 820px) { .pp-grid { grid-template-columns: 1fr; } .pp-top h2 { font-size: 19px; } .pp-title { display: none; } }
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body > *:not(#proposal) { display: none !important; }
+  #proposal { position: static; padding: 0; overflow: visible; background: #fff; }
+  #proposal > *:not(.pp-sheet) { display: none !important; }
+  .pp-sheet { display: block; font-size: 10px; color: #1f2328; }
+  .pp-sheet header { display: flex; justify-content: space-between; border-bottom: 2px solid #1f2328; padding-bottom: 4px; margin-bottom: 6px; }
+  .pp-sheet header div { display: flex; flex-direction: column; } .pp-sheet header b { font-size: 14px; } .pp-sheet header .r { text-align: right; }
+  .sh-main { display: grid; grid-template-columns: 1.55fr 1fr; gap: 8px; }
+  .sh-hero { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+  .sh-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px; } .sh-row img { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+  .sh-row .sh-plan, .sh-hero.sh-plan { object-fit: contain; background: #f6f7f3; }
+  .sh-right h2 { margin: 0 0 4px; font-size: 16px; } .sh-right table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  .sh-right td { padding: 2px 3px; border-bottom: 1px solid #ddd; } .sh-right td:last-child { text-align: right; }
+  .sh-right i { display: inline-block; width: 9px; height: 9px; margin-right: 4px; border: 1px solid #ccc; vertical-align: -1px; }
+  .sh-right .q .s td { font-weight: 700; border-top: 1px solid #1f2328; } .sh-right .q .g td { font-weight: 700; font-size: 12px; border-top: 2px solid #1f2328; }
+  .sh-right .basis { color: #59616b; font-size: 8.5px; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; margin-top: 10px; }
+  .sign div span { display: block; border-top: 1px solid #1f2328; padding-top: 2px; margin-top: 28px; }
+  .sign .seal { width: 66px; height: 66px; border: 2px solid #b8322a; border-radius: 50%; color: #b8322a; display: grid; place-content: center; text-align: center; transform: rotate(-12deg); }
+  .sign .seal b { font-size: 15px; } .sign .seal i { font-style: normal; font-size: 6.5px; }
+  .pp-sheet footer { margin-top: 6px; border-top: 1px solid #ddd; padding-top: 3px; font-size: 8px; color: #59616b; }
+}
 </style>
 </head>
 <body>
@@ -345,6 +478,8 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
     <button type="button" data-mode="explore" aria-pressed="false">探索<small>Explore</small></button>
     <button type="button" data-mode="plan" aria-pressed="false">平面圖<small>Plan</small></button>
     <a id="edit-link" class="edit-link" href="editor.html">編輯平面<small>Edit</small></a>
+    <button type="button" id="ai-open" class="ai-link" hidden>AI 效果圖<small>Render</small></button>
+    <button type="button" id="proposal-top" class="edit-link">提案<small>Proposal</small></button>
   </nav>
 </header>
 
@@ -414,11 +549,11 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
   <div class="quote">
     <div class="quote-head"><span>預估總價</span><output id="quote-total">—</output></div>
     <small id="qty-line"></small>
-    <small>示意價格，依本示範資料自動計算，非正式報價。</small>
+    <small id="quote-basis" class="basis"></small>
     <div id="quote-lines" hidden><table><tbody></tbody></table></div>
     <div class="quote-actions">
       <button type="button" id="quote-toggle" aria-expanded="false">查看清單</button>
-      <button type="button" disabled title="下一版：送到 StrideBrain AI 報價">送出至 StrideBrain</button>
+      <button type="button" id="proposal-open" class="primary">建立提案 →</button>
     </div>
   </div>
 </aside>
@@ -435,6 +570,38 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
     <p>面積由平面資料自動計算。點一個房間，直接走進去。</p>
     <table id="schedule"><thead><tr><th>房間</th><th class="num">尺寸 m</th><th class="num">m²</th><th class="num">坪</th></tr></thead><tbody></tbody><tfoot></tfoot></table>
   </div>
+</section>
+
+
+<!-- AI renders -->
+<section id="ai" hidden role="dialog" aria-modal="true" aria-label="AI 效果圖">
+  <div class="ai-top">
+    <h2><i>✦</i> AI 效果圖</h2>
+    <div class="ai-meta"><b class="ai-room"></b><span class="ai-room-en"></span><span>· <span class="ai-style-now"></span></span><span class="mono">GEOMETRY-LOCKED · 依本案 3D 尺寸生成</span></div>
+    <button type="button" class="ai-close" aria-label="關閉">×</button>
+  </div>
+  <div class="ai-wrap">
+    <div class="ai-stage">
+      <img class="ai-a" alt="即時 3D 畫面"><img class="ai-b" alt="AI 效果圖">
+      <span class="ai-tag l">即時 3D<small>REAL-TIME</small></span><span class="ai-tag r">AI 效果圖<small>RENDER</small></span>
+      <div class="ai-handle" tabindex="0" role="slider" aria-label="拖曳比較" aria-valuemin="0" aria-valuemax="100"></div>
+      <span class="ai-note">牆體、開口、家具位置與尺寸皆鎖定自平面資料</span>
+    </div>
+  </div>
+  <div class="ai-bottom">
+    <div class="ai-thumbs" aria-label="空間"></div>
+    <div class="ai-actions"><div class="ai-styles" aria-label="風格"></div><span class="sep"></span><button type="button" class="ai-tod" aria-pressed="false" hidden>白天 ☀</button><a class="ai-dl" href="#" download>下載高解析</a><button type="button" class="ai-walk">走進這個空間 →</button></div>
+  </div>
+</section>
+
+<!-- proposal -->
+<section id="proposal" hidden role="dialog" aria-modal="true" aria-label="設計提案">
+  <div class="pp-top"><h2>設計提案 · 方案比較</h2><div class="pp-title"></div><button type="button" class="pp-close" aria-label="關閉">×</button></div>
+  <div class="pp-grid"><article class="pp-opt" data-side="A"></article><article class="pp-opt" data-side="B"></article></div>
+  <div class="pp-bar"></div>
+  <p class="pp-basis"></p>
+  <div class="pp-modal" hidden></div>
+  <div class="pp-sheet"></div>
 </section>
 
 <p class="credits">家具模型：Khronos glTF Sample Assets（Eric Chadwick 等，CC BY 4.0 / CC0）· HDRI：Poly Haven（CC0）</p>

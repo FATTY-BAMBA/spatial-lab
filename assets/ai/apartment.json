@@ -1,0 +1,43 @@
+{
+ "project": "apartment",
+ "model": "Nano Banana Pro via Higgsfield",
+ "shots": [
+  {
+   "id": "living",
+   "name": "客廳",
+   "nameEn": "Living room",
+   "renders": {
+    "original": {
+     "before": "assets/ai/3d/living.jpg",
+     "after": "assets/ai/render/living.jpg",
+     "thumb": "assets/ai/render/living.thumb.jpg",
+     "dusk": "assets/ai/render/living-dusk.jpg"
+    }
+   }
+  },
+  {
+   "id": "dining",
+   "name": "餐廳",
+   "nameEn": "Dining",
+   "renders": {
+    "original": {
+     "before": "assets/ai/3d/dining.jpg",
+     "after": "assets/ai/render/dining.jpg",
+     "thumb": "assets/ai/render/dining.thumb.jpg"
+    }
+   }
+  },
+  {
+   "id": "kitchen",
+   "name": "廚房",
+   "nameEn": "Kitchen",
+   "renders": {
+    "original": {
+     "before": "assets/ai/3d/kitchen.jpg",
+     "after": "assets/ai/render/kitchen.jpg",
+     "thumb": "assets/ai/render/kitchen.thumb.jpg"
+    }
+   }
+  }
+ ]
+}

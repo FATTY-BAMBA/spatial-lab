@@ -298,8 +298,8 @@ makers.walltile = () => { // 60x120 cm large-format stone-look porcelain for wet
 makers.rug = () => { // hand-tufted wool: soft mottling, no visible weave grid
   const n = 512, [c, ctx] = canvas(n), r = rng(151);
   ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, n, n);
-  for (let k = 0; k < 2600; k++) { const g = r() < 0.5 ? 0 : 255; ctx.fillStyle = `rgba(${g},${g},${g},${0.025 + r() * 0.03})`; const s = 2 + r() * 9; ctx.beginPath(); ctx.arc(r() * n, r() * n, s, 0, 7); ctx.fill(); }
-  grain(ctx, n, 12, r);
+  for (let k = 0; k < 1800; k++) { const g = r() < 0.5 ? 0 : 255; ctx.fillStyle = `rgba(${g},${g},${g},${0.012 + r() * 0.016})`; const s = 6 + r() * 16; ctx.beginPath(); ctx.arc(r() * n, r() * n, s, 0, 7); ctx.fill(); }
+  grain(ctx, n, 5, r);
   return finish(c, 1.2);
 };
 bumpMakers.walltile = () => finish(groutCanvas(1024, 4, 2, 3, rng(9), 4), 2.4);

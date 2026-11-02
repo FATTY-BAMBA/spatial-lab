@@ -1214,11 +1214,11 @@
     {
      "kind": "model",
      "model": "SheenChair",
-     "x": 2.6,
-     "z": 5.45,
+     "x": 2.85,
+     "z": 8.3,
      "w": 0.83,
      "d": 0.57,
-     "rot": 155,
+     "rot": 160,
      "name": "單椅",
      "nameEn": "Lounge chair",
      "price": 18800
@@ -1226,8 +1226,8 @@
     {
      "kind": "model",
      "model": "SpecularSilkPouf",
-     "x": 3.0,
-     "z": 8.35,
+     "x": 1.95,
+     "z": 5.95,
      "w": 0.61,
      "d": 0.61,
      "rot": 0,
@@ -1456,16 +1456,37 @@
      "price": 3200
     },
     {
-     "kind": "model",
-     "model": "SheenChair",
-     "x": 5.6,
-     "z": 9.75,
-     "w": 0.83,
-     "d": 0.57,
-     "rot": 200,
-     "name": "陽台單椅",
-     "nameEn": "Balcony chair",
-     "price": 18800
+     "kind": "outdoorchair",
+     "x": 4.9,
+     "z": 9.8,
+     "w": 0.7,
+     "d": 0.8,
+     "rot": 15,
+     "name": "戶外柚木躺椅",
+     "nameEn": "Teak lounge chair",
+     "price": 12800
+    },
+    {
+     "kind": "outdoorchair",
+     "x": 6.15,
+     "z": 9.8,
+     "w": 0.7,
+     "d": 0.8,
+     "rot": -15,
+     "name": "戶外柚木躺椅",
+     "nameEn": "Teak lounge chair",
+     "price": 12800
+    },
+    {
+     "kind": "sidetable",
+     "x": 5.52,
+     "z": 9.95,
+     "w": 0.42,
+     "d": 0.42,
+     "rot": 0,
+     "name": "戶外邊桌",
+     "nameEn": "Side table",
+     "price": 3600
     },
     {
      "kind": "washer",
@@ -1879,5 +1900,114 @@
     "One dataset, from drawing to quote. Walk it yourself."
    ]
   }
- }
+ },
+ "defaultPalette": {
+  "models": {
+   "SpecularSilkPouf": "#b9a68f"
+  }
+ },
+ "shots": [
+  {
+   "id": "living",
+   "name": "客廳",
+   "nameEn": "Living room",
+   "room": "living",
+   "pos": [
+    6.9,
+    1.6,
+    4.6
+   ],
+   "look": [
+    1.0,
+    0.79,
+    7.8
+   ],
+   "fov": 66
+  },
+  {
+   "id": "dining",
+   "name": "餐廳",
+   "nameEn": "Dining",
+   "room": "dining",
+   "pos": [
+    5.2,
+    1.6,
+    4.7
+   ],
+   "look": [
+    1.0,
+    1.06,
+    3.2
+   ],
+   "fov": 66
+  },
+  {
+   "id": "kitchen",
+   "name": "廚房",
+   "nameEn": "Kitchen",
+   "room": "kitchen",
+   "pos": [
+    3.05,
+    1.5,
+    5.0
+   ],
+   "look": [
+    2.55,
+    1.05,
+    0.4
+   ],
+   "fov": 62
+  },
+  {
+   "id": "master",
+   "name": "主臥",
+   "nameEn": "Master bedroom",
+   "room": "master",
+   "pos": [
+    11.15,
+    1.45,
+    8.75
+   ],
+   "look": [
+    7.9,
+    0.75,
+    6.2
+   ],
+   "fov": 68
+  },
+  {
+   "id": "bath",
+   "name": "衛浴",
+   "nameEn": "Bathroom",
+   "room": "bath",
+   "pos": [
+    4.35,
+    1.6,
+    2.05
+   ],
+   "look": [
+    5.5,
+    0.85,
+    0.35
+   ],
+   "fov": 80
+  },
+  {
+   "id": "balcony",
+   "name": "前陽台",
+   "nameEn": "Balcony",
+   "room": "balcony",
+   "pos": [
+    0.45,
+    1.45,
+    9.35
+   ],
+   "look": [
+    6.6,
+    1.0,
+    10.1
+   ],
+   "fov": 72
+  }
+ ]
 }

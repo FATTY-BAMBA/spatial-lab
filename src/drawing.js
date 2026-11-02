@@ -244,7 +244,7 @@ function drawItem(ctx, f, X, Z, px) {
   if (f.decor || k === 'heater') { ctx.restore(); return; }
   if (k === 'uppercab' || k === 'hood' || k === 'linear') { ctx.setLineDash([px(0.06), px(0.04)]); ctx.strokeRect(-w / 2, -d / 2, w, d); ctx.setLineDash([]); ctx.restore(); return; }
   if (k === 'curtain') { ctx.beginPath(); for (let x = -w / 2; x <= w / 2; x += px(0.02)) { const y = Math.sin((x / px(1)) * 18) * px(0.03); x === -w / 2 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke(); ctx.restore(); return; }
-  if (k === 'roundtable') { ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return; }
+  if (k === 'roundtable' || k === 'sidetable') { ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return; }
   if (k === 'model' && /Plant/.test(f.model || '')) { ctx.beginPath(); ctx.arc(0, 0, w * 0.45, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, w * 0.2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return; }
   if (k === 'model' && /Pouf/.test(f.model || '')) { ctx.beginPath(); ctx.arc(0, 0, w / 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return; }
   if (k === 'model' && /Sofa/.test(f.model || '')) { roundRect(ctx, -w / 2, -d / 2, w, d, px(0.25)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-w / 2 + px(0.2), -d / 2 + px(0.25)); ctx.quadraticCurveTo(0, -d / 2 + px(0.4), w / 2 - px(0.2), -d / 2 + px(0.25)); ctx.stroke(); ctx.restore(); return; }
@@ -259,7 +259,7 @@ function drawItem(ctx, f, X, Z, px) {
     ctx.strokeRect(-w / 2, -d / 2, w, d * 0.28);
     ctx.beginPath(); ctx.ellipse(0, d * 0.12, w * 0.42, d * 0.36, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return;
   }
-  if (k === 'chair') { roundRect(ctx, -w / 2, -d / 2, w, d, px(0.06)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-w / 2, -d / 2 + px(0.08)); ctx.lineTo(w / 2, -d / 2 + px(0.08)); ctx.stroke(); ctx.restore(); return; }
+  if (k === 'chair' || k === 'outdoorchair') { roundRect(ctx, -w / 2, -d / 2, w, d, px(0.06)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-w / 2, -d / 2 + px(0.08)); ctx.lineTo(w / 2, -d / 2 + px(0.08)); ctx.stroke(); ctx.restore(); return; }
   ctx.strokeRect(-w / 2, -d / 2, w, d);
   ctx.beginPath();
   if (k === 'sofa') { ctx.moveTo(-w / 2, -d / 2 + px(0.22)); ctx.lineTo(w / 2, -d / 2 + px(0.22)); ctx.moveTo(-w / 2 + px(0.2), -d / 2 + px(0.22)); ctx.lineTo(-w / 2 + px(0.2), d / 2); ctx.moveTo(w / 2 - px(0.2), -d / 2 + px(0.22)); ctx.lineTo(w / 2 - px(0.2), d / 2); }
