@@ -79,6 +79,26 @@
      "before": "assets/ai/3d/master-cream.jpg",
      "after": "assets/ai/render/master-cream.jpg",
      "thumb": "assets/ai/render/master-cream.thumb.jpg"
+    },
+    "wabi": {
+     "before": "assets/ai/3d/master-wabi.jpg",
+     "after": "assets/ai/render/master-wabi.jpg",
+     "thumb": "assets/ai/render/master-wabi.thumb.jpg"
+    },
+    "luxe": {
+     "before": "assets/ai/3d/master-luxe.jpg",
+     "after": "assets/ai/render/master-luxe.jpg",
+     "thumb": "assets/ai/render/master-luxe.thumb.jpg"
+    },
+    "japandi": {
+     "before": "assets/ai/3d/master-japandi.jpg",
+     "after": "assets/ai/render/master-japandi.jpg",
+     "thumb": "assets/ai/render/master-japandi.thumb.jpg"
+    },
+    "industrial": {
+     "before": "assets/ai/3d/master-industrial.jpg",
+     "after": "assets/ai/render/master-industrial.jpg",
+     "thumb": "assets/ai/render/master-industrial.thumb.jpg"
     }
    }
   },

@@ -39,7 +39,9 @@ def card_png(name, lines, bg=(18, 19, 20)):
 
 def seg(i, src, dur, cap=None, kind='image', pan=1):
     out = os.path.join(TMP, f'seg{i:02d}.mp4')
-    if kind == 'image':
+    if kind == 'still':
+        vf = f"scale={W}:{H},fps={FPS},format=yuv420p"; inp = ['-loop', '1', '-t', str(dur), '-i', src]
+    elif kind == 'image':
         # slow Ken Burns: scale up 8 %, drift horizontally
         vf = (f"scale={int(W*1.08)}:{int(H*1.08)}:force_original_aspect_ratio=increase,crop={int(W*1.08)}:{int(H*1.08)},"
               f"crop={W}:{H}:x='(iw-{W})*({'t' if pan > 0 else f'{dur}-t'})/{dur}':y='(ih-{H})/2',fps={FPS},format=yuv420p")
@@ -70,6 +72,19 @@ for k in ['original', 'cream', 'wabi', 'luxe', 'japandi', 'industrial']:
     sfx = '' if k == 'original' else '-' + k
     if os.path.exists(R('living' + sfx)):
         plan.append((R('living' + sfx), 2.3, caption_png('c_' + k, f"{names[k]}　{fmt(prices[k])}", '同一個空間・六種風格・報價即時更新（未稅）', '03 · STYLES'), 'image'))
+def grid_png():
+    keys = ['original', 'cream', 'wabi', 'luxe', 'japandi', 'industrial']
+    if not all(os.path.exists(R('master' + ('' if k == 'original' else '-' + k))) for k in keys): return None
+    g, cw, ch, pad = Image.new('RGB', (W, H), (18, 19, 20)), 560, 313, 22
+    x0, y0 = (W - 3 * cw - 2 * pad) // 2, 70
+    d = ImageDraw.Draw(g)
+    for i, k in enumerate(keys):
+        im = Image.open(R('master' + ('' if k == 'original' else '-' + k))).convert('RGB').resize((cw, ch), Image.LANCZOS)
+        x, y = x0 + (i % 3) * (cw + pad), y0 + (i // 3) * (ch + pad); g.paste(im, (x, y))
+        f = font('Bold', 28); d.rectangle([x, y + ch - 50, x + 10 + d.textlength(names[k], font=f) + 14, y + ch], fill=(18, 19, 20)); d.text((x + 12, y + ch - 46), names[k], font=f, fill=TAPE)
+    p = os.path.join(TMP, 'grid.png'); g.save(p); return p
+gp = grid_png()
+if gp: plan.append((gp, 3.4, caption_png('c_grid', '主臥・六種風格', '同一張床、同一個衣櫃位置 — 只換材質與氛圍', '03 · STYLES'), 'still'))
 for n, t, s in [('master', '主臥', 'Master bedroom'), ('dining', '餐廳', 'Dining'), ('kitchen', '廚房', 'Kitchen')]:
     if os.path.exists(R(n)): plan.append((R(n), 2.6, caption_png('c_' + n, t, s, '04 · ROOMS'), 'image'))
 if os.path.exists(V('balcony-golden')): plan.append((V('balcony-golden'), 5.0, caption_png('c_bal', '前陽台・黃昏', '9F city view', '05 · LIGHT'), 'video'))
