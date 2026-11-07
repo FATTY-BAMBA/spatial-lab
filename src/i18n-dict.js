@@ -91,7 +91,7 @@ export const INDEX_EN = {
   '走進這個空間': 'Walk into this space',
   '設計提案': 'Design proposal',
   '預約示範': 'Book a demo',
-  '想用你自己的平面圖試試？': 'Want to try it with your own floor plan?',
+  '想看它用在你的案子上？': 'Want to see it on your own projects?',
   '預約 15 分鐘示範 →': 'Book a 15-min demo →',
   '方案比較': 'Compare schemes',
   'Spatial Lab 影片': 'Spatial Lab film',

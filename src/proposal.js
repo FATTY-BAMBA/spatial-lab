@@ -84,7 +84,7 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
     const bar = root.querySelector('.pp-bar');
     if (!approval) { bar.innerHTML = `<p>${t('客戶選定後按「核准此方案」：系統記錄核准時間、所選材質與當時價格，並產生一頁式提案。', 'When the client chooses, press “Approve this scheme”. The time, chosen finishes and prices are recorded and a one-page proposal is created.')}</p>`; return; }
     bar.innerHTML = `<p><b>${t('已核准：', 'Approved: ')}${approval.name}</b> · ${approval.at} · ${t('編號', 'Ref.')} ${approval.ref} · ${t('含稅', 'incl. tax')} NT$ ${fmt(approval.grand)}</p>
-      <div><a class="pp-book" href="${bookUrl()}" target="_blank" rel="noopener">${t('想用在你的案子？預約示範', 'Use this on your projects? Book a demo')}</a><button type="button" class="pp-print">${t('列印 / 存成 PDF', 'Print / save as PDF')}</button><button type="button" class="pp-send primary">${t('送至 StrideBrain', 'Send to StrideBrain')}</button></div>`;
+      <div><a class="pp-book" href="${bookUrl()}" target="_blank" rel="noopener">${t('想用在你的案子上？預約示範', 'Want this for your projects? Book a demo')}</a><button type="button" class="pp-print">${t('列印 / 存成 PDF', 'Print / save as PDF')}</button><button type="button" class="pp-send primary">${t('送至 StrideBrain', 'Send to StrideBrain')}</button></div>`;
     bar.querySelector('.pp-print').addEventListener('click', print);
     bar.querySelector('.pp-send').addEventListener('click', send);
   }

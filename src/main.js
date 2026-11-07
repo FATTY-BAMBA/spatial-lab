@@ -25,6 +25,12 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 async function boot() {
   translateDom(INDEX_EN);
   for (const a of document.querySelectorAll('[data-book]')) a.href = bookUrl();
+  // count demo-request clicks in Vercel Analytics (custom event), by where on the page they came from
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-book], .pp-book'); if (!a) return;
+    const where = a.closest('.bar') ? 'topbar' : a.closest('.hero') ? 'hero' : a.closest('.pp-bar') ? 'proposal' : 'tour-end';
+    try { window.va?.('event', { name: 'book_demo', data: { where, lang: isEn ? 'en' : 'zh' } }); } catch { /* analytics off */ }
+  });
   document.querySelector('.bar .actions')?.prepend(langSwitch());
   if (isEn) document.title = 'PrimeStride Spatial Lab: from floor plan to a signable proposal';
   const params = new URLSearchParams(location.search);
