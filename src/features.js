@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { drawLevel, planFrame, worldFromCanvas } from './drawing.js';
 import { pointInPolygon } from './plan.js';
+import { t } from './i18n.js';
 
 const $ = s => document.querySelector(s);
 const fmt = n => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -123,7 +124,7 @@ export function setupMinimap({ plan, explore, camera, getMode }) {
 export function setupTime({ world, plan }) {
   const input = $('#tod'), out = $('#tod-out'), label = $('#tod-label');
   const def = plan.project.hour ?? 15;
-  const name = h => (h < 10.5 ? '早晨' : h < 13.5 ? '正午' : h < 16.8 ? '午後' : h < 18.4 ? '黃昏' : '夜晚');
+  const name = h => (h < 10.5 ? t('早晨', 'Morning') : h < 13.5 ? t('正午', 'Midday') : h < 16.8 ? t('午後', 'Afternoon') : h < 18.4 ? t('黃昏', 'Dusk') : t('夜晚', 'Night'));
   function set(h) {
     world.setTime(h);
     const hh = Math.floor(h), mm = Math.round((h - hh) * 60);

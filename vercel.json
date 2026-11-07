@@ -1,1 +1,10 @@
-{ "cleanUrls": true, "headers": [ { "source": "/vendor/(.*)", "headers": [ { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" } ] } ] }
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/index", "destination": "/", "permanent": true }
+  ],
+  "headers": [
+    { "source": "/vendor/(.*)", "headers": [ { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" } ] }
+  ]
+}

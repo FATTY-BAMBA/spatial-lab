@@ -1,4 +1,5 @@
 // Plan data helpers. Everything else (drawing, 3D, collision, quote) derives from these.
+import { t } from './i18n.js';
 export const M2_PER_PING = 3.305785; // 1 坪
 
 export async function loadPlan(url) {
@@ -128,9 +129,9 @@ export function quantities(plan) {
 }
 
 export const DEFAULT_BASIS = {
-  priceBook: 'PrimeStride 示範價目表 v0', priceDate: '2026-11', labour: '含工帶料',
+  priceBook: t('PrimeStride 示範價目表 v0', 'PrimeStride sample price book v0'), priceDate: '2026-11', labour: t('含工帶料', 'labour and materials'),
   waste: { floor: 0.08, counter: 0.05, cabinet: 0.03, paint: 0.1 }, taxRate: 0.05,
-  notes: ['材質單價含施工與一般耗材', '家具為暫估預算，實際依選品', '未含拆除、水電、空調及設計費'],
+  notes: t(['材質單價含施工與一般耗材', '家具為暫估預算，實際依選品', '未含拆除、水電、空調及設計費'], ['Finish unit prices include installation and standard consumables', 'Furniture is an allowance; actual cost depends on the pieces chosen', 'Excludes demolition, plumbing and electrical, air conditioning and design fees']),
 };
 export function quoteBasis(plan) { return { ...DEFAULT_BASIS, ...(plan.quoteBasis || {}), waste: { ...DEFAULT_BASIS.waste, ...((plan.quoteBasis || {}).waste || {}) } }; }
 
@@ -152,7 +153,7 @@ export function buildQuote(plan, chosen) {
   for (const L of plan.levels) for (const f of L.furniture) {
     if (!f.price) continue;
     const key = f.name + '|' + f.price;
-    const row = byName.get(key) || { group: L.id === '1F' ? '家具・一樓' : '家具・二樓', name: f.name, nameEn: f.nameEn, unit: '件', qty: 0, unitPrice: f.price, status: 'allowance' };
+    const row = byName.get(key) || { group: L.id === '1F' ? t('家具・一樓', 'Furniture · 1F') : t('家具・二樓', 'Furniture · 2F'), name: f.name, nameEn: f.nameEn, unit: '件', qty: 0, unitPrice: f.price, status: 'allowance' };
     row.qty += 1;
     byName.set(key, row);
   }

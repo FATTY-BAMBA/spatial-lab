@@ -45,20 +45,24 @@
   "stats": [
    {
     "label": "格局 Layout",
-    "value": "3房2廳2衛"
+    "value": "3房2廳2衛",
+    "labelEn": "Layout",
+    "valueEn": "3 bed · 2 living · 2 bath"
    },
    {
     "label": "樓層 Floor",
-    "value": "9F / 14F"
+    "value": "9F / 14F",
+    "labelEn": "Floor"
    }
   ],
-  "hour": 15.25
+  "hour": 15.25,
+  "typeLabelEn": "3 bed · 2 living · 2 bath"
  },
  "levels": [
   {
    "id": "9F",
    "name": "九樓",
-   "nameEn": "Unit floor",
+   "nameEn": "9th floor",
    "elevation": 0,
    "height": 2.95,
    "walls": [
@@ -1898,6 +1902,20 @@
     "一份資料，從圖面到報價",
     "平面圖、3D 空間、材質與報價都來自同一個來源。換你走走看。",
     "One dataset, from drawing to quote. Walk it yourself."
+   ]
+  },
+  "captionsEn": {
+   "rise": [
+    "Walls rise straight from the drawing",
+    "Wall thickness, openings and balcony railings are read from the same plan data. Nothing is remodelled by hand."
+   ],
+   "real": [
+    "Add finishes, light and furniture",
+    "Every finish and piece of furniture is a line on the quote. Change a finish and the total follows."
+   ],
+   "outro": [
+    "One dataset, from drawing to quote",
+    "Plan, 3D space, finishes and quote all come from one source. Now take a walk yourself."
    ]
   }
  },

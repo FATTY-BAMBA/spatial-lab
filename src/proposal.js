@@ -2,6 +2,7 @@
 // a client approval stamp, a printable one-page proposal and a StrideBrain hand-off.
 import { buildQuote, polygonArea, toPing } from './plan.js';
 import { drawLevel } from './drawing.js';
+import { t, isEn, unitLabel } from './i18n.js';
 
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -39,31 +40,31 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
     el.classList.toggle('approved', !!approved);
     el.classList.toggle('dim', !!approval && !approved);
     el.innerHTML = `
-      <div class="pp-head"><span class="pp-letter">方案 ${side}</span>
-        <label class="pp-pick"><span class="sr">風格</span><select>${styles().map(s => `<option value="${s.id}"${s.id === st.id ? ' selected' : ''}>${s.name}</option>`).join('')}</select></label>
+      <div class="pp-head"><span class="pp-letter">${t('方案', 'Scheme')} ${side}</span>
+        <label class="pp-pick"><span class="sr">${t('風格', 'Style')}</span><select>${styles().map(s => `<option value="${s.id}"${s.id === st.id ? ' selected' : ''}>${s.name}</option>`).join('')}</select></label>
         <span class="pp-tag">${st.tagline || ''}</span></div>
-      <figure class="pp-hero">${hero ? `<img src="${hero.r.after}" alt="${st.name} ${hero.s.name} AI 效果圖">` : '<div class="pp-none">正在產生這個風格的 3D 畫面</div>'}
-        <figcaption>${hero ? `${hero.s.name}，AI 效果圖` : ''}</figcaption>
-        ${approved ? `<div class="pp-seal"><b>核准</b><span>APPROVED</span><i>${approval.at}</i></div>` : ''}</figure>
+      <figure class="pp-hero">${hero ? `<img src="${hero.r.after}" alt="${st.name} ${hero.s.name} ${t('AI 效果圖', 'AI render')}">` : `<div class="pp-none">${t('正在產生這個風格的 3D 畫面', 'Rendering this style in 3D…')}</div>`}
+        <figcaption>${hero ? t(`${hero.s.name}，AI 效果圖`, `${hero.s.name}, AI render`) : ''}</figcaption>
+        ${approved ? `<div class="pp-seal"><b>${t('核准', 'OK')}</b><span>APPROVED</span><i>${approval.at}</i></div>` : ''}</figure>
       <div class="pp-thumbs">${rest.map(x => `<img src="${x.r.thumb || x.r.after}" alt="${x.s.name}" title="${x.s.name}">`).join('')}</div>
       <ul class="pp-fin">${finishRows(st).map(f => `<li><i style="background:${f.color}"></i><span>${f.group}</span><b>${f.name}</b></li>`).join('')}</ul>
       <dl class="pp-sum">
-        <div><dt>材質工程（含工帶料、含損耗）</dt><dd>${fmt(q.finishTotal)}</dd></div>
-        <div><dt>家具（暫估）</dt><dd>${fmt(q.allowance)}</dd></div>
-        <div class="tot"><dt>小計（未稅）</dt><dd>NT$ ${fmt(q.total)}</dd></div>
-        <div><dt>含稅 ${Math.round(q.basis.taxRate * 100)}%</dt><dd>${fmt(q.grand)}</dd></div>
+        <div><dt>${t('材質工程（含工帶料、含損耗）', 'Finishes (labour, materials and waste)')}</dt><dd>${fmt(q.finishTotal)}</dd></div>
+        <div><dt>${t('家具（暫估）', 'Furniture (allowance)')}</dt><dd>${fmt(q.allowance)}</dd></div>
+        <div class="tot"><dt>${t('小計（未稅）', 'Subtotal (excl. tax)')}</dt><dd>NT$ ${fmt(q.total)}</dd></div>
+        <div><dt>${t('含稅', 'Incl. tax')} ${Math.round(q.basis.taxRate * 100)}%</dt><dd>${fmt(q.grand)}</dd></div>
       </dl>
-      <div class="pp-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${delta === 0 ? '與另一方案同價' : `比方案 ${side === 'A' ? 'B' : 'A'} ${delta > 0 ? '多' : '省'} NT$ ${fmt(Math.abs(delta))}`}</div>
+      <div class="pp-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${delta === 0 ? t('與另一方案同價', 'Same price as the other scheme') : t(`比方案 ${side === 'A' ? 'B' : 'A'} ${delta > 0 ? '多' : '省'} NT$ ${fmt(Math.abs(delta))}`, `NT$ ${fmt(Math.abs(delta))} ${delta > 0 ? 'more' : 'less'} than scheme ${side === 'A' ? 'B' : 'A'}`)}</div>
       <div class="pp-btns">
-        <button type="button" class="pp-view">在 3D 中查看</button>
-        ${approved ? '<button type="button" class="pp-undo">撤銷核准</button>' : `<button type="button" class="pp-approve"${approval ? ' disabled' : ''}>核准此方案</button>`}
+        <button type="button" class="pp-view">${t('在 3D 中查看', 'View in 3D')}</button>
+        ${approved ? `<button type="button" class="pp-undo">${t('撤銷核准', 'Undo approval')}</button>` : `<button type="button" class="pp-approve"${approval ? ' disabled' : ''}>${t('核准此方案', 'Approve this scheme')}</button>`}
       </div>`;
     if (!hero && snapshot) snapshot(st.id).then(url => {
       const fig = el.querySelector('.pp-hero');
       if (!fig || pick[side] !== st.id) return;
-      if (!url) { fig.querySelector('.pp-none').textContent = '這個風格還沒有效果圖'; return; }
-      const img = new Image(); img.alt = `${st.name} 即時 3D 畫面`; img.src = url;
-      fig.querySelector('.pp-none').replaceWith(img); fig.querySelector('figcaption').textContent = '即時 3D 畫面';
+      if (!url) { fig.querySelector('.pp-none').textContent = t('這個風格還沒有效果圖', 'No render for this style yet'); return; }
+      const img = new Image(); img.alt = `${st.name} ${t('即時 3D 畫面', 'live 3D view')}`; img.src = url;
+      fig.querySelector('.pp-none').replaceWith(img); fig.querySelector('figcaption').textContent = t('即時 3D 畫面', 'Live 3D view');
     });
     el.querySelector('select').addEventListener('change', e => { pick[side] = e.target.value; render(); });
     el.querySelector('.pp-view').addEventListener('click', () => { close(); onView(st.id); });
@@ -81,9 +82,9 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
 
   function renderBar() {
     const bar = root.querySelector('.pp-bar');
-    if (!approval) { bar.innerHTML = '<p>客戶選定後按「核准此方案」：系統記錄核准時間、所選材質與當時價格，並產生一頁式提案。</p>'; return; }
-    bar.innerHTML = `<p><b>已核准：${approval.name}</b> · ${approval.at} · 編號 ${approval.ref} · 含稅 NT$ ${fmt(approval.grand)}</p>
-      <div><button type="button" class="pp-print">列印 / 存成 PDF</button><button type="button" class="pp-send primary">送至 StrideBrain</button></div>`;
+    if (!approval) { bar.innerHTML = `<p>${t('客戶選定後按「核准此方案」：系統記錄核准時間、所選材質與當時價格，並產生一頁式提案。', 'When the client chooses, press “Approve this scheme”. The time, chosen finishes and prices are recorded and a one-page proposal is created.')}</p>`; return; }
+    bar.innerHTML = `<p><b>${t('已核准：', 'Approved: ')}${approval.name}</b> · ${approval.at} · ${t('編號', 'Ref.')} ${approval.ref} · ${t('含稅', 'incl. tax')} NT$ ${fmt(approval.grand)}</p>
+      <div><button type="button" class="pp-print">${t('列印 / 存成 PDF', 'Print / save as PDF')}</button><button type="button" class="pp-send primary">${t('送至 StrideBrain', 'Send to StrideBrain')}</button></div>`;
     bar.querySelector('.pp-print').addEventListener('click', print);
     bar.querySelector('.pp-send').addEventListener('click', send);
   }
@@ -93,11 +94,11 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
     const q = buildQuote(plan, approval.finishes);
     m.hidden = false;
     m.innerHTML = `<div class="pp-card" role="alertdialog" aria-label="StrideBrain">
-      <span class="pp-demo">示範流程 DEMO</span>
-      <h3>已建立報價單草稿</h3>
+      <span class="pp-demo">${t('示範流程 DEMO', 'DEMO FLOW')}</span>
+      <h3>${t('已建立報價單草稿', 'Draft quotation created')}</h3>
       <p class="mono">${approval.ref.replace('P-', 'Q-')} · ${plan.project.name}</p>
-      <ol><li class="done">核准方案：${approval.name}（${approval.at}）</li><li class="done">${q.lines.length} 項計價項目，含稅 NT$ ${fmt(q.grand)}</li><li>StrideBrain：報價單 → 業主簽回 → 開立工單</li></ol>
-      <button type="button">好</button></div>`;
+      <ol><li class="done">${t('核准方案：', 'Approved scheme: ')}${approval.name}${t(`（${approval.at}）`, ` (${approval.at})`)}</li><li class="done">${t(`${q.lines.length} 項計價項目，含稅 NT$ ${fmt(q.grand)}`, `${q.lines.length} priced line items, NT$ ${fmt(q.grand)} incl. tax`)}</li><li>${t('StrideBrain：報價單 → 業主簽回 → 開立工單', 'StrideBrain: quotation → client signs → work order')}</li></ol>
+      <button type="button">${t('好', 'OK')}</button></div>`;
     m.querySelector('button').addEventListener('click', () => { m.hidden = true; });
   }
 
@@ -109,30 +110,30 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
     const { canvas } = drawLevel(plan, L, { pxPerM: 60 });
     const sheet = root.querySelector('.pp-sheet');
     sheet.innerHTML = `
-      <header><div><b>${plan.project.name}</b><span>${plan.project.typeLabel || ''} · 室內 ${toPing(interior).toFixed(1)} 坪</span></div><div class="r"><b>設計提案 PROPOSAL</b><span>${approval.ref} · ${approval.at}</span></div></header>
+      <header><div><b>${plan.project.name}</b><span>${plan.project.typeLabel || ''} · ${t(`室內 ${toPing(interior).toFixed(1)} 坪`, `Interior ${interior.toFixed(1)} m² (${toPing(interior).toFixed(1)} ping)`)}</span></div><div class="r"><b>${t('設計提案 PROPOSAL', 'DESIGN PROPOSAL')}</b><span>${approval.ref} · ${approval.at}</span></div></header>
       <div class="sh-main">
-        <div class="sh-left">${hero ? `<img class="sh-hero" src="${hero.r.after}" alt="">` : `<img class="sh-hero sh-plan" src="${canvas.toDataURL('image/png')}" alt="平面圖">`}<div class="sh-row">${rest.map(x => `<img src="${x.r.after}" alt="">`).join('')}${hero ? `<img class="sh-plan" src="${canvas.toDataURL('image/png')}" alt="平面圖">` : ''}</div></div>
+        <div class="sh-left">${hero ? `<img class="sh-hero" src="${hero.r.after}" alt="">` : `<img class="sh-hero sh-plan" src="${canvas.toDataURL('image/png')}" alt="${t('平面圖', 'Floor plan')}">`}<div class="sh-row">${rest.map(x => `<img src="${x.r.after}" alt="">`).join('')}${hero ? `<img class="sh-plan" src="${canvas.toDataURL('image/png')}" alt="${t('平面圖', 'Floor plan')}">` : ''}</div></div>
         <div class="sh-right">
           <h2>${st.name} <small>${st.nameEn || ''}</small></h2>
           <table><tbody>${finishRows(st).map(f => `<tr><td><i style="background:${f.color}"></i>${f.group}</td><td>${f.name}</td></tr>`).join('')}</tbody></table>
           <table class="q"><tbody>
-            ${q.lines.filter(l => l.finish).map(l => `<tr><td>${l.group} · ${l.name}</td><td>${l.qty.toFixed(1)} ${l.unit}</td><td>${fmt(l.total)}</td></tr>`).join('')}
-            <tr><td>家具（暫估）</td><td></td><td>${fmt(q.allowance)}</td></tr>
-            <tr class="s"><td>小計（未稅）</td><td></td><td>${fmt(q.total)}</td></tr>
-            <tr><td>營業稅 ${Math.round(q.basis.taxRate * 100)}%</td><td></td><td>${fmt(q.tax)}</td></tr>
-            <tr class="g"><td>合計（含稅）</td><td></td><td>NT$ ${fmt(q.grand)}</td></tr></tbody></table>
-          <p class="basis">參考價格，正式估價以貴公司價目表為準。${q.basis.priceBook} · 價格基準 ${q.basis.priceDate} · ${q.basis.labour} · 損耗已計入<br>${q.basis.notes.join('；')}</p>
-          <div class="sign"><div><span>業主確認</span></div><div><span>設計師</span></div><div class="seal"><b>核准</b><i>${approval.at}</i></div></div>
+            ${q.lines.filter(l => l.finish).map(l => `<tr><td>${l.group} · ${l.name}</td><td>${l.qty.toFixed(1)} ${unitLabel(l.unit)}</td><td>${fmt(l.total)}</td></tr>`).join('')}
+            <tr><td>${t('家具（暫估）', 'Furniture (allowance)')}</td><td></td><td>${fmt(q.allowance)}</td></tr>
+            <tr class="s"><td>${t('小計（未稅）', 'Subtotal (excl. tax)')}</td><td></td><td>${fmt(q.total)}</td></tr>
+            <tr><td>${t('營業稅', 'Business tax')} ${Math.round(q.basis.taxRate * 100)}%</td><td></td><td>${fmt(q.tax)}</td></tr>
+            <tr class="g"><td>${t('合計（含稅）', 'Total (incl. tax)')}</td><td></td><td>NT$ ${fmt(q.grand)}</td></tr></tbody></table>
+          <p class="basis">${t('參考價格，正式估價以貴公司價目表為準。', 'Reference prices. A formal estimate uses your own price list. ')}${q.basis.priceBook} · ${t('價格基準', 'prices as of')} ${q.basis.priceDate} · ${q.basis.labour} · ${t('損耗已計入', 'waste included')}<br>${q.basis.notes.join(t('；', '; '))}</p>
+          <div class="sign"><div><span>${t('業主確認', 'Client')}</span></div><div><span>${t('設計師', 'Designer')}</span></div><div class="seal"><b>${t('核准', 'OK')}</b><i>${approval.at}</i></div></div>
         </div>
       </div>
-      <footer>PrimeStride Spatial Lab · 平面、3D、材質與報價來自同一份資料 · 效果圖依本案 3D 幾何以 AI 生成，僅供示意</footer>`;
+      <footer>PrimeStride Spatial Lab · ${t('平面、3D、材質與報價來自同一份資料 · 效果圖依本案 3D 幾何以 AI 生成，僅供示意', 'Plan, 3D, finishes and quote come from one dataset · Renders are AI-generated from this project\'s 3D geometry and are illustrative')}</footer>`;
     const imgs = [...sheet.querySelectorAll('img')];
     Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => window.print());
   }
 
   function render() {
     renderSide('A'); renderSide('B'); renderBar();
-    root.querySelector('.pp-basis').textContent = (() => { const b = quoteOf(styleById(pick.A)).basis; return `以下價格僅供參考，正式估價將以貴公司價目表為準。計價依據：${b.priceBook}，價格基準 ${b.priceDate}，${b.labour}，地坪損耗 ${Math.round(b.waste.floor * 100)}%、牆面 ${Math.round(b.waste.paint * 100)}%。${b.notes.join('；')}。`; })();
+    root.querySelector('.pp-basis').textContent = (() => { const b = quoteOf(styleById(pick.A)).basis; return t(`以下價格僅供參考，正式估價將以貴公司價目表為準。計價依據：${b.priceBook}，價格基準 ${b.priceDate}，${b.labour}，地坪損耗 ${Math.round(b.waste.floor * 100)}%、牆面 ${Math.round(b.waste.paint * 100)}%。${b.notes.join('；')}。`, `Prices are for reference; a formal estimate uses your own price list. Basis: ${b.priceBook}, prices as of ${b.priceDate}, ${b.labour}, waste ${Math.round(b.waste.floor * 100)}% on floors and ${Math.round(b.waste.paint * 100)}% on walls. ${b.notes.join('. ')}.`); })();
   }
 
   function open() {
@@ -140,7 +141,7 @@ export function setupProposal({ plan, projectKey, styles, currentStyle, manifest
     pick.A = approval ? approval.style : cur;
     pick.B = styles().find(s => s.id !== pick.A && shotsWith(s.id).length && s.id !== 'original')?.id || styles().find(s => s.id !== pick.A).id;
     const pr = plan.project;
-    root.querySelector('.pp-title').innerHTML = `<b>${pr.name}</b><span>${pr.typeLabel || ''} · 室內 ${interior.toFixed(1)} m² · ${toPing(interior).toFixed(1)} 坪</span>`;
+    root.querySelector('.pp-title').innerHTML = `<b>${pr.name}</b><span>${pr.typeLabel || ''} · ${t('室內', 'Interior')} ${interior.toFixed(1)} m² · ${toPing(interior).toFixed(1)} ${t('坪', 'ping')}</span>`;
     render();
     root.hidden = false; document.body.classList.add('pp-on');
     root.querySelector('.pp-close').focus({ preventScroll: true });

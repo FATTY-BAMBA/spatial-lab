@@ -119,6 +119,7 @@ export function detectRooms(level) {
     if (r.name === '客廳') { r.name = '臥室'; r.nameEn = 'Bedroom'; }
     let n = 1; while (taken.has(`${r.name} ${n}`)) n++;
     r.name = `${r.name} ${n}`; taken.add(r.name);
+    if (r.nameEn) r.nameEn = `${r.nameEn} ${n}`;
   }
   level.rooms = rooms;
   // walls on the outer boundary are exterior
@@ -192,6 +193,9 @@ export function completePlan(plan, base) {
   const outline = L0.outline || (() => { const b = bbox(L0.walls.flatMap(w => [w.a, w.b])); return [[b.x0, b.z0], [b.x1, b.z0], [b.x1, b.z1], [b.x0, b.z1]]; })();
   const fb = bbox(outline);
   p.project = { ...base.project, ...p.project };
+  // always carry both names; never inherit the sample's English name (plans saved before nameEn existed)
+  if (!plan.project || !plan.project.nameEn) p.project.nameEn = plan.project && plan.project.name && !/[\u3400-\u9fff]/.test(plan.project.name) ? plan.project.name : 'Custom project';
+  for (const L of p.levels) if (!L.nameEn) L.nameEn = L.id;
   p.project.footprint = [[fb.x0, fb.z0], [fb.x1, fb.z0], [fb.x1, fb.z1], [fb.x0, fb.z1]];
   if (p.project.type === 'apartment') {
     p.project.site = { floor: p.project.floor || 9, floorHeight: 3.0, towerBox: [fb.x0 - 0.6, fb.z0 - 3.6, fb.x1 + 0.6, fb.z1 + 1.8], city: true };
@@ -201,9 +205,10 @@ export function completePlan(plan, base) {
   if (!p.defaultFinishes) p.defaultFinishes = { ...base.defaultFinishes };
   let interior = 0;
   for (const L of p.levels) for (const r of L.rooms) if (!r.outdoor) interior += polygonArea(r.polygon);
+  const nRooms = p.levels.reduce((n, L) => n + L.rooms.filter(r => !r.outdoor && !r.circulation).length, 0);
   p.project.stats = [
-    { label: '樓層 Levels', value: p.levels.map(L => L.id).join(' / ') },
-    { label: '房間 Rooms', value: `${p.levels.reduce((n, L) => n + L.rooms.filter(r => !r.outdoor && !r.circulation).length, 0)} 間` },
+    { label: '樓層 Levels', labelEn: 'Levels', value: p.levels.map(L => L.id).join(' / '), valueEn: p.levels.map(L => L.id).join(' / ') },
+    { label: '房間 Rooms', labelEn: 'Rooms', value: `${nRooms} 間`, valueEn: `${nRooms}` },
   ];
   for (const L of p.levels) {
     const links = doorLinks(L);

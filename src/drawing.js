@@ -1,6 +1,7 @@
 // Ink-style plan drawing rendered from plan data. Used both as the floor of the 3D
 // model (transparent background) and as the 2D plan view (paper background).
 import { polygonArea, polygonCentroid, bbox, wallFrame, toPing, pointInPolygon, itemFootprint } from './plan.js';
+import { t as tr, isEn } from './i18n.js';
 
 export const INK = '#1f2328';
 export const INK_SOFT = 'rgba(31,35,40,0.55)';
@@ -112,7 +113,7 @@ export function drawLevel(plan, level, opts = {}) {
     if (!up) { ctx.beginPath(); ctx.arc(X(cx), Z(st.zEnd - 0.3), px(0.05), 0, Math.PI * 2); ctx.fill(); }
     ctx.save(); ctx.translate(X(cx), Z(st.zStart + 0.75)); ctx.fillStyle = T.ink;
     ctx.font = `600 ${px(0.16)}px ${MONO}`; ctx.textAlign = 'center';
-    ctx.fillText(up ? 'UP 上' : 'DN 下', 0, 0); ctx.restore();
+    ctx.fillText(up ? tr('UP 上', 'UP') : tr('DN 下', 'DN'), 0, 0); ctx.restore();
   }
 
   // Furniture (thin outlines)
@@ -213,14 +214,18 @@ export function drawLevel(plan, level, opts = {}) {
     ctx.textAlign = 'center';
     ctx.fillStyle = T.ink;
     const big = area > 12;
-    ctx.font = `700 ${px(big ? 0.34 : 0.24)}px ${SANS}`;
-    ctx.fillText(r.name, 0, 0);
+    const title = isEn ? (r.nameEn || r.name) : r.name, sub = isEn ? '' : r.nameEn;
+    let fs = px(isEn ? (big ? 0.26 : 0.19) : (big ? 0.34 : 0.24));
+    ctx.font = `700 ${fs}px ${SANS}`;
+    const room = (X(b.x1) - X(b.x0)) * 0.86;
+    while (fs > px(0.12) && ctx.measureText(title).width > room) { fs *= 0.92; ctx.font = `700 ${fs}px ${SANS}`; }
+    ctx.fillText(title, 0, 0);
     ctx.font = `500 ${px(big ? 0.14 : 0.11)}px ${MONO}`;
     ctx.fillStyle = T.soft;
-    ctx.fillText(r.nameEn, 0, px(big ? 0.26 : 0.2));
+    if (sub) ctx.fillText(sub, 0, px(big ? 0.26 : 0.2));
     ctx.font = `500 ${px(big ? 0.15 : 0.12)}px ${MONO}`;
     ctx.fillStyle = T.ink;
-    ctx.fillText(`${area.toFixed(1)} m²  ·  ${toPing(area).toFixed(1)} 坪`, 0, px(big ? 0.5 : 0.38));
+    ctx.fillText(`${area.toFixed(1)} m²  ·  ${toPing(area).toFixed(1)} ${tr('坪', 'ping')}`, 0, px(big ? 0.5 : 0.38));
     if (big) {
       ctx.fillStyle = T.soft;
       ctx.fillText(`${(b.x1 - b.x0).toFixed(2)} × ${(b.z1 - b.z0).toFixed(2)}`, 0, px(0.72));

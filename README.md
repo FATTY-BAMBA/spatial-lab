@@ -71,6 +71,12 @@ Plan coordinates are metres, `[x, z]`, with z toward the street.
 
 Multi-storey is native: each level has an elevation; stairs link `from`/`to` levels; voids cut the floor above; the level above is hidden or exploded in overview.
 
+## Languages (繁中 / English)
+- Shareable links: `/zh` (Chinese) and `/en` (English). `/` opens Chinese, or the last language the visitor chose. The editor takes `?lang=en` / `?lang=zh`.
+- The 繁中 | EN switch sits in the top bar of the viewer and the editor.
+- Strings live next to the code as `t('中文', 'English')` (`src/i18n.js`); static markup in `index.html` is translated from `src/i18n-dict.js`. Data files carry `nameEn`, `taglineEn`, `typeLabelEn`, `captionsEn`, which replace the Chinese in English mode.
+- `zh.html` and `en.html` are generated from `index.html` (English title, share-preview tags and markup). **After editing `index.html` or `src/i18n-dict.js`, run `node tools/lang_pages.mjs`.**
+
 ## Run
 Plain static files, no build step. Any static server:
 ```

@@ -5,6 +5,62 @@ import { polygonArea, bbox, toPing, wallFrame, pointInPolygon, itemFootprint } f
 import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { parseDXF, detectWalls, closeCorners } from './dxf.js';
+import { isEn, t, unitLabel, translateDom, langSwitch } from '../i18n.js';
+
+// ---------------------------------------------------------------- language
+// Static text in editor.html; everything generated below goes through t('中文', 'English').
+translateDom({
+  '回到 Spatial Lab': 'Back to Spatial Lab',
+  '平面編輯器': 'Plan Editor',
+  '新專案': 'New project',
+  '開啟範例': 'Open sample',
+  '大樓 3 房 2 廳': 'Apartment · 3 bed',
+  '透天 2 樓': 'Townhouse · 2 floors',
+  'DXF 範例：2房公寓': 'DXF sample: 2-bed apartment',
+  '匯入 DXF': 'Import DXF',
+  '匯入平面圖照片': 'Import plan photo',
+  '開啟 JSON': 'Open JSON',
+  '下載 JSON': 'Download JSON',
+  '在 3D 中查看': 'View in 3D',
+  '工具': 'Tools',
+  '選取 (V)': 'Select (V)', '選取': 'Select',
+  '牆 (W)': 'Wall (W)', '牆': 'Wall',
+  '門 (D)': 'Door (D)', '門': 'Door',
+  '窗 (N)': 'Window (N)', '窗': 'Window',
+  '落地拉門 (S)': 'Sliding door (S)', '拉門': 'Sliding door',
+  '區域分界 (Z)': 'Zone divider (Z)', '分界': 'Divider',
+  '家具 (F)': 'Furniture (F)', '家具': 'Furniture',
+  '樓梯 (T)': 'Stairs (T)', '樓梯': 'Stairs',
+  '底圖比例 (K)': 'Underlay scale (K)', '比例': 'Scale',
+  '平面圖編輯區': 'Plan drawing area',
+  '樓層': 'Levels',
+  '選一件，點擊平面放置；R 旋轉。': 'Pick an item, then click the plan to place it. R rotates.',
+  '這兩點的實際距離？': 'Real distance between these two points?',
+  '例如 360（cm）或 3.6（m）': 'e.g. 360 (cm) or 3.6 (m)',
+  '設定比例': 'Set scale',
+  '平面圖底圖': 'Plan underlay',
+  '底圖透明度': 'Underlay opacity',
+  '重新設定比例': 'Set scale again',
+  '移除底圖': 'Remove underlay',
+  'DXF 底圖': 'DXF underlay',
+  'DXF 透明度': 'DXF opacity',
+  '自動辨識牆體': 'Detect walls',
+  '移除': 'Remove',
+  '圓點：顯示圖層；單選：牆線圖層。描牆時會吸附 DXF 端點。': 'Checkbox: show layer. Radio: wall layer. Wall tracing snaps to DXF endpoints.',
+  '滾輪縮放 · 空白鍵/右鍵拖曳平移 · Ctrl+Z 復原': 'Scroll to zoom · Space or right-drag to pan · Ctrl+Z to undo',
+});
+if (isEn) document.title = 'Spatial Lab Plan Editor';
+{
+  // keep the page's own path (editor.html locally, /editor with clean URLs) so the switch works on any static server
+  const sw = langSwitch('lang-switch');
+  for (const a of sw.querySelectorAll('a')) { const u = new URL(a.href); a.href = location.pathname + u.search + u.hash; }
+  document.querySelector('#btn-3d').before(sw);
+}
+const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+// snap kinds stay Chinese internally (they are compared below); this is only for display
+const SNAP_EN = { 端點: 'Endpoint', 'DXF 端點': 'DXF endpoint', 牆上: 'On wall', 格點: 'Grid', '45°': '45°', 正交: 'Ortho', 對齊: 'Aligned' };
+const snapLabel = k => t(k, SNAP_EN[k] || k);
+const roomName = r => (isEn ? r.nameEn || r.name : r.name);
 
 const $ = s => document.querySelector(s);
 const cv = $('#ed'), ctx = cv.getContext('2d');
@@ -15,34 +71,35 @@ const m2 = v => `${v.toFixed(2)} m`;
 
 // ---------------------------------------------------------------- catalogue
 const ITEMS = [
-  { group: '客廳', label: '絲絨沙發', kind: 'model', model: 'GlamVelvetSofa', w: 2.19, d: 1.02, name: '絲絨弧形沙發', nameEn: 'Velvet sofa', price: 72000 },
-  { group: '客廳', label: '單椅', kind: 'model', model: 'SheenChair', w: 0.83, d: 0.57, name: '單椅', nameEn: 'Lounge chair', price: 18800 },
-  { group: '客廳', label: '茶几', kind: 'roundtable', w: 0.9, d: 0.9, name: '大理石茶几', nameEn: 'Coffee table', price: 16000 },
-  { group: '客廳', label: '坐墩', kind: 'model', model: 'SpecularSilkPouf', w: 0.61, d: 0.61, name: '坐墩', nameEn: 'Pouf', price: 5200 },
-  { group: '客廳', label: '電視牆組', kind: 'tvset', w: 3.0, d: 0.42, name: '電視主牆', nameEn: 'TV wall', price: 45000 },
-  { group: '客廳', label: '地毯', kind: 'rug', w: 2.4, d: 1.7, name: '地毯', nameEn: 'Rug', price: 9800 },
-  { group: '客廳', label: '植栽', kind: 'model', model: 'DiffuseTransmissionPlant', w: 0.7, d: 0.66, scale: 1.3, name: '植栽', nameEn: 'Plant', price: 3200 },
-  { group: '客廳', label: '窗簾', kind: 'curtain', w: 2.0, d: 0.18, name: '窗簾', nameEn: 'Curtain', price: 9000 },
-  { group: '餐廚', label: '餐桌組 (4人)', kind: 'diningset', w: 1.8, d: 0.9, name: '餐桌', nameEn: 'Dining table', price: 38000 },
-  { group: '餐廚', label: '餐椅', kind: 'chair', w: 0.46, d: 0.5, name: '餐椅', nameEn: 'Dining chair', price: 6800 },
-  { group: '餐廚', label: '廚具 (一字型)', kind: 'counter', w: 2.4, d: 0.6, counter: true, cabinet: true, sink: true, name: '廚具', nameEn: 'Kitchen run', price: 0 },
-  { group: '餐廚', label: '吊櫃', kind: 'uppercab', w: 2.0, d: 0.35, cabinet: true, name: '吊櫃', nameEn: 'Upper cabinets', price: 0 },
-  { group: '餐廚', label: '冰箱', kind: 'fridge', w: 0.75, d: 0.7, name: '冰箱', nameEn: 'Refrigerator', price: 52000 },
-  { group: '餐廚', label: '餐邊櫃', kind: 'sideboard', w: 1.6, d: 0.45, name: '餐邊櫃', nameEn: 'Sideboard', price: 28000 },
-  { group: '臥室', label: '雙人床 6尺', kind: 'bed', w: 1.8, d: 2.1, name: '雙人床', nameEn: 'Queen bed', price: 45000 },
-  { group: '臥室', label: '雙人床 5尺', kind: 'bed', w: 1.5, d: 2.0, name: '雙人床', nameEn: 'Double bed', price: 32000 },
-  { group: '臥室', label: '床頭櫃', kind: 'nightstand', w: 0.45, d: 0.42, name: '床頭櫃', nameEn: 'Nightstand', price: 6500 },
-  { group: '臥室', label: '系統衣櫃', kind: 'wardrobe', w: 1.8, d: 0.6, h: 2.4, name: '系統衣櫃', nameEn: 'Wardrobe', price: 48000 },
-  { group: '臥室', label: '書桌', kind: 'desk', w: 1.4, d: 0.65, name: '書桌', nameEn: 'Desk', price: 16000 },
-  { group: '臥室', label: '書櫃', kind: 'shelf', w: 1.8, d: 0.34, h: 2.2, name: '書櫃', nameEn: 'Bookcase', price: 22000 },
-  { group: '衛浴', label: '馬桶', kind: 'toilet', w: 0.4, d: 0.65, name: '馬桶', nameEn: 'Toilet', price: 15000 },
-  { group: '衛浴', label: '浴櫃', kind: 'vanity', w: 0.8, d: 0.45, name: '浴櫃', nameEn: 'Vanity', price: 16000 },
-  { group: '衛浴', label: '淋浴拉門', kind: 'shower', w: 1.2, d: 0.9, name: '淋浴拉門', nameEn: 'Shower screen', price: 14000 },
-  { group: '衛浴', label: '浴缸', kind: 'tub', w: 1.6, d: 0.75, name: '浴缸', nameEn: 'Bathtub', price: 38000 },
-  { group: '其他', label: '玄關櫃', kind: 'tallcab', w: 1.8, d: 0.4, h: 2.4, cabinet: true, name: '玄關櫃', nameEn: 'Entry cabinet', price: 42000 },
-  { group: '其他', label: '洗衣機', kind: 'washer', w: 0.6, d: 0.6, name: '洗衣機', nameEn: 'Washer', price: 24000 },
+  { group: '客廳', groupEn: 'Living', label: '絲絨沙發', labelEn: 'Velvet sofa', kind: 'model', model: 'GlamVelvetSofa', w: 2.19, d: 1.02, name: '絲絨弧形沙發', nameEn: 'Velvet sofa', price: 72000 },
+  { group: '客廳', groupEn: 'Living', label: '單椅', labelEn: 'Lounge chair', kind: 'model', model: 'SheenChair', w: 0.83, d: 0.57, name: '單椅', nameEn: 'Lounge chair', price: 18800 },
+  { group: '客廳', groupEn: 'Living', label: '茶几', labelEn: 'Coffee table', kind: 'roundtable', w: 0.9, d: 0.9, name: '大理石茶几', nameEn: 'Coffee table', price: 16000 },
+  { group: '客廳', groupEn: 'Living', label: '坐墩', labelEn: 'Pouf', kind: 'model', model: 'SpecularSilkPouf', w: 0.61, d: 0.61, name: '坐墩', nameEn: 'Pouf', price: 5200 },
+  { group: '客廳', groupEn: 'Living', label: '電視牆組', labelEn: 'TV wall set', kind: 'tvset', w: 3.0, d: 0.42, name: '電視主牆', nameEn: 'TV wall', price: 45000 },
+  { group: '客廳', groupEn: 'Living', label: '地毯', labelEn: 'Rug', kind: 'rug', w: 2.4, d: 1.7, name: '地毯', nameEn: 'Rug', price: 9800 },
+  { group: '客廳', groupEn: 'Living', label: '植栽', labelEn: 'Plant', kind: 'model', model: 'DiffuseTransmissionPlant', w: 0.7, d: 0.66, scale: 1.3, name: '植栽', nameEn: 'Plant', price: 3200 },
+  { group: '客廳', groupEn: 'Living', label: '窗簾', labelEn: 'Curtain', kind: 'curtain', w: 2.0, d: 0.18, name: '窗簾', nameEn: 'Curtain', price: 9000 },
+  { group: '餐廚', groupEn: 'Kitchen & dining', label: '餐桌組 (4人)', labelEn: 'Dining set (4)', kind: 'diningset', w: 1.8, d: 0.9, name: '餐桌', nameEn: 'Dining table', price: 38000 },
+  { group: '餐廚', groupEn: 'Kitchen & dining', label: '餐椅', labelEn: 'Dining chair', kind: 'chair', w: 0.46, d: 0.5, name: '餐椅', nameEn: 'Dining chair', price: 6800 },
+  { group: '餐廚', groupEn: 'Kitchen & dining', label: '廚具 (一字型)', labelEn: 'Kitchen (straight)', kind: 'counter', w: 2.4, d: 0.6, counter: true, cabinet: true, sink: true, name: '廚具', nameEn: 'Kitchen run', price: 0 },
+  { group: '餐廚', groupEn: 'Kitchen & dining', label: '吊櫃', labelEn: 'Upper cabinets', kind: 'uppercab', w: 2.0, d: 0.35, cabinet: true, name: '吊櫃', nameEn: 'Upper cabinets', price: 0 },
+  { group: '餐廚', groupEn: 'Kitchen & dining', label: '冰箱', labelEn: 'Refrigerator', kind: 'fridge', w: 0.75, d: 0.7, name: '冰箱', nameEn: 'Refrigerator', price: 52000 },
+  { group: '餐廚', groupEn: 'Kitchen & dining', label: '餐邊櫃', labelEn: 'Sideboard', kind: 'sideboard', w: 1.6, d: 0.45, name: '餐邊櫃', nameEn: 'Sideboard', price: 28000 },
+  { group: '臥室', groupEn: 'Bedroom', label: '雙人床 6尺', labelEn: 'Bed 180 cm', kind: 'bed', w: 1.8, d: 2.1, name: '雙人床', nameEn: 'Queen bed', price: 45000 },
+  { group: '臥室', groupEn: 'Bedroom', label: '雙人床 5尺', labelEn: 'Bed 150 cm', kind: 'bed', w: 1.5, d: 2.0, name: '雙人床', nameEn: 'Double bed', price: 32000 },
+  { group: '臥室', groupEn: 'Bedroom', label: '床頭櫃', labelEn: 'Nightstand', kind: 'nightstand', w: 0.45, d: 0.42, name: '床頭櫃', nameEn: 'Nightstand', price: 6500 },
+  { group: '臥室', groupEn: 'Bedroom', label: '系統衣櫃', labelEn: 'Wardrobe', kind: 'wardrobe', w: 1.8, d: 0.6, h: 2.4, name: '系統衣櫃', nameEn: 'Wardrobe', price: 48000 },
+  { group: '臥室', groupEn: 'Bedroom', label: '書桌', labelEn: 'Desk', kind: 'desk', w: 1.4, d: 0.65, name: '書桌', nameEn: 'Desk', price: 16000 },
+  { group: '臥室', groupEn: 'Bedroom', label: '書櫃', labelEn: 'Bookcase', kind: 'shelf', w: 1.8, d: 0.34, h: 2.2, name: '書櫃', nameEn: 'Bookcase', price: 22000 },
+  { group: '衛浴', groupEn: 'Bath', label: '馬桶', labelEn: 'Toilet', kind: 'toilet', w: 0.4, d: 0.65, name: '馬桶', nameEn: 'Toilet', price: 15000 },
+  { group: '衛浴', groupEn: 'Bath', label: '浴櫃', labelEn: 'Vanity', kind: 'vanity', w: 0.8, d: 0.45, name: '浴櫃', nameEn: 'Vanity', price: 16000 },
+  { group: '衛浴', groupEn: 'Bath', label: '淋浴拉門', labelEn: 'Shower screen', kind: 'shower', w: 1.2, d: 0.9, name: '淋浴拉門', nameEn: 'Shower screen', price: 14000 },
+  { group: '衛浴', groupEn: 'Bath', label: '浴缸', labelEn: 'Bathtub', kind: 'tub', w: 1.6, d: 0.75, name: '浴缸', nameEn: 'Bathtub', price: 38000 },
+  { group: '其他', groupEn: 'Other', label: '玄關櫃', labelEn: 'Entry cabinet', kind: 'tallcab', w: 1.8, d: 0.4, h: 2.4, cabinet: true, name: '玄關櫃', nameEn: 'Entry cabinet', price: 42000 },
+  { group: '其他', groupEn: 'Other', label: '洗衣機', labelEn: 'Washer', kind: 'washer', w: 0.6, d: 0.6, name: '洗衣機', nameEn: 'Washer', price: 24000 },
 ];
 const EN = { 主臥: 'Master Bedroom', 主臥室: 'Master Bedroom', 次臥: 'Bedroom', 臥室: 'Bedroom', 小孩房: "Kid's Room", 客廳: 'Living', 餐廳: 'Dining', 客餐廳: 'Living & Dining', 廚房: 'Kitchen', 衛浴: 'Bathroom', 浴室: 'Bathroom', 主浴: 'Master Bath', 玄關: 'Entrance', 陽台: 'Balcony', 前陽台: 'Balcony', 後陽台: 'Service Balcony', 書房: 'Study', 走道: 'Hall', 儲藏室: 'Storage', 更衣室: 'Walk-in Closet', 和室: 'Tatami Room' };
+const ZH = Object.fromEntries(Object.entries(EN).reverse().map(([zh, en]) => [en.toLowerCase(), zh]));
 const OPENING = {
   door: { width: 0.9, sill: 0, head: 2.1 },
   window: { width: 1.5, sill: 0.9, head: 2.2 },
@@ -50,15 +107,15 @@ const OPENING = {
   passage: { width: 1.2, sill: 0, head: 2.4 },
 };
 const TOOLS = {
-  select: { key: 'v', hint: '點選物件；拖曳移動；拖曳牆端點改長度。Delete 刪除，Ctrl+Z 復原。' },
-  wall: { key: 'w', hint: '點擊起點、連續點擊畫牆；直接輸入長度（cm 或 m）按 Enter。雙擊或 Esc 結束。' },
-  door: { key: 'd', hint: '點牆面放門。' },
-  window: { key: 'n', hint: '點牆面放窗。' },
-  slider: { key: 's', hint: '點牆面放落地拉門。' },
-  zone: { key: 'z', hint: '畫虛線分界，把開放空間分成兩個房間（例如客廳／餐廳）。' },
-  item: { key: 'f', hint: '從右側選家具，點擊放置；R 旋轉 90°。' },
-  stair: { key: 't', hint: '拖出樓梯範圍：從樓梯起點拖到終點（沿上下方向）。會自動建立上一層。' },
-  scale: { key: 'k', hint: '底圖比例：點兩個已知距離的點，再輸入實際長度。' },
+  select: { key: 'v', hint: t('點選物件；拖曳移動；拖曳牆端點改長度。Delete 刪除，Ctrl+Z 復原。', 'Click to select; drag to move; drag a wall end to change its length. Delete removes, Ctrl+Z undoes.') },
+  wall: { key: 'w', hint: t('點擊起點、連續點擊畫牆；直接輸入長度（cm 或 m）按 Enter。雙擊或 Esc 結束。', 'Click a start point, then keep clicking to draw walls. Type a length (cm or m) and press Enter. Double-click or Esc to finish.') },
+  door: { key: 'd', hint: t('點牆面放門。', 'Click a wall to place a door.') },
+  window: { key: 'n', hint: t('點牆面放窗。', 'Click a wall to place a window.') },
+  slider: { key: 's', hint: t('點牆面放落地拉門。', 'Click a wall to place a sliding door.') },
+  zone: { key: 'z', hint: t('畫虛線分界，把開放空間分成兩個房間（例如客廳／餐廳）。', 'Draw a dashed divider to split an open space into two rooms (e.g. living / dining).') },
+  item: { key: 'f', hint: t('從右側選家具，點擊放置；R 旋轉 90°。', 'Pick furniture on the right, then click to place it. R rotates 90°.') },
+  stair: { key: 't', hint: t('拖出樓梯範圍：從樓梯起點拖到終點（沿上下方向）。會自動建立上一層。', 'Drag out the stair: from its bottom step to its top, along the run. The level above is added automatically.') },
+  scale: { key: 'k', hint: t('底圖比例：點兩個已知距離的點，再輸入實際長度。', 'Underlay scale: click two points a known distance apart, then type the real length.') },
 };
 
 // ---------------------------------------------------------------- state
@@ -77,11 +134,11 @@ let snap = null;
 let undo = [], redo = [];
 
 function blank() {
-  return { project: { name: '新專案', type: 'apartment', floor: 9 }, levels: [newLevel(0)], stairs: [] };
+  return { project: { name: '新專案', nameEn: 'New project', type: 'apartment', floor: 9 }, levels: [newLevel(0)], stairs: [] };
 }
 function newLevel(i, below) {
   const id = `${i + 1}F`;
-  const L = { id, name: ['一樓', '二樓', '三樓', '四樓', '五樓'][i] || `${i + 1}樓`, elevation: below ? below.elevation + below.height : 0, height: 3.0, walls: [], rooms: [], furniture: [] };
+  const L = { id, name: ['一樓', '二樓', '三樓', '四樓', '五樓'][i] || `${i + 1}樓`, nameEn: ['Ground floor', 'Second floor', 'Third floor', 'Fourth floor', 'Fifth floor'][i] || `Floor ${i + 1}`, elevation: below ? below.elevation + below.height : 0, height: 3.0, walls: [], rooms: [], furniture: [] };
   if (below) L.walls = below.walls.filter(w => w.ext).map(w => ({ ...w, openings: (w.openings || []).filter(o => o.type === 'window').map(o => ({ ...o })), id: undefined }));
   return L;
 }
@@ -306,7 +363,7 @@ function render() {
   if (snap && (tool !== 'select')) {
     const [x, y] = toScreen(...snap.p);
     ctx.strokeStyle = '#7fb2e5'; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(x - 5 * dpr, y - 5 * dpr, 10 * dpr, 10 * dpr);
-    ctx.fillStyle = '#7fb2e5'; ctx.font = `${10 * dpr}px "Noto Sans TC", sans-serif`; ctx.fillText(snap.kind, x + 8 * dpr, y - 8 * dpr);
+    ctx.fillStyle = '#7fb2e5'; ctx.font = `${10 * dpr}px "Noto Sans TC", sans-serif`; ctx.fillText(snapLabel(snap.kind), x + 8 * dpr, y - 8 * dpr);
   }
 }
 function tag(x, y, text, strong) {
@@ -381,7 +438,7 @@ cv.addEventListener('pointermove', e => {
   else if (['door', 'window', 'slider'].includes(tool)) hover = { preview: openingPreview(p) };
   else if (tool === 'item') hover = { p: [Math.round(p[0] / 0.05) * 0.05, Math.round(p[1] / 0.05) * 0.05] };
   else if ((tool === 'stair' || tool === 'scale') ) { const s = snapPoint(p, draft && draft.a, {}); snap = s; if (draft) draft.cursor = s.p; }
-  $('#snapinfo').textContent = snap ? `吸附：${snap.kind}` : '';
+  $('#snapinfo').textContent = snap ? t(`吸附：${snap.kind}`, `Snap: ${snapLabel(snap.kind)}`) : '';
   render();
 });
 cv.addEventListener('pointerup', e => {
@@ -464,7 +521,7 @@ function placeOpening(p) {
 }
 function placeItem(p) {
   const L = level();
-  const base = { ...pendingItem }; delete base.group; delete base.label;
+  const base = { ...pendingItem }; delete base.group; delete base.label; delete base.groupEn; delete base.labelEn;
   const x = Math.round(p[0] / 0.05) * 0.05, z = Math.round(p[1] / 0.05) * 0.05;
   if (base.kind === 'diningset') {
     const r = itemRot;
@@ -509,7 +566,7 @@ function askScale(a, b) {
     underlay.mpp *= k;
     underlay.x = a[0] + (underlay.x - a[0]) * k;
     underlay.z = a[1] + (underlay.z - a[1]) * k;
-    box.hidden = true; draft = null; setTool('wall'); fitView(); toast(`底圖比例已設定：${m2(real)}`);
+    box.hidden = true; draft = null; setTool('wall'); fitView(); toast(t(`底圖比例已設定：${m2(real)}`, `Underlay scale set: ${m2(real)}`));
   };
 }
 // "360" -> 3.60 m (cm), "3.6" -> 3.6 m, "3600mm" -> 3.6 m
@@ -564,7 +621,7 @@ function setTool(t) {
   $('#hint').textContent = TOOLS[t].hint;
   $('#catalog').hidden = t !== 'item';
   cv.style.cursor = t === 'select' ? 'default' : 'crosshair';
-  if (t === 'scale' && !underlay.imgEl) toast('先匯入一張平面圖圖片，再設定比例。');
+  if (t === 'scale' && !underlay.imgEl) toast(isEn ? 'Import a plan image first, then set its scale.' : '先匯入一張平面圖圖片，再設定比例。');
   render();
 }
 document.querySelectorAll('#tools button').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -573,9 +630,9 @@ function buildCatalog() {
   const host = $('#catalog-list');
   let g = null, grp;
   for (const it of ITEMS) {
-    if (it.group !== g) { g = it.group; grp = document.createElement('div'); grp.className = 'cat-group'; grp.innerHTML = `<span>${g}</span>`; host.appendChild(grp); }
+    if (it.group !== g) { g = it.group; grp = document.createElement('div'); grp.className = 'cat-group'; grp.innerHTML = `<span>${t(g, it.groupEn)}</span>`; host.appendChild(grp); }
     const b = document.createElement('button');
-    b.type = 'button'; b.textContent = it.label;
+    b.type = 'button'; b.textContent = t(it.label, it.labelEn);
     b.addEventListener('click', () => { pendingItem = it; host.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
     grp.appendChild(b);
   }
@@ -589,8 +646,8 @@ function buildLevelTabs() {
     b.addEventListener('click', () => { lv = i; sel = null; draft = null; buildLevelTabs(); refreshPanel(); render(); });
     host.appendChild(b);
   });
-  const add = document.createElement('button'); add.type = 'button'; add.textContent = '+ 樓層'; add.className = 'add';
-  add.addEventListener('click', () => { doc.levels.push(newLevel(doc.levels.length, doc.levels[doc.levels.length - 1])); lv = doc.levels.length - 1; buildLevelTabs(); commit(); toast(`已新增 ${level().id}，外牆已從下層複製`); });
+  const add = document.createElement('button'); add.type = 'button'; add.textContent = t('+ 樓層', '+ Level'); add.className = 'add';
+  add.addEventListener('click', () => { doc.levels.push(newLevel(doc.levels.length, doc.levels[doc.levels.length - 1])); lv = doc.levels.length - 1; buildLevelTabs(); commit(); toast(t(`已新增 ${level().id}，外牆已從下層複製`, `Added ${level().id}; exterior walls copied from the level below`)); });
   host.appendChild(add);
 }
 
@@ -614,84 +671,91 @@ function refreshPanel() {
   const btn = (t, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.className = cls; b.addEventListener('click', fn); host.appendChild(b); return b; };
   if (sel && sel.type === 'wall') {
     const w = sel.wall, { len } = wallFrame(w);
-    h('牆', w.kind === 'zone' ? '區域分界' : w.kind === 'railing' ? '欄杆' : w.ext ? '外牆' : '內牆');
+    h(t('牆', 'Wall'), w.kind === 'zone' ? t('區域分界', 'Zone divider') : w.kind === 'railing' ? t('欄杆', 'Railing') : w.ext ? t('外牆', 'Exterior wall') : t('內牆', 'Interior wall'));
     host.append(
-      field('長度', +(len * 100).toFixed(0), v => { const L2 = v / 100; const { ux, uz } = wallFrame(w); w.b = [+(w.a[0] + ux * L2).toFixed(3), +(w.a[1] + uz * L2).toFixed(3)]; }, { type: 'number', unit: 'cm' }),
-      field('牆厚', +(w.t * 100).toFixed(0), v => { w.t = v / 100; w.tLocked = true; }, { type: 'number', unit: 'cm' }),
-      field('類型', w.kind || 'wall', v => { if (v === 'wall') delete w.kind; else w.kind = v; }, { options: [['wall', '牆'], ['railing', '陽台欄杆'], ['zone', '區域分界（不建牆）']] }),
+      field(t('長度', 'Length'), +(len * 100).toFixed(0), v => { const L2 = v / 100; const { ux, uz } = wallFrame(w); w.b = [+(w.a[0] + ux * L2).toFixed(3), +(w.a[1] + uz * L2).toFixed(3)]; }, { type: 'number', unit: 'cm' }),
+      field(t('牆厚', 'Thickness'), +(w.t * 100).toFixed(0), v => { w.t = v / 100; w.tLocked = true; }, { type: 'number', unit: 'cm' }),
+      field(t('類型', 'Type'), w.kind || 'wall', v => { if (v === 'wall') delete w.kind; else w.kind = v; }, { options: [['wall', t('牆', 'Wall')], ['railing', t('陽台欄杆', 'Balcony railing')], ['zone', t('區域分界（不建牆）', 'Zone divider (no wall)')]] }),
     );
-    btn('刪除牆', deleteSel, 'danger');
+    btn(t('刪除牆', 'Delete wall'), deleteSel, 'danger');
   } else if (sel && sel.type === 'opening') {
     const o = sel.opening;
-    h('開口', { door: '門', window: '窗', slider: '落地拉門', passage: '開口' }[o.type]);
+    h(t('開口', 'Opening'), isEn ? { door: 'Door', window: 'Window', slider: 'Sliding door', passage: 'Opening' }[o.type] : { door: '門', window: '窗', slider: '落地拉門', passage: '開口' }[o.type]);
     host.append(
-      field('類型', o.type, v => { Object.assign(o, { ...OPENING[v], width: o.width, type: v }); }, { options: [['door', '門'], ['window', '窗'], ['slider', '落地拉門'], ['passage', '無門開口']] }),
-      field('寬度', Math.round(o.width * 100), v => { o.width = v / 100; }, { type: 'number', unit: 'cm' }),
-      field('距牆起點', Math.round(o.offset * 100), v => { o.offset = v / 100; }, { type: 'number', unit: 'cm' }),
-      field('窗台高', Math.round(o.sill * 100), v => { o.sill = v / 100; }, { type: 'number', unit: 'cm' }),
-      field('頂高', Math.round(o.head * 100), v => { o.head = v / 100; }, { type: 'number', unit: 'cm' }),
+      field(t('類型', 'Type'), o.type, v => { Object.assign(o, { ...OPENING[v], width: o.width, type: v }); }, { options: [['door', t('門', 'Door')], ['window', t('窗', 'Window')], ['slider', t('落地拉門', 'Sliding door')], ['passage', t('無門開口', 'Open passage')]] }),
+      field(t('寬度', 'Width'), Math.round(o.width * 100), v => { o.width = v / 100; }, { type: 'number', unit: 'cm' }),
+      field(t('距牆起點', 'From wall start'), Math.round(o.offset * 100), v => { o.offset = v / 100; }, { type: 'number', unit: 'cm' }),
+      field(t('窗台高', 'Sill height'), Math.round(o.sill * 100), v => { o.sill = v / 100; }, { type: 'number', unit: 'cm' }),
+      field(t('頂高', 'Head height'), Math.round(o.head * 100), v => { o.head = v / 100; }, { type: 'number', unit: 'cm' }),
     );
-    if (o.type === 'door') host.append(field('大門（入口）', o.main, v => { for (const L of doc.levels) for (const w of L.walls) for (const x of w.openings || []) delete x.main; if (v) o.main = true; }, { check: true }));
-    btn('刪除開口', deleteSel, 'danger');
+    if (o.type === 'door') host.append(field(t('大門（入口）', 'Main entrance'), o.main, v => { for (const L of doc.levels) for (const w of L.walls) for (const x of w.openings || []) delete x.main; if (v) o.main = true; }, { check: true }));
+    btn(t('刪除開口', 'Delete opening'), deleteSel, 'danger');
   } else if (sel && sel.type === 'room') {
     const r = sel.room, a = polygonArea(r.polygon);
-    h(r.name, `${a.toFixed(1)} m² · ${toPing(a).toFixed(1)} 坪`);
+    h(roomName(r), `${a.toFixed(1)} m² · ${toPing(a).toFixed(1)} ${unitLabel('坪')}`);
+    // the current language's name comes first; the plan always keeps both (name + nameEn)
+    const zhField = field(t('名稱', 'Chinese'), r.name, v => { r.name = v; if (EN[v]) r.nameEn = EN[v]; });
+    const enField = field(t('英文', 'Name'), r.nameEn || '', v => { r.nameEn = v; const zh = ZH[v.trim().toLowerCase()]; if (zh && isEn) r.name = zh; });
     host.append(
-      field('名稱', r.name, v => { r.name = v; if (EN[v]) r.nameEn = EN[v]; }),
-      field('英文', r.nameEn || '', v => { r.nameEn = v; }),
-      field('地坪類型', r.outdoor ? 'balcony' : r.finish, v => { r.finish = v; r.outdoor = v === 'balcony'; r.wet = v === 'tile'; }, { options: [['floor', '室內地坪（套用材質）'], ['tile', '濕區磁磚'], ['balcony', '陽台（戶外）']] }),
-      field('走道／過道', r.circulation, v => { r.circulation = v; }, { check: true }),
+      ...(isEn ? [enField, zhField] : [zhField, enField]),
+      field(t('地坪類型', 'Floor'), r.outdoor ? 'balcony' : r.finish, v => { r.finish = v; r.outdoor = v === 'balcony'; r.wet = v === 'tile'; }, { options: [['floor', t('室內地坪（套用材質）', 'Interior floor (takes finish)')], ['tile', t('濕區磁磚', 'Wet-area tile')], ['balcony', t('陽台（戶外）', 'Balcony (outdoor)')]] }),
+      field(t('走道／過道', 'Hallway'), r.circulation, v => { r.circulation = v; }, { check: true }),
     );
     const quick = document.createElement('div'); quick.className = 'quick';
     for (const [n, en, fin] of [['客廳', 'Living', 'floor'], ['餐廳', 'Dining', 'floor'], ['廚房', 'Kitchen', 'floor'], ['主臥', 'Master Bedroom', 'floor'], ['次臥', 'Bedroom', 'floor'], ['書房', 'Study', 'floor'], ['衛浴', 'Bathroom', 'tile'], ['玄關', 'Entrance', 'floor'], ['陽台', 'Balcony', 'balcony'], ['走道', 'Hall', 'floor']]) {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = n;
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = t(n, en);
       b.addEventListener('click', () => { r.name = n; r.nameEn = en; r.finish = fin; r.outdoor = fin === 'balcony'; r.wet = fin === 'tile'; r.circulation = n === '走道'; commit(); });
       quick.appendChild(b);
     }
     host.appendChild(quick);
   } else if (sel && sel.type === 'item') {
     const f = sel.item;
-    h(f.name || f.kind, f.nameEn || '');
+    h(isEn ? f.nameEn || f.name || f.kind : f.name || f.kind, isEn ? '' : f.nameEn || '');
     host.append(
-      field('寬', Math.round(f.w * 100), v => { f.w = v / 100; }, { type: 'number', unit: 'cm' }),
-      field('深', Math.round(f.d * 100), v => { f.d = v / 100; }, { type: 'number', unit: 'cm' }),
-      field('旋轉', f.rot || 0, v => { f.rot = v; }, { options: [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']].map(([v, t]) => [String(v), t]) }),
-      field('單價', f.price || 0, v => { f.price = v; }, { type: 'number', unit: 'NT$' }),
+      field(t('寬', 'Width'), Math.round(f.w * 100), v => { f.w = v / 100; }, { type: 'number', unit: 'cm' }),
+      field(t('深', 'Depth'), Math.round(f.d * 100), v => { f.d = v / 100; }, { type: 'number', unit: 'cm' }),
+      field(t('旋轉', 'Rotation'), f.rot || 0, v => { f.rot = v; }, { options: [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']].map(([v, t]) => [String(v), t]) }),
+      field(t('單價', 'Unit price'), f.price || 0, v => { f.price = v; }, { type: 'number', unit: 'NT$' }),
     );
-    btn('旋轉 90°（R）', () => { f.rot = ((f.rot || 0) + 90) % 360; commit(); });
-    btn('刪除', deleteSel, 'danger');
+    btn(t('旋轉 90°（R）', 'Rotate 90° (R)'), () => { f.rot = ((f.rot || 0) + 90) % 360; commit(); });
+    btn(t('刪除', 'Delete'), deleteSel, 'danger');
   } else if (sel && sel.type === 'stair') {
     const st = sel.stair;
-    h('樓梯', `${st.from} → ${st.to}`);
-    host.append(field('踏階數', st.risers, v => { st.risers = Math.max(8, Math.round(v)); }, { type: 'number' }));
-    btn('反轉方向', () => { [st.zStart, st.zEnd] = [st.zEnd, st.zStart]; commit(); });
-    btn('刪除樓梯', deleteSel, 'danger');
+    h(t('樓梯', 'Stairs'), `${st.from} → ${st.to}`);
+    host.append(field(t('踏階數', 'Risers'), st.risers, v => { st.risers = Math.max(8, Math.round(v)); }, { type: 'number' }));
+    btn(t('反轉方向', 'Reverse direction'), () => { [st.zStart, st.zEnd] = [st.zEnd, st.zStart]; commit(); });
+    btn(t('刪除樓梯', 'Delete stairs'), deleteSel, 'danger');
   } else {
-    h('專案', doc.project.name);
+    const P = doc.project;
+    h(t('專案', 'Project'), isEn ? P.nameEn || P.name : P.name);
+    // the current language's name comes first; the plan always keeps both (name + nameEn)
+    const zhName = field(t('案名', 'Chinese'), P.name, v => { P.name = v; });
+    const enName = field(t('英文案名', 'Name'), P.nameEn || '', v => { P.nameEn = v; });
     host.append(
-      field('案名', doc.project.name, v => { doc.project.name = v; }),
-      field('建築類型', doc.project.type || 'apartment', v => { doc.project.type = v; }, { options: [['apartment', '大樓住宅（含城市景觀）'], ['townhouse', '透天／獨棟']] }),
-      field('所在樓層', doc.project.floor || 9, v => { doc.project.floor = v; }, { type: 'number', unit: 'F' }),
-      field(`${level().id} 樓高`, Math.round(level().height * 100), v => { const L = level(); L.height = v / 100; let e = 0; for (const x of doc.levels) { x.elevation = e; e += x.height; } }, { type: 'number', unit: 'cm' }),
+      ...(isEn ? [enName, zhName] : [zhName, enName]),
+      field(t('建築類型', 'Building'), P.type || 'apartment', v => { P.type = v; }, { options: [['apartment', t('大樓住宅（含城市景觀）', 'Apartment (with city view)')], ['townhouse', t('透天／獨棟', 'Townhouse / detached')]] }),
+      field(t('所在樓層', 'Floor'), P.floor || 9, v => { P.floor = v; }, { type: 'number', unit: 'F' }),
+      field(t(`${level().id} 樓高`, `${level().id} height`), Math.round(level().height * 100), v => { const L = level(); L.height = v / 100; let e = 0; for (const x of doc.levels) { x.elevation = e; e += x.height; } }, { type: 'number', unit: 'cm' }),
     );
   }
   // room schedule
   const L = level();
   const rooms = L.rooms;
   const sum = rooms.filter(r => !r.outdoor).reduce((s, r) => s + polygonArea(r.polygon), 0);
-  const t = document.createElement('table'); t.className = 'sched';
-  t.innerHTML = `<thead><tr><th>${L.id} 房間</th><th class="num">m²</th><th class="num">坪</th></tr></thead><tbody>${rooms.map(r => `<tr data-id="${r.id}"><td>${r.name}${r.outdoor ? ' <small>戶外</small>' : ''}</td><td class="num">${polygonArea(r.polygon).toFixed(1)}</td><td class="num">${toPing(polygonArea(r.polygon)).toFixed(1)}</td></tr>`).join('')}</tbody><tfoot><tr><td>室內合計</td><td class="num">${sum.toFixed(1)}</td><td class="num">${toPing(sum).toFixed(1)}</td></tr></tfoot>`;
-  t.querySelectorAll('tbody tr').forEach(tr => tr.addEventListener('click', () => { sel = { type: 'room', room: rooms.find(r => r.id === tr.dataset.id) }; refreshPanel(); render(); }));
-  if (!rooms.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = '畫出封閉的牆，房間會自動出現並計算面積。'; host.appendChild(p); }
-  else host.appendChild(t);
-  $('#stat').textContent = `${doc.levels.length} 層 · ${doc.levels.reduce((n, l) => n + l.walls.length, 0)} 道牆 · ${doc.levels.reduce((n, l) => n + l.rooms.length, 0)} 個房間`;
+  const tbl = document.createElement('table'); tbl.className = 'sched';
+  tbl.innerHTML = `<thead><tr><th>${L.id} ${t('房間', 'rooms')}</th><th class="num">m²</th><th class="num">${unitLabel('坪')}</th></tr></thead><tbody>${rooms.map(r => `<tr data-id="${r.id}"><td>${roomName(r)}${r.outdoor ? ` <small>${t('戶外', 'outdoor')}</small>` : ''}</td><td class="num">${polygonArea(r.polygon).toFixed(1)}</td><td class="num">${toPing(polygonArea(r.polygon)).toFixed(1)}</td></tr>`).join('')}</tbody><tfoot><tr><td>${t('室內合計', 'Interior total')}</td><td class="num">${sum.toFixed(1)}</td><td class="num">${toPing(sum).toFixed(1)}</td></tr></tfoot>`;
+  tbl.querySelectorAll('tbody tr').forEach(tr => tr.addEventListener('click', () => { sel = { type: 'room', room: rooms.find(r => r.id === tr.dataset.id) }; refreshPanel(); render(); }));
+  if (!rooms.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = t('畫出封閉的牆，房間會自動出現並計算面積。', 'Draw closed walls; rooms appear automatically with their areas.'); host.appendChild(p); }
+  else host.appendChild(tbl);
+  const nL = doc.levels.length, nW = doc.levels.reduce((n, l) => n + l.walls.length, 0), nR = doc.levels.reduce((n, l) => n + l.rooms.length, 0);
+  $('#stat').textContent = isEn ? `${plural(nL, 'level')} · ${plural(nW, 'wall')} · ${plural(nR, 'room')}` : `${nL} 層 · ${nW} 道牆 · ${nR} 個房間`;
 }
 
 let toastT = 0;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 3200); }
 
 // ---------------------------------------------------------------- files
-$('#btn-new').addEventListener('click', () => { if (doc.levels.some(L => L.walls.length) && !window.confirm('清除目前的平面圖，開始新專案？')) return; underlay = { ...underlay, imgEl: null, dxf: null }; loadDoc(blank()); setTool('wall'); });
+$('#btn-new').addEventListener('click', () => { if (doc.levels.some(L => L.walls.length) && !window.confirm(t('清除目前的平面圖，開始新專案？', 'Clear the current plan and start a new project?'))) return; underlay = { ...underlay, imgEl: null, dxf: null }; loadDoc(blank()); setTool('wall'); });
 $('#btn-sample').addEventListener('change', async e => {
   const v = e.target.value; e.target.value = '';
   if (!v) return;
@@ -732,13 +796,13 @@ function zoneEdges(rooms, walls) {
   return out;
 }
 function fromBuiltIn(d) {
-  const out = { project: { name: d.project.name, type: d.project.type || 'townhouse', floor: d.project.site ? d.project.site.floor : 1 }, levels: [], stairs: JSON.parse(JSON.stringify(d.stairs || [])) };
+  const out = { project: { name: d.project.name, nameEn: d.project.nameEn || '', type: d.project.type || 'townhouse', floor: d.project.site ? d.project.site.floor : 1 }, levels: [], stairs: JSON.parse(JSON.stringify(d.stairs || [])) };
   for (const L of d.levels) {
     const walls = JSON.parse(JSON.stringify(L.walls)).map(w => { delete w.outdoor; delete w.h; return w; });
     for (const r of L.railings || []) if (!r.solid) walls.push({ id: `rl${walls.length}`, a: r.a, b: r.b, t: 0.06, kind: 'railing', openings: [] }); else walls.push({ id: `rl${walls.length}`, a: r.a, b: r.b, t: 0.15, openings: [] });
     // open-plan boundaries (客廳/餐廳/走道) have no wall; keep them as zone dividers so rooms stay separate
     for (const [a, b] of zoneEdges(L.rooms, walls)) walls.push({ id: `zn${walls.length}`, a, b, t: 0.12, kind: 'zone', openings: [] });
-    out.levels.push({ id: L.id, name: L.name, elevation: L.elevation, height: L.height, walls, rooms: JSON.parse(JSON.stringify(L.rooms)), furniture: JSON.parse(JSON.stringify(L.furniture)) });
+    out.levels.push({ id: L.id, name: L.name, nameEn: L.nameEn || '', elevation: L.elevation, height: L.height, walls, rooms: JSON.parse(JSON.stringify(L.rooms)), furniture: JSON.parse(JSON.stringify(L.furniture)) });
   }
   return out;
 }
@@ -746,44 +810,44 @@ $('#file-dxf').addEventListener('change', async e => { const f = e.target.files[
 $('#file-img').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   const img = new Image();
-  img.onload = () => { underlay.imgEl = img; underlay.mpp = 12 / img.width; underlay.x = 0; underlay.z = 0; $('#ul-img').hidden = false; fitView(); setTool('scale'); toast('底圖已載入：點兩個已知距離的點設定比例（例如一道標有尺寸的牆）'); };
+  img.onload = () => { underlay.imgEl = img; underlay.mpp = 12 / img.width; underlay.x = 0; underlay.z = 0; $('#ul-img').hidden = false; fitView(); setTool('scale'); toast(t('底圖已載入：點兩個已知距離的點設定比例（例如一道標有尺寸的牆）', 'Underlay loaded. Click two points a known distance apart to set the scale (e.g. a dimensioned wall).')); };
   img.src = URL.createObjectURL(f);
   e.target.value = '';
 });
 $('#ul-opacity').addEventListener('input', e => { underlay.opacity = +e.target.value; render(); });
 $('#ul-remove').addEventListener('click', () => { underlay.imgEl = null; $('#ul-img').hidden = true; render(); });
-$('#file-json').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); loadDoc(d.levels && d.levels[0] && d.levels[0].walls && !d.story ? d : fromBuiltIn(d)); } catch (err) { toast('無法讀取這個 JSON 檔'); } e.target.value = ''; });
+$('#file-json').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); loadDoc(d.levels && d.levels[0] && d.levels[0].walls && !d.story ? d : fromBuiltIn(d)); } catch (err) { toast(t('無法讀取這個 JSON 檔', 'Could not read this JSON file')); } e.target.value = ''; });
 $('#btn-download').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${doc.project.name || 'plan'}.spatial.json`; a.click();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${(isEn ? doc.project.nameEn || doc.project.name : doc.project.name) || 'plan'}.spatial.json`; a.click();
 });
 $('#btn-3d').addEventListener('click', open3D);
 async function open3D() {
-  if (!doc.levels[0].rooms.length) { toast('還沒有封閉的房間：先畫出外牆和隔間。'); return; }
+  if (!doc.levels[0].rooms.length) { toast(t('還沒有封閉的房間：先畫出外牆和隔間。', 'No closed rooms yet. Draw the exterior walls and partitions first.')); return; }
   const base = await (await fetch('data/apartment.json')).json();
   const full = completePlan(doc, base);
-  try { localStorage.setItem('spatial.custom', JSON.stringify(full)); } catch { toast('瀏覽器儲存空間不足'); return; }
+  try { localStorage.setItem('spatial.custom', JSON.stringify(full)); } catch { toast(t('瀏覽器儲存空間不足', 'Not enough browser storage')); return; }
   location.href = 'index.html?p=custom';
 }
 
 function importDXF(text, name) {
   let d;
-  try { d = parseDXF(text); } catch (err) { console.error(err); toast('DXF 讀取失敗：請另存為 ASCII DXF（R2010 或更舊）'); return; }
-  if (!d.segs.length) { toast('這個 DXF 沒有可用的線條'); return; }
+  try { d = parseDXF(text); } catch (err) { console.error(err); toast(t('DXF 讀取失敗：請另存為 ASCII DXF（R2010 或更舊）', 'Could not read the DXF. Save it as ASCII DXF (R2010 or older).')); return; }
+  if (!d.segs.length) { toast(t('這個 DXF 沒有可用的線條', 'This DXF has no usable lines')); return; }
   underlay.dxf = d;
   const wallish = Object.keys(d.layers).filter(l => /wall|牆|a-wall|壁/i.test(l));
   underlay.dxfLayers = new Set(Object.keys(d.layers));
   buildLayerList(wallish);
   $('#ul-dxf').hidden = false;
-  $('#dxf-name').textContent = `${name} · ${(d.units * 1000).toFixed(0) === '1' ? 'mm' : d.units === 0.01 ? 'cm' : 'm'} · ${d.segs.length} 線段`;
+  $('#dxf-name').textContent = `${name} · ${(d.units * 1000).toFixed(0) === '1' ? 'mm' : d.units === 0.01 ? 'cm' : 'm'} · ${d.segs.length} ${t('線段', 'lines')}`;
   fitView();
-  toast('DXF 已載入。勾選牆線圖層後按「自動辨識牆體」，或直接沿著藍線描牆。');
+  toast(t('DXF 已載入。勾選牆線圖層後按「自動辨識牆體」，或直接沿著藍線描牆。', 'DXF loaded. Pick the wall layer and press “Detect walls”, or trace walls along the blue lines.'));
 }
 function buildLayerList(wallish) {
   const host = $('#dxf-layers'); host.innerHTML = '';
   for (const [name, n] of Object.entries(underlay.dxf.layers).sort((a, b) => b[1] - a[1])) {
     const row = document.createElement('label'); row.className = 'layer';
-    row.innerHTML = `<input type="checkbox" ${underlay.dxfLayers.has(name) ? 'checked' : ''}><span>${name}</span><em>${n}</em><input type="radio" name="wl" title="牆線圖層" ${wallish.includes(name) || (!wallish.length && n === Math.max(...Object.values(underlay.dxf.layers))) ? 'checked' : ''} value="${name}">`;
+    row.innerHTML = `<input type="checkbox" ${underlay.dxfLayers.has(name) ? 'checked' : ''}><span>${name}</span><em>${n}</em><input type="radio" name="wl" title="${t('牆線圖層', 'Wall layer')}" ${wallish.includes(name) || (!wallish.length && n === Math.max(...Object.values(underlay.dxf.layers))) ? 'checked' : ''} value="${name}">`;
     row.querySelector('input[type=checkbox]').addEventListener('change', e => { e.target.checked ? underlay.dxfLayers.add(name) : underlay.dxfLayers.delete(name); render(); });
     host.appendChild(row);
   }
@@ -793,7 +857,7 @@ $('#dxf-detect').addEventListener('click', () => {
   const segs = underlay.dxf.segs.filter(s => s.layer === layer);
   const others = underlay.dxf.segs.filter(s => s.layer !== layer && !s.arc);
   const walls = closeCorners(detectWalls(segs, { others }));
-  if (!walls.length) { toast('這個圖層找不到成對的牆線，請改選圖層或手動描繪'); return; }
+  if (!walls.length) { toast(t('這個圖層找不到成對的牆線，請改選圖層或手動描繪', 'No paired wall lines on this layer. Pick another layer or trace by hand.')); return; }
   const L = level();
   sel = null;
   L.walls = walls.map((w, i) => ({ id: `d${i}`, ...w }));
@@ -801,7 +865,7 @@ $('#dxf-detect').addEventListener('click', () => {
   // name rooms from DXF text inside them
   for (const r of L.rooms) {
     const t = underlay.dxf.texts.find(t => pointInPolygon(t.p, r.polygon) && /[一-鿿]|room|bed|living|kitchen|bath/i.test(t.text));
-    if (t) { r.name = t.text.slice(0, 8); r.nameEn = EN[r.name] || ''; if (/陽台|露台|balcony/i.test(t.text)) { r.outdoor = true; r.finish = 'balcony'; } if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
+    if (t) { r.name = t.text.slice(0, 8); r.nameEn = EN[r.name] || (/[一-鿿]/.test(r.name) ? '' : r.name); if (/陽台|露台|balcony/i.test(t.text)) { r.outdoor = true; r.finish = 'balcony'; } if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
   }
   // the exterior door closest to an "entrance" label is the main door
   const ent = underlay.dxf.texts.find(t => /玄關|入口|entry|entrance/i.test(t.text));
@@ -809,7 +873,7 @@ $('#dxf-detect').addEventListener('click', () => {
   for (const w of L.walls) { if (!w.ext) continue; const { ux, uz } = wallFrame(w); for (const o of w.openings) if (o.type === 'door') { const m = [w.a[0] + ux * (o.offset + o.width / 2), w.a[1] + uz * (o.offset + o.width / 2)]; const d = ent ? Math.hypot(m[0] - ent.p[0], m[1] - ent.p[1]) : 0; if (!best || d < best.d) best = { o, d }; } }
   if (best) best.o.main = true;
   commit();
-  toast(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查門窗類型與房間名稱。`);
+  toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查門窗類型與房間名稱。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check the door/window types and room names.`));
 });
 $('#dxf-opacity').addEventListener('input', e => { underlay.dxfOpacity = +e.target.value; render(); });
 $('#dxf-remove').addEventListener('click', () => { underlay.dxf = null; $('#ul-dxf').hidden = true; render(); });

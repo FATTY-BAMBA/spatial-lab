@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { loadPlan, polygonArea, bbox, toPing, buildQuote, pointInPolygon } from './plan.js';
+import { t, t as tr, isEn, unitLabel, localizeData, translateDom, langSwitch } from './i18n.js';
+import { INDEX_EN } from './i18n-dict.js';
 import { drawLevel, planFrame, worldFromCanvas } from './drawing.js';
 import { createWorld } from './scene.js';
 import { createStory } from './story.js';
@@ -21,14 +23,17 @@ const fmt = n => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function boot() {
+  translateDom(INDEX_EN);
+  document.querySelector('.bar .actions')?.prepend(langSwitch());
+  if (isEn) document.title = 'PrimeStride Spatial Lab: from floor plan to a signable proposal';
   const params = new URLSearchParams(location.search);
   let customPlan = null;
   if (params.get('p') === 'custom') { try { customPlan = JSON.parse(localStorage.getItem('spatial.custom') || 'null'); } catch {} }
   const projectKey = customPlan ? 'custom' : PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
-  const plan = customPlan || (await loadPlan(PROJECTS[projectKey]));
+  const plan = localizeData(customPlan || (await loadPlan(PROJECTS[projectKey])));
   const editLink = document.getElementById('edit-link');
   if (editLink) editLink.href = `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
-  const catalog = await loadPlan('data/styles.json').catch(() => ({ extraOptions: {}, styles: [] }));
+  const catalog = localizeData(await loadPlan('data/styles.json').catch(() => ({ extraOptions: {}, styles: [] })));
   for (const g of plan.finishes) for (const o of catalog.extraOptions[g.id] || []) if (!g.options.some(x => x.id === o.id)) g.options.push(o);
   document.body.dataset.project = projectKey;
   try { if (localStorage.getItem('spatial.custom')) document.getElementById('custom-link').hidden = false; } catch {}
@@ -79,12 +84,12 @@ async function boot() {
     for (const L of plan.levels) for (const r of L.rooms) if (!r.outdoor) interior += polygonArea(r.polygon);
     const fb = bbox(pr.footprint);
     const st = pr.stats || [];
-    const zh = l => String(l).split(' ')[0];
+    const zh = l => isEn ? String(l).split(' ').slice(1).join(' ') || String(l) : String(l).split(' ')[0];
     const cells = [
-      ['案名', pr.name],
-      st[0] ? [zh(st[0].label), st[0].value] : ['基地', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
-      ['室內面積', `${interior.toFixed(1)} m²（${toPing(interior).toFixed(1)} 坪）`],
-      st[1] ? [zh(st[1].label), st[1].value] : ['基地', `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
+      [t('案名', 'Project'), pr.name],
+      st[0] ? [zh(st[0].label), st[0].value] : [t('基地', 'Footprint'), `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
+      [t('室內面積', 'Interior area'), t(`${interior.toFixed(1)} m²（${toPing(interior).toFixed(1)} 坪）`, `${interior.toFixed(1)} m² (${toPing(interior).toFixed(1)} ping)`)],
+      st[1] ? [zh(st[1].label), st[1].value] : [t('基地', 'Footprint'), `${(fb.x1 - fb.x0).toFixed(2)} × ${(fb.z1 - fb.z0).toFixed(2)} m`],
     ];
     $('#titleblock').innerHTML = cells.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
     for (const key of ['rise', 'real', 'outro']) {
@@ -93,7 +98,7 @@ async function boot() {
       const el = $(`#cap-${key}`);
       el.querySelector('h2').textContent = c[0];
       el.querySelector('p').textContent = c[1];
-      el.querySelector('.en').textContent = c[2];
+      el.querySelector('.en').textContent = c[2] || '';
     }
   }
   const explore = createExplore(plan, camera, canvas);
@@ -125,7 +130,7 @@ async function boot() {
     for (const g of plan.finishes) {
       const row = document.createElement('fieldset');
       row.className = 'finish';
-      row.innerHTML = `<legend><span>${g.name}</span><small>${g.nameEn}</small><button type="button" class="cmp-btn" data-group="${g.id}">A/B 對比</button></legend>`;
+      row.innerHTML = `<legend><span>${g.name}</span><small>${g.nameEn}</small><button type="button" class="cmp-btn" data-group="${g.id}">${t('A/B 對比', 'A/B compare')}</button></legend>`;
       row.querySelector('.cmp-btn').addEventListener('click', () => openFinishCompare(g.id));
       const opts = document.createElement('div');
       opts.className = 'swatches';
@@ -169,7 +174,7 @@ async function boot() {
       totalEl.closest('.quote-head').classList.remove('bump'); void totalEl.offsetWidth; totalEl.closest('.quote-head').classList.add('bump');
     } else totalEl.textContent = fmt(total);
     $('#quote-total-mini').textContent = `NT$ ${fmt(total)}`;
-    $('#qty-line').textContent = `地坪 ${toPing(q.floorArea).toFixed(1)} 坪 · 檯面 ${q.counterLength.toFixed(2)} m · 牆面 ${toPing(q.wallArea).toFixed(1)} 坪`;
+    $('#qty-line').textContent = t(`地坪 ${toPing(q.floorArea).toFixed(1)} 坪 · 檯面 ${q.counterLength.toFixed(2)} m · 牆面 ${toPing(q.wallArea).toFixed(1)} 坪`, `Floor ${toPing(q.floorArea).toFixed(1)} ping · Counter ${q.counterLength.toFixed(2)} m · Walls ${toPing(q.wallArea).toFixed(1)} ping`);
     const tb = $('#quote-lines tbody');
     tb.innerHTML = '';
     let group = null;
@@ -177,20 +182,20 @@ async function boot() {
       if (l.group !== group) {
         group = l.group;
         const tr = document.createElement('tr'); tr.className = 'grp';
-        tr.innerHTML = `<th colspan="4">${l.finish ? '材質 Finishes' : l.group}</th>`;
+        tr.innerHTML = `<th colspan="4">${l.finish ? t('材質 Finishes', 'Finishes') : l.group}</th>`;
         tb.appendChild(tr);
       }
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${l.finish ? `<b>${l.group}</b> ` : ''}${l.name}</td>
-        <td class="num"${l.waste ? ` title="淨量 ${l.net.toFixed(2)} + 損耗 ${Math.round(l.waste * 100)}%"` : ''}>${l.unit === '件' ? l.qty : l.qty.toFixed(l.unit === 'm' ? 2 : 1)} ${l.unit}${l.waste ? `<small class="w">含損耗 ${Math.round(l.waste * 100)}%</small>` : ''}${l.status === 'allowance' ? '<small class="w">暫估</small>' : ''}</td>
+        <td class="num"${l.waste ? ` title="${t('淨量', 'Net')} ${l.net.toFixed(2)} + ${t('損耗', 'waste')} ${Math.round(l.waste * 100)}%"` : ''}>${l.unit === '件' ? l.qty : l.qty.toFixed(l.unit === 'm' ? 2 : 1)} ${unitLabel(l.unit)}${l.waste ? `<small class="w">${t('含損耗', 'incl. waste')} ${Math.round(l.waste * 100)}%</small>` : ''}${l.status === 'allowance' ? `<small class="w">${t('暫估', 'allowance')}</small>` : ''}</td>
         <td class="num">${fmt(l.unitPrice)}</td><td class="num">${fmt(l.total)}</td>`;
       tb.appendChild(tr);
     }
-    for (const [k, v, cls] of [['小計（未稅）', total, ''], [`營業稅 ${Math.round(basis.taxRate * 100)}%`, tax, ''], ['合計（含稅）', grand, 'sum']]) {
+    for (const [k, v, cls] of [[t('小計（未稅）', 'Subtotal (excl. tax)'), total, ''], [`${t('營業稅', 'Business tax')} ${Math.round(basis.taxRate * 100)}%`, tax, ''], [t('合計（含稅）', 'Total (incl. tax)'), grand, 'sum']]) {
       const tr = document.createElement('tr'); tr.className = 'foot ' + cls;
       tr.innerHTML = `<td colspan="3">${k}</td><td class="num">${fmt(v)}</td>`; tb.appendChild(tr);
     }
-    $('#quote-basis').innerHTML = `參考價 · 未稅 · ${basis.labour} · 損耗已計入 · 價格基準 ${basis.priceDate.replace('-', '/')} <button type="button" class="basis-i" aria-expanded="false" title="計價依據">ⓘ</button><span class="basis-more" hidden>${basis.priceBook}<br>${basis.notes.join('<br>')}<br>含稅合計 NT$ ${fmt(grand)}</span>`;
+    $('#quote-basis').innerHTML = `${t('參考價 · 未稅', 'Reference prices · excl. tax')} · ${basis.labour} · ${t('損耗已計入', 'waste included')} · ${t('價格基準', 'prices as of')} ${basis.priceDate.replace('-', '/')} <button type="button" class="basis-i" aria-expanded="false" title="${t('計價依據', 'Pricing basis')}">ⓘ</button><span class="basis-more" hidden>${basis.priceBook}<br>${basis.notes.join('<br>')}<br>${t('含稅合計', 'Total incl. tax')} NT$ ${fmt(grand)}</span>`;
     $('#quote-basis .basis-i').onclick = e => { const m = $('#quote-basis .basis-more'); m.hidden = !m.hidden; e.currentTarget.setAttribute('aria-expanded', String(!m.hidden)); };
   }
   renderFinishes();
@@ -199,7 +204,7 @@ async function boot() {
     const open = $('#quote-lines').hidden;
     $('#quote-lines').hidden = !open;
     e.currentTarget.setAttribute('aria-expanded', String(open));
-    e.currentTarget.textContent = open ? '收合清單' : '查看清單';
+    e.currentTarget.textContent = open ? t('收合清單', 'Hide line items') : t('查看清單', 'View line items');
   });
   $('#panel-toggle').addEventListener('click', () => {
     const p = $('#panel');
@@ -245,15 +250,15 @@ async function boot() {
     const opt = id => g.options.find(o => o.id === id);
     goToFocus(g);
     compare.open({
-      title: `${g.name} 對比`,
+      title: t(`${g.name} 對比`, `Compare ${g.name.toLowerCase()}`),
       applyA: () => world.applyFinish(gid, a),
       applyB: () => world.applyFinish(gid, b),
       restore: () => world.applyFinish(gid, chosen[gid]),
       side: w => {
         const o = opt(w === 'a' ? a : b), d = opt(b).price - opt(a).price;
         return w === 'a'
-          ? { tag: 'A 目前', name: o.name, sub: `NT$ ${fmt(o.price)}/${g.unit}` }
-          : { tag: 'B 比較', name: o.name, sub: `NT$ ${fmt(o.price)}/${g.unit} · ${d === 0 ? '同價' : (d > 0 ? '+' : '−') + 'NT$ ' + fmt(Math.abs(d)) + '/' + g.unit}` };
+          ? { tag: t('A 目前', 'A Current'), name: o.name, sub: `NT$ ${fmt(o.price)}/${unitLabel(g.unit)}` }
+          : { tag: t('B 比較', 'B Compare'), name: o.name, sub: `NT$ ${fmt(o.price)}/${unitLabel(g.unit)} · ${d === 0 ? t('同價', 'same price') : (d > 0 ? '+' : '−') + 'NT$ ' + fmt(Math.abs(d)) + '/' + unitLabel(g.unit)}` };
       },
       chips: g.options.filter(o => o.id !== a).map(o => ({ id: o.id, label: o.name })),
       current: b,
@@ -263,7 +268,7 @@ async function boot() {
   }
 
   // ---------------- styles ----------------
-  const ORIGINAL = { id: 'original', name: '原始提案', nameEn: 'Original', tagline: '本案預設材質', finishes: { ...plan.defaultFinishes }, palette: plan.defaultPalette || {} };
+  const ORIGINAL = { id: 'original', name: t('原始提案', 'Original'), nameEn: t('Original', ''), tagline: t('本案預設材質', 'This project\'s default finishes'), finishes: { ...plan.defaultFinishes }, palette: plan.defaultPalette || {} };
   const styles = [ORIGINAL, ...catalog.styles];
   let styleId = null; // null = custom mix
   let palette = ORIGINAL.palette;
@@ -293,17 +298,17 @@ async function boot() {
   }
   function openStyleCompare(bId) {
     let b = bId;
-    const cur = { fin: { ...chosen }, pal: palette, name: styleId ? styles.find(x => x.id === styleId).name : '自訂組合' };
+    const cur = { fin: { ...chosen }, pal: palette, name: styleId ? styles.find(x => x.id === styleId).name : t('自訂組合', 'Custom mix') };
     const curTotal = totalFor(cur.fin);
     compare.open({
-      title: '風格 對比',
+      title: t('風格 對比', 'Compare styles'),
       applyA: () => applyState(cur.fin, cur.pal),
       applyB: () => { const st = styles.find(x => x.id === b); applyState(st.finishes, st.palette); },
       restore: () => applyState(chosen, palette),
       side: w => {
-        if (w === 'a') return { tag: 'A 目前', name: cur.name, sub: `材質合計 NT$ ${fmt(curTotal)}` };
+        if (w === 'a') return { tag: tr('A 目前', 'A Current'), name: cur.name, sub: `${tr('材質合計', 'Finishes total')} NT$ ${fmt(curTotal)}` };
         const st = styles.find(x => x.id === b), t = totalFor(st.finishes), d = t - curTotal;
-        return { tag: 'B 比較', name: st.name, sub: `NT$ ${fmt(t)} · ${d === 0 ? '同價' : (d > 0 ? '+' : '−') + 'NT$ ' + fmt(Math.abs(d))}` };
+        return { tag: tr('B 比較', 'B Compare'), name: st.name, sub: `NT$ ${fmt(t)} · ${d === 0 ? tr('同價', 'same price') : (d > 0 ? '+' : '−') + 'NT$ ' + fmt(Math.abs(d))}` };
       },
       chips: styles.filter(x => x.id !== styleId).map(x => ({ id: x.id, label: x.name })),
       current: b,
@@ -326,15 +331,15 @@ async function boot() {
           <span class="sc-chips">${chips.map(c => `<i style="background:${c}"></i>`).join('')}</span>
           <span class="sc-name">${st.name}<small>${st.nameEn}</small></span>
           <span class="sc-tag">${st.tagline || ''}</span>
-          <span class="sc-price">NT$ ${fmt(t)}${st.id === styleId ? '<em>目前</em>' : d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</em>` : ''}</span>
+          <span class="sc-price">NT$ ${fmt(t)}${st.id === styleId ? `<em>${tr('目前', 'Current')}</em>` : d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</em>` : ''}</span>
         </button>
-        ${st.id === styleId ? '' : '<button type="button" class="sc-ab" title="與目前風格分割對比">A/B</button>'}`;
+        ${st.id === styleId ? '' : `<button type="button" class="sc-ab" title="${tr('與目前風格分割對比', 'Split-screen compare with the current style')}">A/B</button>`}`;
       card.querySelector('.sc-main').addEventListener('click', () => { if (st.id !== styleId) selectStyle(st.id); });
       const ab = card.querySelector('.sc-ab');
       if (ab) ab.addEventListener('click', () => openStyleCompare(st.id));
       host.appendChild(card);
     }
-    $('#style-now').textContent = styleId ? styles.find(x => x.id === styleId).name : '自訂組合';
+    $('#style-now').textContent = styleId ? styles.find(x => x.id === styleId).name : t('自訂組合', 'Custom mix');
   }
   renderStyles();
   syncRadios();
@@ -354,7 +359,7 @@ async function boot() {
     seg.innerHTML = '';
     if (levelIds.length > 1) {
       levelIds.forEach((id, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.cut = String(i); b.textContent = levelIds.slice(0, i + 1).join('+'); seg.appendChild(b); });
-      const x = document.createElement('button'); x.type = 'button'; x.dataset.cut = 'x'; x.textContent = '分層展開'; seg.appendChild(x);
+      const x = document.createElement('button'); x.type = 'button'; x.dataset.cut = 'x'; x.textContent = t('分層展開', 'Exploded'); seg.appendChild(x);
     }
     const pl = $('#plan-levels');
     pl.innerHTML = '';
@@ -481,14 +486,14 @@ async function boot() {
       const tr = document.createElement('tr');
       tr.dataset.room = r.id;
       if (r.outdoor) tr.className = 'out';
-      tr.innerHTML = `<td>${r.name}<small>${r.nameEn}${r.outdoor ? '，戶外' : ''}</small></td><td class="num">${(b.x1 - b.x0).toFixed(2)}×${(b.z1 - b.z0).toFixed(2)}</td><td class="num">${a.toFixed(1)}</td><td class="num">${toPing(a).toFixed(1)}</td>`;
+      tr.innerHTML = `<td>${r.name}<small>${r.nameEn}${r.outdoor ? t('，戶外', 'Outdoor') : ''}</small></td><td class="num">${(b.x1 - b.x0).toFixed(2)}×${(b.z1 - b.z0).toFixed(2)}</td><td class="num">${a.toFixed(1)}</td><td class="num">${toPing(a).toFixed(1)}</td>`;
       tr.addEventListener('mouseenter', () => { planHover = r.id; drawPlanView(); });
       tr.addEventListener('mouseleave', () => { planHover = null; drawPlanView(); });
       tr.addEventListener('click', () => { setMode('explore'); setView('walk'); explore.goToRoom(r, L.id); });
       tb.appendChild(tr);
     }
-    $('#schedule tfoot').innerHTML = `<tr><td>${L.id} 室內合計</td><td></td><td class="num">${sum.toFixed(1)}</td><td class="num">${toPing(sum).toFixed(1)}</td></tr>`
-      + (out ? `<tr class="sub"><td>含陽台</td><td></td><td class="num">${(sum + out).toFixed(1)}</td><td class="num">${toPing(sum + out).toFixed(1)}</td></tr>` : '');
+    $('#schedule tfoot').innerHTML = `<tr><td>${L.id} ${t('室內合計', 'interior total')}</td><td></td><td class="num">${sum.toFixed(1)}</td><td class="num">${toPing(sum).toFixed(1)}</td></tr>`
+      + (out ? `<tr class="sub"><td>${t('含陽台', 'Incl. balconies')}</td><td></td><td class="num">${(sum + out).toFixed(1)}</td><td class="num">${toPing(sum + out).toFixed(1)}</td></tr>` : '');
   }
   $('#plan-levels').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { planLevel = b.dataset.level; drawPlanView(); } });
   function roomAtPlan(e) {
@@ -535,7 +540,7 @@ async function boot() {
     plate.querySelector('.p-lv').textContent = levelId;
     plate.querySelector('.p-name').textContent = room.name;
     plate.querySelector('.p-en').textContent = room.nameEn;
-    plate.querySelector('.p-area').textContent = `${a.toFixed(1)} m² · ${toPing(a).toFixed(1)} 坪`;
+    plate.querySelector('.p-area').textContent = `${a.toFixed(1)} m² · ${toPing(a).toFixed(1)} ${t('坪', 'ping')}`;
     plate.querySelector('.p-dim').textContent = `${(b.x1 - b.x0).toFixed(2)} × ${(b.z1 - b.z0).toFixed(2)} m`;
     plate.classList.add('on');
   }
@@ -674,21 +679,21 @@ async function boot() {
   { // 匯出: GLB / OBJ for SketchUp, 3ds Max…; DXF plan for AutoCAD
     const box = $('#export'), btn = $('#export-open'), status = box.querySelector('.xp-status');
     const style = () => styles.find(s => s.id === styleId);
-    const show = v => { box.hidden = !v; btn.setAttribute('aria-expanded', String(v)); if (v) { const st = style(); box.querySelector('.xp-style').textContent = st ? `${st.name} ${st.nameEn || ''}` : '自訂材質 Custom'; status.textContent = ''; } };
+    const show = v => { box.hidden = !v; btn.setAttribute('aria-expanded', String(v)); if (v) { const st = style(); box.querySelector('.xp-style').textContent = st ? `${st.name} ${st.nameEn || ''}` : t('自訂材質 Custom', 'Custom'); status.textContent = ''; } };
     btn.addEventListener('click', e => { e.stopPropagation(); show(box.hidden); });
     document.addEventListener('click', e => { if (!box.hidden && !box.contains(e.target)) show(false); });
     addEventListener('keydown', e => { if (e.key === 'Escape' && !box.hidden) { show(false); btn.focus(); } });
     box.querySelectorAll('[data-fmt]').forEach(b => b.addEventListener('click', async () => {
       const fmt = b.dataset.fmt, st = style(), sid = st ? st.id : 'custom';
-      const title = `${plan.project.name} · ${st ? st.name : '自訂'}`, base = `${projectKey}-${sid}`;
-      box.querySelectorAll('button').forEach(x => { x.disabled = true; }); status.textContent = '產生中… Preparing…';
+      const title = `${plan.project.name} · ${st ? st.name : t('自訂', 'Custom')}`, base = `${projectKey}-${sid}`;
+      box.querySelectorAll('button').forEach(x => { x.disabled = true; }); status.textContent = t('產生中… Preparing…', 'Preparing…');
       await new Promise(r => setTimeout(r, 30));
       try {
         if (fmt === 'glb') download(await exportGLB(world, plan, title), `${base}.glb`);
         else if (fmt === 'obj') download(await exportOBJ(world, plan, title, base), `${base}-obj.zip`);
         else download(exportDXF(plan, plan.project.name), `${projectKey}-plan.dxf`);
-        status.textContent = '已下載 Downloaded ✓';
-      } catch (err) { console.error(err); status.textContent = '匯出失敗 Export failed'; }
+        status.textContent = t('已下載 Downloaded ✓', 'Downloaded ✓');
+      } catch (err) { console.error(err); status.textContent = t('匯出失敗 Export failed', 'Export failed'); }
       box.querySelectorAll('button').forEach(x => { x.disabled = false; });
     }));
   }

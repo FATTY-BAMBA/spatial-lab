@@ -7,6 +7,18 @@
 <title>PrimeStride Spatial Lab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="從 2D 平面圖到可走動的 3D 空間：同一份平面資料產生圖面、模型、材質選擇與報價清單。">
+<link rel="canonical" href="https://spatial.primestrideai.com/zh">
+<link rel="alternate" hreflang="zh-Hant-TW" href="https://spatial.primestrideai.com/zh">
+<link rel="alternate" hreflang="en" href="https://spatial.primestrideai.com/en">
+<link rel="alternate" hreflang="x-default" href="https://spatial.primestrideai.com/zh">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PrimeStride Spatial Lab">
+<meta property="og:url" content="https://spatial.primestrideai.com/zh">
+<meta property="og:title" content="PrimeStride Spatial Lab｜從平面圖，到可以簽約的提案">
+<meta property="og:description" content="給室內設計師的 3D 提案工具：平面圖自動長成 3D 空間，換風格、看 AI 效果圖、報價即時更新，客戶當場核准。">
+<meta property="og:image" content="https://spatial.primestrideai.com/assets/ai/render/living-dusk.jpg">
+<meta property="og:locale" content="zh_TW">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap">
@@ -550,6 +562,16 @@ body.pp-on { overflow: hidden; }
   .sign .seal b { font-size: 15px; } .sign .seal i { font-style: normal; font-size: 6.5px; }
   .pp-sheet footer { margin-top: 6px; border-top: 1px solid #ddd; padding-top: 3px; font-size: 8px; color: #59616b; }
 }
+/* language switch + English layout */
+.lang-switch { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--glass); border: 1px solid var(--hair); margin-right: 6px; }
+.lang-switch a { padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; line-height: 1; color: var(--text-2); text-decoration: none; white-space: nowrap; }
+.lang-switch a:hover { color: var(--text); }
+.lang-switch a[aria-current="true"] { background: var(--brass); color: var(--on-brass); }
+html[lang="en"] .caption .en, html[lang="en"] .xp-h small, html[lang="en"] [role="tab"] small { display: none; }
+html[lang="en"] #ai.loading .ai-stage::after { content: "Loading render"; }
+html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw, 70px); }
+@media (max-width: 860px) { .lang-switch { margin-right: 2px; } .lang-switch a { padding: 5px 8px; font-size: 12px; } }
+@media (max-width: 420px) { .lang-switch a { padding: 5px 8px; } .lang-switch a[aria-current="true"] { display: none; } html[lang="en"] .tabs button { padding: 7px 8px; font-size: 13px; } html[lang="en"] .act.primary { padding: 8px 10px; } .bar { gap: 6px; } }
 </style>
 </head>
 <body>

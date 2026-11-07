@@ -25,7 +25,7 @@
   },
   "styles": [
     {
-      "id": "cream", "name": "奶油風", "nameEn": "Cream", "tagline": "柔和米白、圓潤家具、暖光",
+      "id": "cream", "name": "奶油風", "nameEn": "Cream", "tagline": "柔和米白、圓潤家具、暖光", "taglineEn": "Soft off-white, rounded furniture, warm light",
       "finishes": { "floor": "lightoak", "counter": "quartz", "cabinet": "latte", "paint": "cream" },
       "palette": {
         "fabric": "#e9e0d3", "upholster": "#e2d5c3", "linen": "#f4eee5", "duvet": "#f3ece1", "accent": "#c8a07a",
@@ -35,7 +35,7 @@
       }
     },
     {
-      "id": "wabi", "name": "侘寂風", "nameEn": "Wabi-sabi", "tagline": "礦物牆面、微水泥、深木與亞麻",
+      "id": "wabi", "name": "侘寂風", "nameEn": "Wabi-sabi", "tagline": "礦物牆面、微水泥、深木與亞麻", "taglineEn": "Mineral walls, microcement, dark wood and linen",
       "finishes": { "floor": "microcement", "counter": "honed", "cabinet": "darkwood", "paint": "limewash" },
       "palette": {
         "fabric": "#cfc6b7", "upholster": "#bdb2a0", "linen": "#d8cfc1", "duvet": "#d9d0c2", "accent": "#7f6c58",
@@ -45,7 +45,7 @@
       }
     },
     {
-      "id": "luxe", "name": "現代輕奢", "nameEn": "Modern luxe", "tagline": "大理石、黑金、墨綠絲絨",
+      "id": "luxe", "name": "現代輕奢", "nameEn": "Modern luxe", "tagline": "大理石、黑金、墨綠絲絨", "taglineEn": "Marble, black and gold, deep green velvet",
       "finishes": { "floor": "marble", "counter": "calacatta", "cabinet": "black", "paint": "pure" },
       "palette": {
         "fabric": "#2f4a3e", "upholster": "#3a3f3c", "linen": "#e6e2db", "duvet": "#ece8e1", "accent": "#b08d57",
@@ -55,7 +55,7 @@
       }
     },
     {
-      "id": "japandi", "name": "日式無印", "nameEn": "Japandi", "tagline": "淺木、純白、自然亞麻",
+      "id": "japandi", "name": "日式無印", "nameEn": "Japandi", "tagline": "淺木、純白、自然亞麻", "taglineEn": "Pale wood, pure white, natural linen",
       "finishes": { "floor": "oak", "counter": "quartz", "cabinet": "oak", "paint": "pure" },
       "palette": {
         "fabric": "#d6ccbb", "upholster": "#cfc2ad", "linen": "#ece5d9", "duvet": "#efe9de", "accent": "#9d8b70",
@@ -65,7 +65,7 @@
       }
     },
     {
-      "id": "industrial", "name": "工業風", "nameEn": "Industrial", "tagline": "清水模、黑鐵、焦糖皮革",
+      "id": "industrial", "name": "工業風", "nameEn": "Industrial", "tagline": "清水模、黑鐵、焦糖皮革", "taglineEn": "Fair-faced concrete, black steel, caramel leather",
       "finishes": { "floor": "concrete", "counter": "steel", "cabinet": "black", "paint": "cement" },
       "palette": {
         "fabric": "#6b4a33", "upholster": "#3b3a38", "linen": "#8a847a", "duvet": "#cfc9bf", "accent": "#8c5a3a",

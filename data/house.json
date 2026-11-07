@@ -30,11 +30,14 @@
   "stats": [
    {
     "label": "格局 Layout",
-    "value": "透天 2F・3房"
+    "value": "透天 2F・3房",
+    "labelEn": "Layout",
+    "valueEn": "2-storey townhouse · 3 bed"
    },
    {
     "label": "樓層 Levels",
-    "value": "1F / 2F"
+    "value": "1F / 2F",
+    "labelEn": "Levels"
    }
   ],
   "sun": [
@@ -42,7 +45,8 @@
    0.62,
    0.55
   ],
-  "hour": 15.25
+  "hour": 15.25,
+  "typeLabelEn": "2-storey townhouse"
  },
  "levels": [
   {
@@ -1770,6 +1774,20 @@
     "兩層樓，一份資料",
     "平面圖、3D 模型、材質與報價都來自同一個來源。換你走走看。",
     "Two floors, one dataset. Walk it yourself."
+   ]
+  },
+  "captionsEn": {
+   "rise": [
+    "Walls rise straight from the drawing",
+    "Wall thickness, openings and stairs are read from the same plan data. Nothing is remodelled by hand."
+   ],
+   "real": [
+    "Add finishes, light and furniture",
+    "Every finish and piece of furniture is a line on the quote. Change a finish and the total follows."
+   ],
+   "outro": [
+    "Two floors, one dataset",
+    "Plan, 3D model, finishes and quote all come from one source. Now take a walk yourself."
    ]
   }
  }

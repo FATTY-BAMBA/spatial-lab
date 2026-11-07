@@ -36,14 +36,23 @@ header { grid-area: top; display: flex; align-items: center; gap: 8px; padding: 
 label.hbtn { cursor: pointer; }
 label.hbtn input { display: none; }
 select.hbtn { padding-right: 8px; }
+html[lang="en"] #btn-sample { max-width: 160px; } /* long English sample names would widen the closed select */
 select.hbtn option { background: var(--panel); color: var(--text); }
 .spacer { flex: 1; }
+/* 繁中 | EN — a small segmented pill, brass on the current language */
+.lang-switch { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--hair); background: var(--panel-2); border-radius: 999px; flex: none; }
+.lang-switch a { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 1.4; color: var(--text-3); text-decoration: none; white-space: nowrap; }
+.lang-switch a:hover { color: var(--text); }
+.lang-switch a[aria-current="true"] { background: var(--brass); color: var(--on-brass); }
+.lang-switch a:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
 .primary { background: var(--brass); color: var(--on-brass); border-color: var(--brass); font-weight: 700; padding: 8px 16px; }
 .primary:hover { background: var(--brass-hi); color: var(--on-brass); }
 #tools { grid-area: tools; display: flex; flex-direction: column; gap: 4px; padding: 10px 8px; border-right: 1px solid var(--hair); background: var(--panel); }
 #tools button { width: 60px; border: 1px solid transparent; background: none; border-radius: 10px; padding: 8px 2px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; color: var(--text-2); }
 #tools button:hover { color: var(--text); background: rgba(237,229,215,.06); }
 #tools button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+#tools button { text-align: center; }
+html[lang="en"] #tools button { line-height: 1.15; } /* two-word English labels wrap to two lines */
 #tools button kbd { font-family: var(--body); font-size: 10px; color: var(--text-3); }
 #tools button[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); }
 #tools button[aria-pressed="true"] kbd { color: rgba(27,20,11,.65); }

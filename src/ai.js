@@ -1,10 +1,11 @@
 // AI 效果圖: photoreal renders generated from our own 3D views (geometry-locked),
 // shown against the real-time frame they came from with a before/after split.
+import { t, localizeData } from './i18n.js';
 const $ = s => document.querySelector(s);
 
 export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWalk }) {
   let manifest = null;
-  try { manifest = await (await fetch(`assets/ai/${projectKey}.json`, { cache: 'no-cache' })).json(); } catch { manifest = null; }
+  try { manifest = localizeData(await (await fetch(`assets/ai/${projectKey}.json`, { cache: 'no-cache' })).json()); } catch { manifest = null; }
   const btn = $('#ai-open');
   if (!manifest || !manifest.shots || !manifest.shots.length) { btn.hidden = true; return { open() {} }; }
   btn.hidden = false;
@@ -46,7 +47,7 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
     dl.href = after; dl.download = `${manifest.project || 'spatial'}-${shot.id}-${style}${dusk ? '-dusk' : ''}.jpg`;
     stopVideo(); playBtn.hidden = !(shot.video && style === 'original');
     dayBtn.hidden = !r.dusk; dayBtn.setAttribute('aria-pressed', String(dusk));
-    dayBtn.textContent = dusk ? '黃昏 ☾' : '白天 ☀';
+    dayBtn.textContent = dusk ? t('黃昏 ☾', 'Dusk ☾') : t('白天 ☀', 'Day ☀');
     root.querySelector('.ai-room').textContent = shot.name;
     root.querySelector('.ai-room-en').textContent = shot.nameEn || '';
     root.querySelector('.ai-style-now').textContent = styleName(style);
