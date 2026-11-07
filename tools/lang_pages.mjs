@@ -32,6 +32,7 @@ for (const k of keys) {
   body = body.replace(new RegExp('>(\\s*)' + esc(k) + '(\\s*)<', 'g'), `>$1${en}$2<`);
   body = body.replace(new RegExp('="' + esc(k) + '"', 'g'), `="${en.replace(/"/g, '&quot;')}"`);
 }
+body = body.replaceAll('primestrideai.com/zh/contact', 'primestrideai.com/en/contact');
 body = body.replaceAll('assets/ai/video/spatial-lab-zh.mp4', 'assets/ai/video/spatial-lab-en.mp4');
 writeFileSync(new URL('en.html', root), head + body);
 

@@ -572,6 +572,13 @@ html[lang="en"] #ai.loading .ai-stage::after { content: "Loading render"; }
 html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw, 70px); }
 @media (max-width: 860px) { .lang-switch { margin-right: 2px; } .lang-switch a { padding: 5px 8px; font-size: 12px; } }
 @media (max-width: 420px) { .lang-switch a { padding: 5px 8px; } .lang-switch a[aria-current="true"] { display: none; } html[lang="en"] .tabs button { padding: 7px 8px; font-size: 13px; } html[lang="en"] .act.primary { padding: 8px 10px; } .bar { gap: 6px; } }
+.act-book { border: 1px solid var(--brass); color: var(--brass-hi); }
+.act-book:hover { background: rgba(201, 162, 90, 0.12); color: var(--text); }
+.hero-book { margin: 16px 0 0; font-size: 14.5px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.hero-book a { color: var(--brass-hi); font-weight: 700; text-decoration: none; border-bottom: 1px solid currentColor; }
+.pp-bar .pp-book { color: var(--brass-hi); font-weight: 700; text-decoration: none; padding: 11px 6px; white-space: nowrap; align-self: center; }
+.pp-bar .pp-book:hover { color: var(--text); }
+@media (max-width: 860px) { .act-book { display: none; } }
 </style>
 </head>
 <body>
@@ -588,6 +595,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
     <a id="edit-link" class="act" href="editor.html" title="Edit plan"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 14h12M3 10.5 10.5 3l2.5 2.5L5.5 13H3z"/></svg><span class="lbl">Edit plan</span></a>
     <button type="button" id="ai-open" class="act" title="AI renders" hidden><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M7 1.5 8.4 6 13 7.5 8.4 9 7 13.5 5.6 9 1 7.5 5.6 6z"/><path d="M13 1.5v3M11.5 3h3"/></svg><span class="lbl">AI renders</span></button>
     <button type="button" id="export-open" class="act" title="Export" aria-haspopup="dialog" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 10V2M5 5l3-3 3 3M2.5 9v4.5h11V9"/></svg><span class="lbl">Export</span></button>
+    <a class="act act-book" href="https://primestrideai.com/en/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>Book a demo</a>
     <button type="button" id="proposal-top" class="act primary"><span class="lbl">Proposal</span></button>
   </div>
 </header>
@@ -613,6 +621,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
       <a class="btn btn-brass" href="assets/ai/video/spatial-lab-en.mp4" data-film><span class="play">▶</span>Watch the 41-second film</a>
       <button type="button" class="btn btn-ghost" id="hero-start">Start the tour</button>
     </div>
+    <p class="hero-book"><span>Want to try it with your own floor plan?</span><a href="https://primestrideai.com/en/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>Book a 15-min demo →</a></p>
     <div class="projects" aria-label="Sample projects"><span>Sample projects</span><a href="?p=apartment" data-project-link="apartment">3-bed apartment</a><a href="?p=townhouse" data-project-link="townhouse">2-storey townhouse</a><a href="?p=custom" data-project-link="custom" id="custom-link" hidden>My plan</a><a href="editor.html" class="draw-own">+ Draw my own plan</a></div>
   </div>
   <span class="hero-tag">AI render, generated from this project's 3D geometry</span>
@@ -621,7 +630,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
 <div class="caption story-only" id="cap-plan"><div class="step" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div><h2>It starts with a floor plan</h2><p>Walls, doors, windows, rooms and dimensions all come from one plan dataset. Every step that follows grows from here.</p><div class="titleblock" id="titleblock" aria-label="Project details"></div></div>
 <div class="caption story-only" id="cap-rise"><div class="step" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i><i></i></div><h2>Walls rise straight from the drawing</h2><p>Wall thickness, openings and stairs are read from the same plan data. Nothing is remodelled by hand.</p><span class="en">Walls rise straight from the drawing — every dimension comes from the plan data.</span></div>
 <div class="caption story-only" id="cap-real"><div class="step" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div><h2>Add finishes, light and furniture</h2><p>Every finish and piece of furniture is a line on the quote. Change a finish and the total follows.</p><span class="en">Finishes, light and furniture — each one is a line on the quote.</span></div>
-<div class="caption story-only" id="cap-outro"><div class="step" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div><h2>One dataset, from drawing to quote</h2><p>Plan, 3D space, finishes and quote all come from one source. Now take a walk yourself.</p><span class="en"></span><div class="cta-row"><button type="button" class="cta cta-main" id="cta-explore">Walk into this home</button><button type="button" class="cta" id="cta-ai" hidden>See the AI renders</button><a class="cta" href="assets/ai/video/spatial-lab-en.mp4" data-film>Watch the film</a></div></div>
+<div class="caption story-only" id="cap-outro"><div class="step" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div><h2>One dataset, from drawing to quote</h2><p>Plan, 3D space, finishes and quote all come from one source. Now take a walk yourself.</p><span class="en"></span><div class="cta-row"><button type="button" class="cta cta-main" id="cta-explore">Walk into this home</button><button type="button" class="cta" id="cta-ai" hidden>See the AI renders</button><a class="cta" href="assets/ai/video/spatial-lab-en.mp4" data-film>Watch the film</a><a class="cta" href="https://primestrideai.com/en/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>Book a demo</a></div></div>
 <nav id="rail" class="story-only" aria-label="Tour stops"><i id="progress"></i></nav>
 <div id="story-scroll" aria-hidden="true"></div>
 

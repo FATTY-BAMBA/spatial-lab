@@ -18,6 +18,9 @@ export const isEn = lang === 'en';
 try { localStorage.setItem(KEY, lang); } catch { /* storage off */ }
 document.documentElement.lang = isEn ? 'en' : 'zh-Hant-TW';
 
+/** Contact page for demo requests, in the current language. */
+export const bookUrl = () => `https://primestrideai.com/${isEn ? 'en' : 'zh'}/contact?p=spatial-lab`;
+
 /** Pick the string for the current language: t('查看清單', 'View list'). */
 export const t = (zh, en) => (isEn ? en : zh);
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { loadPlan, polygonArea, bbox, toPing, buildQuote, pointInPolygon } from './plan.js';
-import { t, t as tr, isEn, unitLabel, localizeData, translateDom, langSwitch } from './i18n.js';
+import { t, t as tr, isEn, unitLabel, localizeData, translateDom, langSwitch, bookUrl } from './i18n.js';
 import { INDEX_EN } from './i18n-dict.js';
 import { drawLevel, planFrame, worldFromCanvas } from './drawing.js';
 import { createWorld } from './scene.js';
@@ -24,6 +24,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function boot() {
   translateDom(INDEX_EN);
+  for (const a of document.querySelectorAll('[data-book]')) a.href = bookUrl();
   document.querySelector('.bar .actions')?.prepend(langSwitch());
   if (isEn) document.title = 'PrimeStride Spatial Lab: from floor plan to a signable proposal';
   const params = new URLSearchParams(location.search);
