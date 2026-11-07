@@ -20,7 +20,7 @@ export const INDEX_EN = {
   '從平面圖，': 'From floor plan',
   '到可以簽約的提案。': 'to a signable proposal.',
   '匯入一張平面圖，自動長成可以走進去的 3D 空間。換風格、看 AI 實景、報價即時更新，客戶當場核准。': 'Import a floor plan and it becomes a 3D space you can walk through. Switch styles, see photoreal AI renders, watch the quote update live, and get the client\'s approval in the meeting.',
-  '看 46 秒影片': 'Watch the film',
+  '看 41 秒影片': 'Watch the 41-second film',
   '開始導覽': 'Start the tour',
   '示範案': 'Sample projects',
   '大樓 3 房 2 廳': '3-bed apartment',

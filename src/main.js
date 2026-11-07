@@ -625,7 +625,7 @@ async function boot() {
     const close = () => { v.pause(); film.hidden = true; };
     document.addEventListener('click', e => {
       const a = e.target.closest('[data-film]'); if (!a) return;
-      e.preventDefault(); v.src = a.getAttribute('href'); film.hidden = false; v.currentTime = 0; v.play().catch(() => {});
+      e.preventDefault(); v.src = isEn ? a.getAttribute('href').replace('-zh.mp4', '-en.mp4') : a.getAttribute('href'); film.hidden = false; v.currentTime = 0; v.play().catch(() => {});
     });
     film.querySelector('.film-close').addEventListener('click', close);
     film.addEventListener('click', e => { if (e.target === film) close(); });
