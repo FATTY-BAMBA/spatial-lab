@@ -787,11 +787,16 @@ async function boot() {
     const walls = (L.walls || []).filter(w => w.kind !== 'zone');
     const cross = (p1, p2, a, c) => { const d = (x1, y1, x2, y2, x3, y3) => (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1); const d1 = d(a[0], a[1], c[0], c[1], p1[0], p1[1]), d2 = d(a[0], a[1], c[0], c[1], p2[0], p2[1]), d3 = d(p1[0], p1[1], p2[0], p2[1], a[0], a[1]), d4 = d(p1[0], p1[1], p2[0], p2[1], c[0], c[1]); return d1 * d2 < 0 && d3 * d4 < 0; };
     const clear = q => { const dx = tgt[0] - q[0], dz = tgt[1] - q[1], l = Math.hypot(dx, dz) || 1, n = [-dz / l, dx / l]; return [-0.5, 0, 0.5].every(o => { const p1 = [q[0] + n[0] * o, q[1] + n[1] * o], p2 = [tgt[0] + n[0] * o * 0.4, tgt[1] + n[1] * o * 0.4]; return !walls.some(w => cross(p1, p2, w.a, w.b)); }); };
+    // and an open foreground: across the wide lens (±40°) the first 1–2 m are floor of this room, not a wall
+    // corner, a doorway jamb or a wardrobe side
+    const tall = items.filter(f => /wardrobe|tallcab|shelf|fridge|tvwall/.test(f.kind)).map(f => { const q = Math.abs(Math.round((f.rot || 0) / 90)) % 2, hw = (q ? f.d : f.w) / 2, hd = (q ? f.w : f.d) / 2; return [f.x - hw, f.x + hw, f.z - hd, f.z + hd]; });
+    const openFront = q => { const a0 = Math.atan2(tgt[1] - q[1], tgt[0] - q[0]); let bad = 0; for (const da of [-40, -20, 0, 20, 40]) for (const dist of [1.0, 1.8]) { const a = a0 + (da * Math.PI) / 180, p = [q[0] + Math.cos(a) * dist, q[1] + Math.sin(a) * dist]; if (!pointInPolygon(p, r.polygon) || edge(p) < 0.12 || tall.some(k => p[0] > k[0] && p[0] < k[1] && p[1] > k[2] && p[1] < k[3])) bad++; } return bad; };
     let best = null;
     for (let x = b.x0 + 0.25; x < b.x1; x += 0.25) for (let z = b.z0 + 0.25; z < b.z1; z += 0.25) {
       const q = [x, z]; if (!pointInPolygon(q, r.polygon) || edge(q) < 0.45 || fp.some(k => x > k[0] && x < k[1] && z > k[2] && z < k[3]) || !clear(q)) continue;
-      const d = Math.hypot(x - tgt[0], z - tgt[1]); if (d > 7.5) continue; // far enough for a wide shot, not across a whole 透天 floor
-      if (!best || d > best.d) best = { q, d };
+      const d = Math.hypot(x - tgt[0], z - tgt[1]); if (d > 7.5 || d < 2) continue; // far enough for a wide shot, not across a whole 透天 floor
+      const score = d - openFront(q) * 1.2; // each blocked foreground sample costs about a metre of distance
+      if (!best || score > best.score) best = { q, d, score };
     }
     const q = best ? best.q : r.spot ? r.spot.pos : [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2], y0 = L.elevation || 0;
     return { pos: [q[0], y0 + 1.42, q[1]], look: [tgt[0], y0 + 0.85, tgt[1]], fov: 60, room: r, L };
