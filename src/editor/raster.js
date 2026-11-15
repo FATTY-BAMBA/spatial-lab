@@ -89,7 +89,15 @@ function bars(mask, W, H, L, horizontal) {
 // Returns pixel-space geometry (in the ORIGINAL image's pixels) so the caller can apply any scale later.
 export function extractPlanLines(img) {
   const { lum, W, H, s } = toWorkLum(img);
-  const thr = Math.max(60, Math.min(140, otsu(lum) - 10));
+  // Wall ink = the darkest strong peak of the histogram; cut just above it so grey furniture, paving and
+  // rendered cars (common in Taiwan 格局圖) stay out. Never below 60 (anti-aliased edges), never above 140.
+  const hist0 = new Float64Array(256); for (const v of lum) hist0[v]++;
+  const sm = i => { let a = 0; for (let k = -4; k <= 4; k++) a += hist0[Math.min(255, Math.max(0, i + k))]; return a / 9; };
+  let pk = 0; for (let i = 0; i < 140; i++) if (sm(i) > sm(pk)) pk = i;
+  let cut = pk; while (cut < 250 && sm(cut) > 0.12 * sm(pk)) cut++;
+  let c60 = 0, c140 = 0; for (let i = 0; i < 140; i++) { if (i < 60) c60 += hist0[i]; c140 += hist0[i]; }
+  const busy = c60 > 0 && (c140 - c60) / c60 > 0.6; // lots of mid-grey (rendered furniture, tiles) next to the ink
+  const thr = busy ? Math.max(60, Math.min(140, pk + 70, Math.max(pk + 15, cut + 10))) : Math.max(60, Math.min(140, otsu(lum) - 10));
   const dark = new Uint8Array(W * H); for (let i = 0; i < lum.length; i++) dark[i] = lum[i] < thr;
   const { hr, vr } = runs(dark, W, H);
   // wall thickness = the most common width of LONG dark strokes (≥ 4× longer than wide) — text and fixtures are short
@@ -107,7 +115,7 @@ export function extractPlanLines(img) {
   const wall = new Uint8Array(W * H), thin = new Uint8Array(W * H);
   for (let i = 0; i < dark.length; i++) if (dark[i]) { if (Math.min(hr[i], vr[i]) >= k) wall[i] = 1; else if (Math.min(hr[i], vr[i]) <= Math.max(2, k / 2.5)) thin[i] = 1; }
   const L = Math.max(k * 4, Math.round(tPx * 2.5)); // shortest wall piece: longer than a letter
-  const faces = [], thinLines = [];
+  const faces = [], thinLines = [], boxes = []; // boxes[i] = work-px bounds of the wall behind faces[2i], faces[2i+1]
   const back = v => v / s; // work px → original px
   const taken = new Uint8Array(W * H); // wall pixels already explained by straight bars
   for (const horizontal of [true, false]) {
@@ -117,6 +125,7 @@ export function extractPlanLines(img) {
       for (const side of [-1, 1]) {
         const m = b.m + side * b.t / 2;
         faces.push(horizontal ? { a: [back(b.c0), back(m)], b: [back(b.c1), back(m)] } : { a: [back(m), back(b.c0)], b: [back(m), back(b.c1)] });
+        if (side > 0) boxes.push(horizontal ? [b.c0, b.m - b.t / 2, b.c1, b.m + b.t / 2] : [b.m - b.t / 2, b.c0, b.m + b.t / 2, b.c1]);
       }
     }
     for (const b of bars(thin, W, H, L, horizontal)) {
@@ -152,19 +161,89 @@ export function extractPlanLines(img) {
     for (const side of [-1, 1]) {
       const o = side * t / 2, A = [mx + ux * lo - uy * o, my + uy * lo + ux * o], B = [mx + ux * hi - uy * o, my + uy * hi + ux * o];
       faces.push({ a: A.map(back), b: B.map(back) });
+      if (side > 0) boxes.push([Math.min(A[0], B[0]), Math.min(A[1], B[1]), Math.max(A[0], B[0]), Math.max(A[1], B[1])]);
     }
   }
-  return { faces, thin: thinLines, tPx: tPx / s };
+  return { faces, thin: thinLines, tPx: tPx / s, floors: splitFloors(faces, thinLines, boxes, tPx, s, W, H) };
+}
+
+// Taiwan 透天 plans put 1F, 2F, 3F side by side in one picture. Wall groups more than ~2 m apart are separate
+// floors: order them left→right (then top→bottom), drop small clusters (text, compass, legend) and line each
+// floor up with the first by maximising the overlap of their walls.
+function splitFloors(faces, thin, boxes, tPx, s, W, H) {
+  const n = boxes.length; if (!n) return [];
+  const gap = tPx * 8, parent = boxes.map((_, i) => i), find = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const a = boxes[i], b = boxes[j];
+    if (Math.max(a[0], b[0]) - Math.min(a[2], b[2]) <= gap && Math.max(a[1], b[1]) - Math.min(a[3], b[3]) <= gap) parent[find(i)] = find(j);
+  }
+  const groups = new Map();
+  for (let i = 0; i < n; i++) { const k = find(i); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
+  const len = b => Math.max(b[2] - b[0], b[3] - b[1]);
+  let list = [...groups.values()].map(ix => {
+    const bb = [Infinity, Infinity, -Infinity, -Infinity]; let L = 0;
+    for (const i of ix) { const b = boxes[i]; bb[0] = Math.min(bb[0], b[0]); bb[1] = Math.min(bb[1], b[1]); bb[2] = Math.max(bb[2], b[2]); bb[3] = Math.max(bb[3], b[3]); L += len(b); }
+    return { ix, bb, L };
+  });
+  // open-plan floors can have no cross wall joining their side walls: merge groups whose outlines nearly touch
+  for (let merged = true; merged;) {
+    merged = false;
+    for (let i = 0; i < list.length && !merged; i++) for (let j = i + 1; j < list.length && !merged; j++) {
+      const a = list[i].bb, b = list[j].bb, gx = Math.max(a[0], b[0]) - Math.min(a[2], b[2]), gy = Math.max(a[1], b[1]) - Math.min(a[3], b[3]);
+      const oy = -gy / Math.min(a[3] - a[1], b[3] - b[1]), ox = -gx / Math.min(a[2] - a[0], b[2] - b[0]);
+      if ((gx <= tPx * 4 && oy > 0.5) || (gy <= tPx * 4 && ox > 0.5)) {
+        list[i] = { ix: list[i].ix.concat(list[j].ix), bb: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])], L: list[i].L + list[j].L };
+        list.splice(j, 1); merged = true;
+      }
+    }
+  }
+  const big = Math.max(...list.map(g => g.L)), area = g => (g.bb[2] - g.bb[0]) * (g.bb[3] - g.bb[1]), bigA = Math.max(...list.map(area));
+  list = list.filter(g => g.L >= big * 0.3 && area(g) >= bigA * 0.3 && (g.bb[2] - g.bb[0]) > tPx * 12 && (g.bb[3] - g.bb[1]) > tPx * 12);
+  if (list.length < 2) return [];
+  // reading order: left→right unless the floors are stacked vertically
+  const spreadX = Math.max(...list.map(g => g.bb[0])) - Math.min(...list.map(g => g.bb[0])), spreadY = Math.max(...list.map(g => g.bb[1])) - Math.min(...list.map(g => g.bb[1]));
+  list.sort((a, b) => spreadX >= spreadY ? a.bb[0] - b.bb[0] : a.bb[1] - b.bb[1]);
+  // coarse wall rasters per floor (cell = one wall thickness) for alignment
+  const cell = Math.max(2, tPx), raster = g => {
+    const w = Math.ceil((g.bb[2] - g.bb[0]) / cell) + 1, h = Math.ceil((g.bb[3] - g.bb[1]) / cell) + 1, m = new Uint8Array(w * h);
+    for (const i of g.ix) { const b = boxes[i]; for (let y = Math.floor((b[1] - g.bb[1]) / cell); y <= Math.floor((b[3] - g.bb[1]) / cell); y++) for (let x = Math.floor((b[0] - g.bb[0]) / cell); x <= Math.floor((b[2] - g.bb[0]) / cell); x++) m[y * w + x] = 1; }
+    return { w, h, m };
+  };
+  const r0 = raster(list[0]);
+  const floors = [];
+  for (const [k, g] of list.entries()) {
+    let shift = [list[0].bb[0] - g.bb[0], list[0].bb[1] - g.bb[1]]; // default: top-left corners together
+    if (k) {
+      const r = raster(g); let best = -1, bx = 0, by = 0;
+      for (let dy = -r.h + 1; dy < r0.h; dy++) for (let dx = -r.w + 1; dx < r0.w; dx++) {
+        let sc = 0;
+        for (let y = Math.max(0, -dy); y < Math.min(r.h, r0.h - dy); y++) for (let x = Math.max(0, -dx); x < Math.min(r.w, r0.w - dx); x++) if (r.m[y * r.w + x] && r0.m[(y + dy) * r0.w + x + dx]) sc++;
+        if (sc > best) { best = sc; bx = dx; by = dy; }
+      }
+      shift = [list[0].bb[0] + bx * cell - g.bb[0], list[0].bb[1] + by * cell - g.bb[1]];
+    } else shift = [0, 0];
+    const pad = tPx * 3, inBox = p => p[0] * s >= g.bb[0] - pad && p[0] * s <= g.bb[2] + pad && p[1] * s >= g.bb[1] - pad && p[1] * s <= g.bb[3] + pad;
+    const mv = l => ({ a: [l.a[0] + shift[0] / s, l.a[1] + shift[1] / s], b: [l.b[0] + shift[0] / s, l.b[1] + shift[1] / s] });
+    floors.push({
+      faces: g.ix.flatMap(i => [faces[2 * i], faces[2 * i + 1]]).map(mv),
+      thin: thin.filter(l => inBox(l.a) && inBox(l.b)).map(mv),
+      box: g.bb.map(v => v / s), shift: shift.map(v => v / s),
+    });
+  }
+  return floors;
 }
 
 // Pixel geometry → editor walls. `mpp` = metres per original pixel; (ox, oz) = where pixel (0,0) sits in plan space.
-// Without a scale we assume the dominant (exterior) wall is drawn 25 cm thick — marketing plans draw walls bold.
+// Without a scale we assume the dominant wall is drawn 18 cm thick (Taiwan / Japan RC walls with plaster). UK estate-agent
+// plans draw walls bolder (~30 cm), so the editor still asks the user to confirm the scale.
+// When the picture holds several floors, `floors` has one wall list per floor (all drawn over the first floor's spot).
 export function wallsFromImage(lines, { mpp = 0, ox = 0, oz = 0 } = {}) {
-  const k = mpp || 0.25 / (lines.tPx || 1);
+  const k = mpp || 0.18 / (lines.tPx || 1);
   const P = p => [ox + p[0] * k, oz + p[1] * k];
   const seg = l => ({ a: P(l.a), b: P(l.b), layer: 'img' });
-  const walls = detectWalls(lines.faces.map(seg), { minT: 0.03, maxT: 0.5, minLen: 0.05, others: lines.thin.map(seg) });
-  return { walls: bridgeGaps(closeCorners(walls), lines.thin.map(seg)), mpp: k };
+  const one = (faces, thin) => bridgeGaps(closeCorners(detectWalls(faces.map(seg), { minT: 0.03, maxT: 0.5, minLen: 0.05, others: thin.map(seg) })), thin.map(seg));
+  const floors = (lines.floors && lines.floors.length > 1 ? lines.floors : [lines]).map(f => one(f.faces, f.thin));
+  return { walls: floors[0], floors, mpp: k };
 }
 
 // Drawn plans often offset the wall pieces on either side of a doorway. Two free wall ends that face each
@@ -180,6 +259,8 @@ function bridgeGaps(walls, glass = []) {
   const free = [];
   for (const w of walls) { if (w.kind) continue; const f = fr(w); for (const e of ['a', 'b']) if (!touches(w[e], w)) free.push({ w, p: w[e], out: e === 'a' ? [-f.ux, -f.uz] : [f.ux, f.uz] }); }
   const used = new Set(), add = [];
+  const bb = [Infinity, Infinity, -Infinity, -Infinity]; for (const w of walls) for (const p of [w.a, w.b]) { bb[0] = Math.min(bb[0], p[0]); bb[1] = Math.min(bb[1], p[1]); bb[2] = Math.max(bb[2], p[0]); bb[3] = Math.max(bb[3], p[1]); }
+  const onOutline = p => Math.min(p[0] - bb[0], bb[2] - p[0], p[1] - bb[1], bb[3] - p[1]) < 0.6;
   for (const A of free) {
     if (used.has(A)) continue;
     let best = null;
@@ -188,13 +269,16 @@ function bridgeGaps(walls, glass = []) {
       if (A.out[0] * B.out[0] + A.out[1] * B.out[1] > -0.6) continue; // must roughly face each other (angled bays too)
       const dx = B.p[0] - A.p[0], dz = B.p[1] - A.p[1], along = dx * A.out[0] + dz * A.out[1], side = Math.abs(-dx * A.out[1] + dz * A.out[0]);
       const back = -(dx * B.out[0] + dz * B.out[1]); // A must also lie ahead of B
-      if (along < 0.4 || along > 1.8 || back < 0.2 || side > 1.5 * Math.max(A.w.t, B.w.t) + 0.1) continue;
+      const inline = side <= 0.5 * Math.max(A.w.t, B.w.t) + 0.05; // same wall line: façades can have 6 m of glass
+      if (along < 0.4 || along > (inline ? 6.2 : 1.8) || back < 0.2 || side > 1.5 * Math.max(A.w.t, B.w.t) + 0.1) continue;
       if (!best || along < best.along) best = { B, along };
     }
     if (!best) continue;
     used.add(A); used.add(best.B);
     const len = Math.hypot(best.B.p[0] - A.p[0], best.B.p[1] - A.p[1]), t = Math.min(A.w.t, best.B.w.t);
-    add.push({ a: A.p.slice(), b: best.B.p.slice(), t, tLocked: true, openings: [len < 1.3 ? { type: 'door', offset: 0, width: +len.toFixed(3), sill: 0, head: 2.1 } : { type: 'passage', offset: 0, width: +len.toFixed(3), sill: 0, head: 2.4 }] });
+    // on the building's outline a wide gap is glazing (落地窗 / shop front); inside it is an open passage
+    const outer = onOutline(A.p) && onOutline(best.B.p);
+    add.push({ a: A.p.slice(), b: best.B.p.slice(), t, tLocked: true, openings: [len < 1.3 ? { type: 'door', offset: 0, width: +len.toFixed(3), sill: 0, head: 2.1 } : outer ? { type: 'slider', offset: 0, width: +len.toFixed(3), sill: 0, head: 2.4, panels: len > 4 ? 4 : 2 } : { type: 'passage', offset: 0, width: +len.toFixed(3), sill: 0, head: 2.4 }] });
   }
   // sliding partitions / glazed openings: a free end pointing at a wall up to 4.5 m away, with thin glazing
   // or slider lines filling at least half of the span → extend the wall there and make the span an opening

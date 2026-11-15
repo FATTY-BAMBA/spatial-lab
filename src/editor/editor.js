@@ -825,7 +825,7 @@ $('#file-img').addEventListener('change', async e => {
       const g = c.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0);
       underlay.lines = extractPlanLines(g.getImageData(0, 0, c.width, c.height));
     } catch (err) { console.error(err); underlay.lines = null; }
-    underlay.mpp = underlay.lines && underlay.lines.tPx ? 0.25 / underlay.lines.tPx : 12 / img.width;
+    underlay.mpp = underlay.lines && underlay.lines.tPx ? 0.18 / underlay.lines.tPx : 12 / img.width;
     $('#ul-img').hidden = false; fitView(); setTool('scale');
     toast(t('底圖已載入，比例已依牆厚估算。點兩個已知距離的點校正比例（例如一道標有尺寸的牆），再按「自動辨識牆體」。', 'Plan loaded; scale estimated from the wall thickness. Click two points a known distance apart to correct it (e.g. a dimensioned wall), then press “Detect walls”.'));
   };
@@ -844,11 +844,22 @@ async function pdfToImage(file) {
 }
 $('#img-detect').addEventListener('click', () => {
   if (!underlay.imgEl || !underlay.lines || !underlay.lines.faces.length) { toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
-  const L = level();
-  if (L.walls.length && !window.confirm(t('取代目前樓層的牆體？', 'Replace the walls on this floor?'))) return;
-  const { walls } = wallsFromImage(underlay.lines, { mpp: underlay.mpp, ox: underlay.x, oz: underlay.z });
+  const { walls, floors } = wallsFromImage(underlay.lines, { mpp: underlay.mpp, ox: underlay.x, oz: underlay.z });
   if (!walls.length) { toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
   sel = null;
+  if (floors.length > 1) {
+    // 透天 plans: one picture, several floors side by side (left → right = 1F, 2F, 3F…)
+    if (doc.levels.some(L => L.walls.length) && !window.confirm(t(`圖中偵測到 ${floors.length} 個樓層，要取代目前所有樓層嗎？`, `Found ${floors.length} floors in this picture. Replace all current floors?`))) return;
+    doc.levels = floors.map((ws, i) => { const L = newLevel(i); L.walls = ws.map((w, j) => ({ id: `i${i}_${j}`, ...w })); return L; });
+    for (let i = 1; i < doc.levels.length; i++) doc.levels[i].elevation = doc.levels[i - 1].elevation + doc.levels[i - 1].height;
+    for (const L of doc.levels) { L.rooms = []; detectRooms(L); }
+    lv = 0; commit();
+    const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
+    toast(t(`偵測到 ${floors.length} 個樓層（左到右為 1F→${floors.length}F），房間：${counts}。各樓層已對齊到 1F 位置；請逐層檢查缺口與門窗。`, `Found ${floors.length} floors (left to right = 1F→${floors.length}F). Rooms: ${counts}. Floors are aligned onto 1F; check each floor for gaps and openings.`));
+    return;
+  }
+  const L = level();
+  if (L.walls.length && !window.confirm(t('取代目前樓層的牆體？', 'Replace the walls on this floor?'))) return;
   L.walls = walls.map((w, i) => ({ id: `i${i}`, ...w }));
   L.rooms = [];
   detectRooms(L);
