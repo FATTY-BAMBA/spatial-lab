@@ -993,6 +993,7 @@ $('#img-detect').addEventListener('click', () => {
     for (let i = 1; i < doc.levels.length; i++) doc.levels[i].elevation = doc.levels[i - 1].elevation + doc.levels[i - 1].height;
     let nF = 0;
     doc.project.type = 'townhouse'; // several floors in one picture = a 透天
+    doc.stairs = []; // the floors are new, so are their stairs
     for (const L of doc.levels) { L.rooms = []; detectRooms(L); nF += autoFurnish(L); }
     lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
@@ -1004,6 +1005,7 @@ $('#img-detect').addEventListener('click', () => {
   if (L.walls.length && !window.confirm(t('取代目前樓層的牆體？', 'Replace the walls on this floor?'))) return;
   L.walls = walls.map((w, i) => ({ id: `i${i}`, ...w }));
   L.rooms = [];
+  doc.stairs = doc.stairs.filter(st => st.from !== L.id || !st.auto);
   detectRooms(L);
   autoFurnish(L, { replace: true });
   commit();
