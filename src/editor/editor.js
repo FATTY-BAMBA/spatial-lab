@@ -970,10 +970,35 @@ async function aiNameRooms({ quiet = false } = {}) {
     if (x1 - x0 > z1 - z0) { const w = Math.min(1.1, z1 - z0 > 2.4 ? (z1 - z0) / 2 : z1 - z0); doc.stairs.push({ ...base, axis: 'x', z0: r3(z0), z1: r3(z0 + w), xStart: r3(x0), xEnd: r3(x1) }); }
     else { const w = Math.min(1.1, x1 - x0 > 2.4 ? (x1 - x0) / 2 : x1 - x0); doc.stairs.push({ ...base, x0: r3(x0), x1: r3(x0 + w), zStart: r3(z1), zEnd: r3(z0) }); }
   }
+  for (const L of doc.levels) detectRooms(L);
+  tidyExteriorOpenings();
   for (const L of doc.levels) autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
   toast(t(`AI 已命名 ${out.rooms.length} 個房間${out.scale ? '、依圖面尺寸校正比例' : ''}，家具已依房間類型重新配置。`, `AI named ${plural(out.rooms.length, 'room')}${out.scale ? ' and set the scale from a printed size' : ''}; furniture was rearranged to match.`));
   return true;
+}
+// Picture imports: gaps in outside walls are windows, except the entrance (one door on the ground floor, by the
+// 玄關 or living room) and wide openings off the living/dining room, which become sliding doors (落地窗).
+function tidyExteriorOpenings() {
+  let hasMain = doc.levels.some(L => L.walls.some(w => (w.openings || []).some(o => o.main)));
+  doc.levels.forEach((L, li) => {
+    const roomAt = p => L.rooms.find(r => pointInPolygon(p, r.polygon));
+    const cands = [];
+    for (const w of L.walls) {
+      if (!w.ext) continue;
+      const { ux, uz } = wallFrame(w), n = [-uz, ux];
+      for (const o of w.openings || []) {
+        if (o.type === 'window' || o.main) continue;
+        const m = [w.a[0] + ux * (o.offset + o.width / 2), w.a[1] + uz * (o.offset + o.width / 2)];
+        const r = roomAt([m[0] + n[0] * 0.4, m[1] + n[1] * 0.4]) || roomAt([m[0] - n[0] * 0.4, m[1] - n[1] * 0.4]);
+        const nm = r ? `${r.name} ${r.nameEn || ''}` : '';
+        if (o.width >= 1.8 && /客|餐|living|dining/i.test(nm)) { Object.assign(o, { type: 'slider', sill: 0, head: 2.4, panels: o.width > 3 ? 4 : 2 }); continue; }
+        if (li === 0 && o.width >= 0.75 && o.width <= 1.6) cands.push({ o, score: /玄關|玄|entr/i.test(nm) ? 3 : /客|餐|living|dining/i.test(nm) ? 2 : /廚|kitchen/i.test(nm) ? 0.5 : 1 });
+        Object.assign(o, { type: 'window', sill: /浴|廁|bath/i.test(nm) ? 1.4 : 0.9, head: 2.2 });
+      }
+    }
+    if (li === 0 && !hasMain && cands.length) { cands.sort((a, b) => b.score - a.score); Object.assign(cands[0].o, { type: 'door', sill: 0, head: 2.1, main: true }); hasMain = true; }
+  });
 }
 // Scale the whole plan (walls, furniture, stairs, picture) about the picture's origin
 function rescalePlan(f) {
@@ -1006,19 +1031,24 @@ $('#img-detect').addEventListener('click', () => {
     let nF = 0;
     doc.project.type = 'townhouse'; // several floors in one picture = a 透天
     doc.stairs = []; // the floors are new, so are their stairs
-    for (const L of doc.levels) { L.rooms = []; detectRooms(L); nF += autoFurnish(L, { stairs: doc.stairs }); }
+    for (const L of doc.levels) { L.rooms = []; detectRooms(L); }
+    tidyExteriorOpenings();
+    for (const L of doc.levels) nF += autoFurnish(L, { stairs: doc.stairs });
     lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
     toast(t(`偵測到 ${floors.length} 個樓層（左到右為 1F→${floors.length}F），房間：${counts}。各樓層已對齊到 1F 位置；請逐層檢查缺口與門窗。`, `Found ${floors.length} floors (left to right = 1F→${floors.length}F). Rooms: ${counts}. Floors are aligned onto 1F; check each floor for gaps and openings.`));
     aiNameRooms({ quiet: true });
     return;
   }
+  // a new picture replaces the floors an earlier picture created; otherwise only the current floor
+  if (doc.levels.some(x => x.imgShift)) { if (!window.confirm(t('取代先前由圖片建立的樓層？', 'Replace the floors created from the previous picture?'))) return; doc.levels = [newLevel(0)]; doc.stairs = []; lv = 0; buildLevelTabs(); }
   const L = level();
   if (L.walls.length && !window.confirm(t('取代目前樓層的牆體？', 'Replace the walls on this floor?'))) return;
   L.walls = walls.map((w, i) => ({ id: `i${i}`, ...w }));
   L.rooms = [];
   doc.stairs = doc.stairs.filter(st => st.from !== L.id || !st.auto);
   detectRooms(L);
+  tidyExteriorOpenings();
   autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
   toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查缺口、門窗與房間名稱；未封閉的空間用「牆」補上。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check gaps, doors/windows and room names; close open spaces with the Wall tool.`));
