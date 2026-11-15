@@ -788,7 +788,15 @@ function refreshPanel() {
     b.textContent = level().furniture.some(f => f.auto) ? t('重新自動配置家具', 'Re-furnish automatically') : t('自動配置家具', 'Furnish automatically');
     b.title = t('依房間類型與大小擺放家具，保留門與走道淨空；你手動放的家具不會被移動。', 'Places furniture by room type and size, keeping doors and walkways clear. Pieces you placed yourself stay put.');
     b.addEventListener('click', () => { let n = 0; for (const L2 of doc.levels) n += autoFurnish(L2, { replace: true }); commit(); toast(t(`已配置 ${n} 件家具（Ctrl+Z 復原）。改房間名稱後再按一次，家具會跟著換。`, `Placed ${plural(n, 'piece')} (Ctrl+Z undoes). Rename rooms and press again to refurnish.`)); });
-    row.appendChild(b); host.appendChild(row);
+    row.appendChild(b);
+    if (underlay.imgEl && aiState !== 'off') {
+      const ai = document.createElement('button'); ai.type = 'button'; ai.className = 'ghost';
+      ai.textContent = t('AI 辨識房間名稱', 'Name rooms with AI');
+      ai.title = t('依圖面上的家具符號與文字判斷每個房間（客廳、臥室、衛浴…），並建立樓梯。', 'Reads furniture symbols and labels in the picture to name each room, and adds stairs.');
+      ai.addEventListener('click', () => aiNameRooms());
+      row.appendChild(ai);
+    }
+    host.appendChild(row);
   }
   // room schedule
   const L = level();
@@ -891,6 +899,83 @@ async function pdfToImage(file) {
   await page.render({ canvasContext: g, viewport: vp }).promise;
   return c.toDataURL('image/png');
 }
+// ---------------------------------------------------------------- AI room naming (image imports)
+// Draws a numbered marker in every detected room on the plan picture and asks /api/vision what each room is.
+// Applies names, wet/outdoor flags, a printed dimension as the true scale, stairs between floors, then refurnishes.
+let aiState = 'unknown'; // 'off' once the server says no key is configured
+async function aiNameRooms({ quiet = false } = {}) {
+  if (!underlay.imgEl || aiState === 'off') { if (!quiet) toast(t('AI 命名需要先匯入平面圖圖片', 'AI naming needs an imported plan picture')); return false; }
+  const img = underlay.imgEl, S = Math.min(1, 1568 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * S); c.height = Math.round(img.height * S);
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  const marks = [], R0 = Math.max(10, Math.round(c.width / 85));
+  doc.levels.forEach(L => {
+    const sh = L.imgShift || [0, 0];
+    for (const r of L.rooms) {
+      const p = labelPoint(r.polygon), px = ((p[0] - underlay.x) / underlay.mpp - sh[0]) * S, py = ((p[1] - underlay.z) / underlay.mpp - sh[1]) * S;
+      if (!(px > 0 && py > 0 && px < c.width && py < c.height)) continue;
+      const n = marks.length + 1; marks.push({ n, L, r });
+      g.beginPath(); g.arc(px, py, R0, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = Math.max(2, R0 / 5); g.strokeStyle = '#d0021b'; g.stroke();
+      g.fillStyle = '#d0021b'; g.font = `bold ${Math.round(R0 * 1.15)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), px, py + 1);
+    }
+  });
+  if (!marks.length) return false;
+  if (!quiet) toast(t('AI 正在辨識房間…', 'AI is identifying the rooms…'));
+  let out;
+  try {
+    const r = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length }) });
+    if (r.status === 503 || r.status === 404) { aiState = 'off'; if (!quiet) toast(t('AI 命名尚未啟用（伺服器未設定金鑰），已使用規則命名。', 'AI naming is not enabled on the server yet; rule-based names are used.')); return false; }
+    out = await r.json(); if (!r.ok) throw new Error(out.error || r.status);
+  } catch (e) { console.warn('vision', e); if (!quiet) toast(t('AI 命名失敗，請稍後再試', 'AI naming failed; try again later')); return false; }
+  // apply names (second and later bedrooms on a floor become 次臥, 次臥 2…)
+  const seen = new Map();
+  for (const x of out.rooms) {
+    const m = marks[x.n - 1]; if (!m) continue;
+    const r = m.r; let name = x.name, en = x.nameEn;
+    if (name === '臥室') { const k = (seen.get(m.L) || 0) + 1; seen.set(m.L, k); name = k === 1 ? '次臥' : `次臥 ${k}`; en = k === 1 ? 'Bedroom' : `Bedroom ${k}`; }
+    r.name = name; r.nameEn = en;
+    r.wet = /浴/.test(name); if (r.wet) r.finish = 'tile';
+    r.outdoor = /陽台|庭院/.test(name); if (r.outdoor) r.finish = 'balcony';
+    r.circulation = /走道|樓梯|玄關/.test(name);
+  }
+  // a printed room size fixes the scale for the whole plan
+  if (out.scale) {
+    const m = marks[out.scale.n - 1];
+    if (m) {
+      const xs = m.r.polygon.map(p => p[0]), zs = m.r.polygon.map(p => p[1]), wm = Math.max(...xs) - Math.min(...xs), dm = Math.max(...zs) - Math.min(...zs);
+      const f1 = out.scale.w / wm, f2 = out.scale.d / dm, f = (f1 + f2) / 2;
+      if (Math.abs(f1 - f2) / f < 0.15 && Math.abs(f - 1) > 0.03) rescalePlan(f);
+    }
+  }
+  // stairs: one straight run inside each floor's 樓梯 room, up to the floor above
+  for (let i = 0; i < doc.levels.length - 1; i++) {
+    const L = doc.levels[i]; if (doc.stairs.some(st => st.from === L.id)) continue;
+    const sr = L.rooms.find(r => r.name === '樓梯'); if (!sr) continue;
+    const xs = sr.polygon.map(p => p[0]), zs = sr.polygon.map(p => p[1]);
+    const x0 = Math.min(...xs) + 0.1, x1 = Math.max(...xs) - 0.1, z0 = Math.min(...zs) + 0.1, z1 = Math.max(...zs) - 0.1;
+    const w = Math.min(1.1, x1 - x0 > 2.4 ? (x1 - x0) / 2 : x1 - x0);
+    doc.stairs.push({ id: `S${doc.stairs.length + 1}`, from: L.id, to: doc.levels[i + 1].id, x0: +x0.toFixed(3), x1: +(x0 + w).toFixed(3), zStart: +z1.toFixed(3), zEnd: +z0.toFixed(3), risers: Math.max(14, Math.round(L.height / 0.175)), name: '直跑樓梯', nameEn: 'Straight stair', auto: true });
+  }
+  for (const L of doc.levels) autoFurnish(L, { replace: true });
+  commit();
+  toast(t(`AI 已命名 ${out.rooms.length} 個房間${out.scale ? '、依圖面尺寸校正比例' : ''}，家具已依房間類型重新配置。`, `AI named ${plural(out.rooms.length, 'room')}${out.scale ? ' and set the scale from a printed size' : ''}; furniture was rearranged to match.`));
+  return true;
+}
+// Scale the whole plan (walls, furniture, stairs, picture) about the picture's origin
+function rescalePlan(f) {
+  const ox = underlay.x, oz = underlay.z, P = p => [+(ox + (p[0] - ox) * f).toFixed(3), +(oz + (p[1] - oz) * f).toFixed(3)];
+  for (const L of doc.levels) {
+    for (const w of L.walls) { w.a = P(w.a); w.b = P(w.b); for (const o of w.openings || []) { o.offset = +(o.offset * f).toFixed(3); o.width = +(o.width * f).toFixed(3); } }
+    for (const r of L.rooms) r.polygon = r.polygon.map(P);
+    L.furniture = L.furniture.filter(x => !x.auto);
+    for (const x of L.furniture) { const q = P([x.x, x.z]); x.x = q[0]; x.z = q[1]; }
+    if (L.imgShift) L.imgShift = L.imgShift.map(v => v); // picture pixels: unchanged
+  }
+  for (const st of doc.stairs) { const a = P([st.x0, st.zStart]), b = P([st.x1, st.zEnd]); st.x0 = a[0]; st.zStart = a[1]; st.x1 = b[0]; st.zEnd = b[1]; }
+  underlay.mpp *= f;
+  for (const L of doc.levels) detectRooms(L);
+}
+
 $('#img-detect').addEventListener('click', () => {
   if (!underlay.imgEl || !underlay.lines || !underlay.lines.faces.length) { toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
   const { walls, floors } = wallsFromImage(underlay.lines, { mpp: underlay.mpp, ox: underlay.x, oz: underlay.z });
@@ -902,10 +987,12 @@ $('#img-detect').addEventListener('click', () => {
     doc.levels = floors.map((ws, i) => { const L = newLevel(i); L.walls = ws.map((w, j) => ({ id: `i${i}_${j}`, ...w })); L.imgShift = (underlay.lines.floors[i].shift || [0, 0]).map(v => +v.toFixed(1)); return L; });
     for (let i = 1; i < doc.levels.length; i++) doc.levels[i].elevation = doc.levels[i - 1].elevation + doc.levels[i - 1].height;
     let nF = 0;
+    doc.project.type = 'townhouse'; // several floors in one picture = a 透天
     for (const L of doc.levels) { L.rooms = []; detectRooms(L); nF += autoFurnish(L); }
     lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
     toast(t(`偵測到 ${floors.length} 個樓層（左到右為 1F→${floors.length}F），房間：${counts}。各樓層已對齊到 1F 位置；請逐層檢查缺口與門窗。`, `Found ${floors.length} floors (left to right = 1F→${floors.length}F). Rooms: ${counts}. Floors are aligned onto 1F; check each floor for gaps and openings.`));
+    aiNameRooms({ quiet: true });
     return;
   }
   const L = level();
@@ -916,6 +1003,7 @@ $('#img-detect').addEventListener('click', () => {
   autoFurnish(L, { replace: true });
   commit();
   toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查缺口、門窗與房間名稱；未封閉的空間用「牆」補上。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check gaps, doors/windows and room names; close open spaces with the Wall tool.`));
+  aiNameRooms({ quiet: true });
 });
 $('#ul-opacity').addEventListener('input', e => { underlay.opacity = +e.target.value; render(); });
 $('#ul-remove').addEventListener('click', () => { underlay.imgEl = null; $('#ul-img').hidden = true; render(); });
