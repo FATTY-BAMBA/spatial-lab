@@ -565,17 +565,50 @@ async function boot() {
     if (r) { setMode('explore'); setView('walk'); explore.goToRoom(r, planGeom.L.id); }
   });
 
+  // ---------------- adaptive quality ----------------
+  // Watch real frame times; while the median stays under ~28 fps, step down one level (fewer pixels + lighter AO →
+  // no post-processing → no soft shadows). AI render captures always use full quality. The level is remembered per device.
+  const QL = [
+    { ratio: pixelRatio, post: true, ao: 16 },
+    { ratio: Math.min(pixelRatio, 1.25), post: true, ao: 8 },
+    { ratio: Math.min(pixelRatio, 1.25), post: false },
+    { ratio: 1, post: false, shadows: false },
+  ];
+  let qLevel = 0, curRatio = pixelRatio, usePost = !!composer;
+  const qTimes = []; let qHold = 90; // frames to ignore (shader compile, first textures)
+  function applyQuality(i, remember = true) {
+    qLevel = Math.max(0, Math.min(QL.length - 1, i)); const L = QL[qLevel];
+    curRatio = L.ratio; usePost = !!composer && L.post;
+    if (gtao && L.ao) { gtao.updateGtaoMaterial?.({ samples: L.ao }); gtao.updatePdMaterial?.({ samples: L.ao }); }
+    const sh = L.shadows !== false && tier !== 'lite';
+    if (renderer.shadowMap.enabled !== sh) { renderer.shadowMap.enabled = sh; world.scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.needsUpdate = true; }); }); }
+    renderer.setPixelRatio(curRatio); resize(); qTimes.length = 0; qHold = 60;
+    if (remember) try { localStorage.setItem('sl-q', String(qLevel)); } catch {}
+  }
+  function watchQuality(rawDt) {
+    if (qHold > 0) { qHold--; return; }
+    if (rawDt > 0.4 || document.hidden) return; // throttled background page, not a real frame time
+    qTimes.push(rawDt); if (qTimes.length < 45) return;
+    const med = qTimes.slice().sort((a, b) => a - b)[22]; qTimes.length = 0;
+    if (med > 0.036 && qLevel < QL.length - 1) { applyQuality(qLevel + 1); console.info('[quality] step down to', qLevel, 'median', Math.round(med * 1000), 'ms'); }
+  }
+  // dev check: average ms per frame for n synchronous draws at the current level (GPU-bound, ignores rAF throttling)
+  window.__slBench = (n = 20) => { const g = renderer.getContext(), px = new Uint8Array(4), draw = () => (usePost ? composer.render() : renderer.render(world.scene, camera)); draw(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); const t0 = performance.now(); for (let i = 0; i < n; i++) { draw(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } return { level: qLevel, ratio: curRatio, post: usePost, shadows: renderer.shadowMap.enabled, msPerFrame: +((performance.now() - t0) / n).toFixed(1), px: [renderer.domElement.width, renderer.domElement.height] }; };
+  window.__slQuality = i => applyQuality(i, false);
+
   // ---------------- resize + loop ----------------
   function resize() {
     const w = innerWidth, h = innerHeight;
+    renderer.setPixelRatio(curRatio);
     renderer.setSize(w, h, false);
-    if (composer) { composer.setPixelRatio(pixelRatio); composer.setSize(w, h); }
+    if (composer) { composer.setPixelRatio(curRatio); composer.setSize(w, h); }
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     story.layout(w / h, world.frame);
     if (mode === 'plan') drawPlanView();
   }
   addEventListener('resize', resize);
+  { let q0 = 0; try { q0 = +localStorage.getItem('sl-q') || 0; } catch {} if (params.get('q')) q0 = 0; if (q0) applyQuality(q0, false); }
   resize();
 
   let beatNow = 0;
@@ -645,8 +678,9 @@ async function boot() {
     // skip the 3D frame while a full-screen room (AI viewer, proposal, film) covers it
     const covered = document.body.classList.contains('ai-on') || document.body.classList.contains('pp-on') || !$('#film').hidden;
     if (mode !== 'plan' && !covered) {
-      const draw = () => (composer ? composer.render() : renderer.render(world.scene, camera));
+      const draw = () => (usePost ? composer.render() : renderer.render(world.scene, camera));
       if (!compare.render(draw)) draw();
+      watchQuality(rawDt);
     }
     requestAnimationFrame(frame);
   }
@@ -706,7 +740,8 @@ async function boot() {
   async function captureFrame(pose) { // pose: { pos:[x,y,z], look:[x,y,z], fov } or null for the current camera
     for (let i = 0; i < 50 && texturesPending(); i++) await new Promise(r => setTimeout(r, 100));
     const W = 1600, H = 900, keepReal = world.state.real, keepInside = world.state.interior, keepAspect = camera.aspect;
-    const keepCam = { p: camera.position.clone(), q: camera.quaternion.clone(), fov: camera.fov };
+    const keepCam = { p: camera.position.clone(), q: camera.quaternion.clone(), fov: camera.fov }, keepQ = qLevel;
+    if (keepQ) applyQuality(0, false); // renders always get full quality (AO, shadows)
     try {
       world.setReal(1); renderer.setPixelRatio(1); renderer.setSize(W, H, false);
       if (composer) { composer.setPixelRatio(1); composer.setSize(W, H); }
@@ -715,8 +750,9 @@ async function boot() {
       composer ? composer.render() : renderer.render(world.scene, camera);
       return renderer.domElement.toDataURL('image/jpeg', 0.9);
     } finally {
-      renderer.setPixelRatio(pixelRatio); world.setReal(keepReal); world.setInterior(keepInside);
+      renderer.setPixelRatio(curRatio); world.setReal(keepReal); world.setInterior(keepInside);
       camera.position.copy(keepCam.p); camera.quaternion.copy(keepCam.q); camera.fov = keepCam.fov; camera.aspect = keepAspect; resize();
+      if (keepQ) applyQuality(keepQ, false);
     }
   }
   async function submitRender({ frame, room, pose }) {
