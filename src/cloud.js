@@ -22,7 +22,8 @@ export async function currentUser() {
 export async function accessToken() {
   try { const sb = await client(); const { data } = await sb.auth.getSession(); return data.session ? data.session.access_token : null; } catch { return null; }
 }
-export async function onAuth(fn) { const sb = await client(); sb.auth.onAuthStateChange((_e, session) => fn(session ? session.user : null)); }
+// Deferred: calling getSession() inside Supabase's own auth callback deadlocks its lock (the page froze after Google sign-in)
+export async function onAuth(fn) { const sb = await client(); sb.auth.onAuthStateChange((_e, session) => { const u = session ? session.user : null; setTimeout(() => fn(u), 0); }); }
 
 // Google sign-in; comes back to `next` (default: the projects page)
 export async function signIn(next = '/projects') {
