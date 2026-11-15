@@ -590,7 +590,12 @@ async function boot() {
     if (rawDt > 0.4 || document.hidden) return; // throttled background page, not a real frame time
     qTimes.push(rawDt); if (qTimes.length < 45) return;
     const med = qTimes.slice().sort((a, b) => a - b)[22]; qTimes.length = 0;
-    if (med > 0.036 && qLevel < QL.length - 1) { applyQuality(qLevel + 1); console.info('[quality] step down to', qLevel, 'median', Math.round(med * 1000), 'ms'); }
+    if (med <= 0.036 || qLevel >= QL.length - 1) return;
+    // slow frames can also be a throttled/background page (e.g. an app's side panel): only step down when the GPU
+    // itself is the bottleneck (a short synchronous timing of real draws)
+    const b = window.__slBench(3);
+    if (b.msPerFrame > 28) { applyQuality(qLevel + 1); console.info('[quality] step down to', qLevel, '— frame', Math.round(med * 1000), 'ms, draw', b.msPerFrame, 'ms'); }
+    else qHold = 300; // GPU is fine; look again in a while
   }
   // dev check: average ms per frame for n synchronous draws at the current level (GPU-bound, ignores rAF throttling)
   window.__slBench = (n = 20) => { const g = renderer.getContext(), px = new Uint8Array(4), draw = () => (usePost ? composer.render() : renderer.render(world.scene, camera)); draw(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); const t0 = performance.now(); for (let i = 0; i < n; i++) { draw(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } return { level: qLevel, ratio: curRatio, post: usePost, shadows: renderer.shadowMap.enabled, msPerFrame: +((performance.now() - t0) / n).toFixed(1), px: [renderer.domElement.width, renderer.domElement.height] }; };
