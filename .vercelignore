@@ -1,0 +1,8 @@
+qa/
+docs/
+.claude/
+.github/
+AGENTS.md
+CLAUDE.md
+samples/
+tools/

@@ -114,7 +114,8 @@ export function detectRooms(level) {
   const perim = q => q.reduce((s, p, i) => { const n = q[(i + 1) % q.length]; return s + Math.hypot(n[0] - p[0], n[1] - p[1]); }, 0);
   const polys = faces.filter(q => { const A = polygonArea(q); return A >= 0.25 && 2 * A / perim(q) >= 0.26; });
   // spaces whose walls don't fully close (a living room open to the carport, an archway, a missing wall end) are rooms too
-  for (const q of openAreas(level.walls, polys)) polys.push(q);
+  const opened = new Set(openAreas(level.walls, polys));
+  for (const q of opened) polys.push(q);
   const prev = level.rooms || [];
   const used = new Set();
   const rooms = polys.map((poly, i) => {
@@ -124,7 +125,9 @@ export function detectRooms(level) {
     const area = polygonArea(poly);
     const biggest = polys.every(q => polygonArea(q) <= area + 1e-6);
     const base = old || { id: `r${String(level.id || '').replace(/\W/g, '')}${Date.now().toString(36)}${i}`, name: biggest && area > 15 ? '客廳' : area > 7 ? '臥室' : '房間', nameEn: biggest && area > 15 ? 'Living' : area > 7 ? 'Bedroom' : 'Room', finish: 'floor' };
-    return { ...base, polygon: poly, labelAt: old && old.labelPinned ? old.labelAt : c };
+    const room = { ...base, polygon: poly, labelAt: old && old.labelPinned ? old.labelAt : c };
+    if (opened.has(poly)) room.open = true; else delete room.open; // walls don't fully close it (found by openAreas)
+    return room;
   });
   // new rooms: one 客廳 at most, the rest numbered (臥室 1, 臥室 2… / 房間 1…)
   const isNew = r => !prev.some(p => p.id === r.id);

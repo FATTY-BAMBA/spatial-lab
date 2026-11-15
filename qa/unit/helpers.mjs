@@ -1,0 +1,13 @@
+import '../lib/node-env.mjs';
+import { join } from 'node:path';
+import { REPO } from '../lib/node-env.mjs';
+export const G = await import(join(REPO, 'src/editor/geometry.js'));
+export const P = await import(join(REPO, 'src/plan.js'));
+export const D = await import(join(REPO, 'src/editor/drawn.js'));
+export const F = await import(join(REPO, 'src/editor/furnish.js'));
+export const DR = await import(join(REPO, 'src/editor/dress.js'));
+export const X = await import(join(REPO, 'src/editor/dxf.js'));
+let n = 0;
+export const W = (a, b, t = 0.15, extra = {}) => ({ id: `w${n++}`, a, b, t, openings: [], ...extra });
+export const rect = (x0, z0, x1, z1, t = 0.15) => [W([x0, z0], [x1, z0], t), W([x1, z0], [x1, z1], t), W([x1, z1], [x0, z1], t), W([x0, z1], [x0, z0], t)];
+export const level = walls => ({ id: '1F', walls, rooms: [], furniture: [], voids: [] });

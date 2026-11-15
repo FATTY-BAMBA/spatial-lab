@@ -93,3 +93,18 @@ function snapBack(level, c, back, d) {
   const move = (best.w.t || 0.12) / 2 + 0.01 - Math.abs(best.off); // >0: push away from the wall, <0: pull towards it
   return [c[0] + best.n[0] * best.side * move, c[1] + best.n[1] * best.side * move];
 }
+
+// union of two item lists from separate AI reads: an item both reads found (same kind, boxes overlapping) is kept once
+// with the boxes averaged; an item only one read found is kept as well
+export function mergeItems(A, B) {
+  const iou = (p, q) => { const ix = Math.max(0, Math.min(p[2], q[2]) - Math.max(p[0], q[0])), iy = Math.max(0, Math.min(p[3], q[3]) - Math.max(p[1], q[1])), i = ix * iy; const u = (p[2] - p[0]) * (p[3] - p[1]) + (q[2] - q[0]) * (q[3] - q[1]) - i; return u > 0 ? i / u : 0; };
+  const near = (p, q) => Math.hypot((p[0] + p[2]) / 2 - (q[0] + q[2]) / 2, (p[1] + p[3]) / 2 - (q[1] + q[3]) / 2) < 0.45 * Math.min(p[2] - p[0] + p[3] - p[1], q[2] - q[0] + q[3] - q[1]) / 2;
+  const out = A.map(x => ({ ...x, box: x.box.slice() })), used = new Set();
+  for (const y of B) {
+    let k = -1, best = 0;
+    out.forEach((x, i) => { if (used.has(i) || x.kind !== y.kind) return; const v = iou(x.box, y.box); if ((v > 0.25 || near(x.box, y.box)) && v >= best) { best = v; k = i; } });
+    if (k >= 0) { used.add(k); out[k].box = out[k].box.map((v, j) => Math.round((v + y.box[j]) / 2)); }
+    else out.push({ ...y, box: y.box.slice() });
+  }
+  return out;
+}

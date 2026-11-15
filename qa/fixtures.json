@@ -1,0 +1,332 @@
+{
+ "_doc": "Test plans for the regression gate. Files live in the PRIVATE repo FATTY-BAMBA/spatial-lab-fixtures (npm run fixtures → qa/.fixtures). Client plans: add them there under client/, give them neutral ids (client-01…), never commit them to this public repo.",
+ "fixtures": [
+  {
+   "id": "dxf-sample-2br",
+   "file": "builtin:samples/sample-2br-apartment.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf",
+    "builtin"
+   ],
+   "note": "Our own sample apartment (in this repo)."
+  },
+  {
+   "id": "591-A8",
+   "file": "images/tw/t01_591_141777_a.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591",
+    "multifloor"
+   ],
+   "note": "2-floor 透天, rendered, living open to carport"
+  },
+  {
+   "id": "591-A3",
+   "file": "images/tw/t02_591_141777_b.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591",
+    "multifloor"
+   ],
+   "note": "3-floor 透天 寅成NO3 A3, rendered, the main demo plan"
+  },
+  {
+   "id": "591-yunyue-C",
+   "file": "images/tw/t04_591_138259_a.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591"
+   ],
+   "note": "建家云玥 C, partial walls"
+  },
+  {
+   "id": "591-yunyue-E",
+   "file": "images/tw/t05_591_138259_b.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591"
+   ],
+   "note": "建家云玥 E, rendered"
+  },
+  {
+   "id": "591-sanrui-a",
+   "file": "images/tw/t07_591_127615_a.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591",
+    "watercolor"
+   ],
+   "note": "三銳 watercolor"
+  },
+  {
+   "id": "591-sanrui-b",
+   "file": "images/tw/t08_591_127615_b.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591",
+    "watercolor"
+   ],
+   "note": "三銳 watercolor"
+  },
+  {
+   "id": "591-sanrui-c",
+   "file": "images/tw/t09_591_127615_c.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591",
+    "watercolor"
+   ],
+   "note": "三銳 watercolor"
+  },
+  {
+   "id": "591-sanrui-d",
+   "file": "images/tw/t10_591_127615_d.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591",
+    "watercolor"
+   ],
+   "note": "三銳 watercolor, open living/dining"
+  },
+  {
+   "id": "591-sanrui-e",
+   "file": "images/tw/t11_591_127615_e.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "tw",
+    "591",
+    "watercolor"
+   ],
+   "note": "三銳 watercolor"
+  },
+  {
+   "id": "intl-cn-1",
+   "file": "images/intl/i01_cn_45719584.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "intl"
+   ],
+   "note": "mainland listing plan"
+  },
+  {
+   "id": "intl-cn-2",
+   "file": "images/intl/i02_cn_45765448.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "intl"
+   ],
+   "note": "mainland listing plan"
+  },
+  {
+   "id": "intl-cn-3",
+   "file": "images/intl/i03_cn_47541863.jpg",
+   "kind": "image",
+   "tags": [
+    "image",
+    "intl"
+   ],
+   "note": "mainland listing plan"
+  },
+  {
+   "id": "intl-r2v",
+   "file": "images/intl/i04_r2v_floorplan1.png",
+   "kind": "image",
+   "tags": [
+    "image",
+    "intl"
+   ],
+   "note": "Raster-to-Vector dataset sample"
+  },
+  {
+   "id": "dxf-d00-own-apartment",
+   "file": "dxf/d00_own_apartment.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d00-own-townhouse",
+   "file": "dxf/d00_own_townhouse.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d00b-own-apartment-big5",
+   "file": "dxf/d00b_own_apartment_big5.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d01-kjdraw-arch",
+   "file": "dxf/d01_kjdraw_arch.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d02-lv-ground",
+   "file": "dxf/d02_lv_ground.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d03-lv-villa-gf",
+   "file": "dxf/d03_lv_villa_gf.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d04-lv-villa-ff",
+   "file": "dxf/d04_lv_villa_ff.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d05-draftcraft-apt",
+   "file": "dxf/d05_draftcraft_apt.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d06-cadcraft-house",
+   "file": "dxf/d06_cadcraft_house.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d10-mall-gf",
+   "file": "dxf/d10_mall_gf.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d11-kr-apt59",
+   "file": "dxf/d11_kr_apt59.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d12-babcock-l3",
+   "file": "dxf/d12_babcock_l3.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d13-mccormick-l2",
+   "file": "dxf/d13_mccormick_l2.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d14-johansson-b1",
+   "file": "dxf/d14_johansson_b1.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d15-bimimic-l1",
+   "file": "dxf/d15_bimimic_l1.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d16-bimcompiler-gf",
+   "file": "dxf/d16_bimcompiler_gf.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d17-studio",
+   "file": "dxf/d17_studio.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d18-simple-house",
+   "file": "dxf/d18_simple_house.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-d19-wilson-basement",
+   "file": "dxf/d19_wilson_basement.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf"
+   ],
+   "note": "public DXF sample"
+  }
+ ]
+}

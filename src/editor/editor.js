@@ -6,7 +6,8 @@ import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { stairLocal, stairBox } from '../plan.js';
 import * as Cloud from '../cloud.js';
-import { placeDrawn, insideWalls } from './drawn.js';
+import { placeDrawn, insideWalls, mergeItems } from './drawn.js';
+import { tidyExteriorOpenings } from './openings.js';
 import { takeFile } from '../handoff.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
@@ -1070,20 +1071,6 @@ async function pdfToImage(file) {
 // ---------------------------------------------------------------- AI room naming (image imports)
 // Draws a numbered marker in every detected room on the plan picture and asks /api/vision what each room is.
 // Applies names, wet/outdoor flags, a printed dimension as the true scale, stairs between floors, then refurnishes.
-// union of two item lists from separate AI reads: an item both reads found (same kind, boxes overlapping) is kept once
-// with the boxes averaged; an item only one read found is kept as well
-function mergeItems(A, B) {
-  const iou = (p, q) => { const ix = Math.max(0, Math.min(p[2], q[2]) - Math.max(p[0], q[0])), iy = Math.max(0, Math.min(p[3], q[3]) - Math.max(p[1], q[1])), i = ix * iy; const u = (p[2] - p[0]) * (p[3] - p[1]) + (q[2] - q[0]) * (q[3] - q[1]) - i; return u > 0 ? i / u : 0; };
-  const near = (p, q) => Math.hypot((p[0] + p[2]) / 2 - (q[0] + q[2]) / 2, (p[1] + p[3]) / 2 - (q[1] + q[3]) / 2) < 0.45 * Math.min(p[2] - p[0] + p[3] - p[1], q[2] - q[0] + q[3] - q[1]) / 2;
-  const out = A.map(x => ({ ...x, box: x.box.slice() })), used = new Set();
-  for (const y of B) {
-    let k = -1, best = 0;
-    out.forEach((x, i) => { if (used.has(i) || x.kind !== y.kind) return; const v = iou(x.box, y.box); if ((v > 0.25 || near(x.box, y.box)) && v >= best) { best = v; k = i; } });
-    if (k >= 0) { used.add(k); out[k].box = out[k].box.map((v, j) => Math.round((v + y.box[j]) / 2)); }
-    else out.push({ ...y, box: y.box.slice() });
-  }
-  return out;
-}
 // picture px (in the image sent to the AI, scale S) → plan metres on a floor with picture shift sh
 const toPlanPx = ([px, py], sh, S) => [underlay.x + (px / S + sh[0]) * underlay.mpp, underlay.z + (py / S + sh[1]) * underlay.mpp];
 let aiState = 'unknown'; // 'off' once the server says no key is configured
@@ -1121,6 +1108,8 @@ async function aiNameRooms({ quiet = false } = {}) {
     if (r.status === 503 || r.status === 404) { aiState = 'off'; if (!quiet) toast(t('AI 命名尚未啟用（伺服器未設定金鑰），已使用規則命名。', 'AI naming is not enabled on the server yet; rule-based names are used.')); return false; }
     if (!good.length) throw new Error((a && a.j.error) || r.status);
     out = good[0].j;
+    // what the AI answered, kept for QA recordings (qa/recordings/<fixture>.json: replayed by the regression gate)
+    window.__qaVision = { S, size: [c.width, c.height], file: doc.project.name, passes: good.map(g => ({ rooms: g.j.rooms, items: g.j.items, scale: g.j.scale })) };
     if (good[1]) out.items = mergeItems(out.items || [], good[1].j.items || []);
     flow.step('rooms', 'done', t(`${out.rooms.length} 間`, `${out.rooms.length} rooms`)); flow.step('furniture', 'active', t(`圖面上 ${(out.items || []).length} 件`, `${(out.items || []).length} drawn`));
     // second look: the drawing has furniture but some furnishable rooms came back empty → ask about just those rooms
@@ -1140,7 +1129,7 @@ async function aiNameRooms({ quiet = false } = {}) {
         flow.step('furniture', 'active', t('AI 再看一次部分房間…', 'second look at some rooms…'));
         const r2 = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length, size: [c.width, c.height], focus: empty }) });
         if (r2.ok) { // keep what the second look adds; drop near-duplicates of items already found
-          const o2 = await r2.json(), same = (a, b) => a.kind === b.kind && Math.abs((a.box[0] + a.box[2]) - (b.box[0] + b.box[2])) < 30 && Math.abs((a.box[1] + a.box[3]) - (b.box[1] + b.box[3])) < 30;
+          const o2 = await r2.json(); window.__qaVision.passes[2] = { rooms: o2.rooms, items: o2.items, scale: o2.scale, focus: empty }; const same = (a, b) => a.kind === b.kind && Math.abs((a.box[0] + a.box[2]) - (b.box[0] + b.box[2])) < 30 && Math.abs((a.box[1] + a.box[3]) - (b.box[1] + b.box[3])) < 30;
           out.items = out.items.concat((o2.items || []).filter(it => empty.includes(it.n) && !out.items.some(x => same(x, it))));
         }
       }
@@ -1185,7 +1174,7 @@ async function aiNameRooms({ quiet = false } = {}) {
     else { const w = Math.min(1.1, x1 - x0 > 2.4 ? (x1 - x0) / 2 : x1 - x0); doc.stairs.push({ ...base, x0: r3(x0), x1: r3(x0 + w), zStart: r3(z1), zEnd: r3(z0) }); }
   }
   for (const L of doc.levels) detectRooms(L);
-  tidyExteriorOpenings();
+  tidyExteriorOpenings(doc);
   // the drawing's own furniture layout: each item goes on the floor of the room it was drawn in (rooms keep their
   // position through detectRooms, so the marker's floor is the item's floor); rooms with nothing drawn get the generic layout
   let nDrawn = 0;
@@ -1210,29 +1199,6 @@ async function aiNameRooms({ quiet = false } = {}) {
     ? t(`AI 已命名 ${out.rooms.length} 個房間，並依圖面擺放 ${nDrawn} 件家具${out.scale ? '；比例已依圖面尺寸校正' : ''}。`, `AI named ${plural(out.rooms.length, 'room')} and placed ${nDrawn} pieces as drawn${out.scale ? '; scale set from a printed size' : ''}.`)
     : t(`AI 已命名 ${out.rooms.length} 個房間${out.scale ? '、依圖面尺寸校正比例' : ''}，家具已依房間類型重新配置。`, `AI named ${plural(out.rooms.length, 'room')}${out.scale ? ' and set the scale from a printed size' : ''}; furniture was rearranged to match.`));
   return true;
-}
-// Picture imports: gaps in outside walls are windows, except the entrance (one door on the ground floor, by the
-// 玄關 or living room) and wide openings off the living/dining room, which become sliding doors (落地窗).
-function tidyExteriorOpenings() {
-  let hasMain = doc.levels.some(L => L.walls.some(w => (w.openings || []).some(o => o.main)));
-  doc.levels.forEach((L, li) => {
-    const roomAt = p => L.rooms.find(r => pointInPolygon(p, r.polygon));
-    const cands = [];
-    for (const w of L.walls) {
-      if (!w.ext) continue;
-      const { ux, uz } = wallFrame(w), n = [-uz, ux];
-      for (const o of w.openings || []) {
-        if (o.type === 'window' || o.main) continue;
-        const m = [w.a[0] + ux * (o.offset + o.width / 2), w.a[1] + uz * (o.offset + o.width / 2)];
-        const r = roomAt([m[0] + n[0] * 0.4, m[1] + n[1] * 0.4]) || roomAt([m[0] - n[0] * 0.4, m[1] - n[1] * 0.4]);
-        const nm = r ? `${r.name} ${r.nameEn || ''}` : '';
-        if (o.width >= 1.8 && /客|餐|living|dining/i.test(nm)) { Object.assign(o, { type: 'slider', sill: 0, head: 2.4, panels: o.width > 3 ? 4 : 2 }); continue; }
-        if (li === 0 && o.width >= 0.75 && o.width <= 1.6) cands.push({ o, score: /玄關|玄|entr/i.test(nm) ? 3 : /客|餐|living|dining/i.test(nm) ? 2 : /廚|kitchen/i.test(nm) ? 0.5 : 1 });
-        Object.assign(o, { type: 'window', sill: /浴|廁|bath/i.test(nm) ? 1.4 : 0.9, head: 2.2 });
-      }
-    }
-    if (li === 0 && !hasMain && cands.length) { cands.sort((a, b) => b.score - a.score); Object.assign(cands[0].o, { type: 'door', sill: 0, head: 2.1, main: true }); hasMain = true; }
-  });
 }
 // Scale the whole plan (walls, furniture, stairs, picture) about the picture's origin
 function rescalePlan(f) {
@@ -1266,7 +1232,7 @@ $('#img-detect').addEventListener('click', () => {
     doc.project.type = 'townhouse'; // several floors in one picture = a 透天
     doc.stairs = []; // the floors are new, so are their stairs
     for (const L of doc.levels) { L.rooms = []; detectRooms(L); }
-    tidyExteriorOpenings();
+    tidyExteriorOpenings(doc);
     for (const L of doc.levels) nF += autoFurnish(L, { stairs: doc.stairs });
     lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
@@ -1282,7 +1248,7 @@ $('#img-detect').addEventListener('click', () => {
   L.rooms = [];
   doc.stairs = doc.stairs.filter(st => st.from !== L.id || !st.auto);
   detectRooms(L);
-  tidyExteriorOpenings();
+  tidyExteriorOpenings(doc);
   autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
   toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查缺口、門窗與房間名稱；未封閉的空間用「牆」補上。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check gaps, doors/windows and room names; close open spaces with the Wall tool.`));

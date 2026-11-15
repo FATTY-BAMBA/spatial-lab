@@ -1,0 +1,19 @@
+{
+  "name": "spatial-lab-qa",
+  "private": true,
+  "type": "module",
+  "description": "Spatial Lab test & validation suite — see qa/README.md",
+  "scripts": {
+    "fixtures": "node fixtures-sync.mjs",
+    "unit": "node --test unit/*.test.mjs",
+    "regress": "node regress.mjs",
+    "baseline": "node regress.mjs --write-baseline",
+    "e2e": "node e2e.mjs",
+    "all": "npm run unit && npm run regress && npm run e2e"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0"
+  },
+  "optionalNote": "playwright is not listed: environments that ship it (Claude/Codex sandboxes) use theirs; CI installs playwright@1.63.0 itself."
+}
