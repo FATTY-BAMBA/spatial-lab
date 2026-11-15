@@ -1,6 +1,6 @@
 // Plan geometry used by the editor: room detection from walls (planar faces),
 // exterior wall marking, label/spot placement and the auto-generated 3D story.
-import { polygonArea, polygonCentroid, pointInPolygon, bbox, wallFrame } from '../plan.js';
+import { polygonArea, polygonCentroid, pointInPolygon, bbox, wallFrame, stairBox } from '../plan.js';
 
 const EPS = 0.004;
 const key = (x, z) => `${Math.round(x / EPS)}|${Math.round(z / EPS)}`;
@@ -121,7 +121,7 @@ export function detectRooms(level) {
     if (old) used.add(old.id);
     const area = polygonArea(poly);
     const biggest = polys.every(q => polygonArea(q) <= area + 1e-6);
-    const base = old || { id: `r${Date.now().toString(36)}${i}`, name: biggest && area > 15 ? '客廳' : area > 7 ? '臥室' : '房間', nameEn: biggest && area > 15 ? 'Living' : area > 7 ? 'Bedroom' : 'Room', finish: 'floor' };
+    const base = old || { id: `r${String(level.id || '').replace(/\W/g, '')}${Date.now().toString(36)}${i}`, name: biggest && area > 15 ? '客廳' : area > 7 ? '臥室' : '房間', nameEn: biggest && area > 15 ? 'Living' : area > 7 ? 'Bedroom' : 'Room', finish: 'floor' };
     return { ...base, polygon: poly, labelAt: old && old.labelPinned ? old.labelAt : c };
   });
   // new rooms: one 客廳 at most, the rest numbered (臥室 1, 臥室 2… / 房間 1…)
@@ -224,11 +224,14 @@ export function completePlan(plan, base) {
     { label: '樓層 Levels', labelEn: 'Levels', value: p.levels.map(L => L.id).join(' / '), valueEn: p.levels.map(L => L.id).join(' / ') },
     { label: '房間 Rooms', labelEn: 'Rooms', value: `${nRooms} 間`, valueEn: `${nRooms}` },
   ];
+  // room ids must be unique across floors (older imports made several floors in the same millisecond)
+  const seenIds = new Set();
+  for (const L of p.levels) for (const r of L.rooms) { if (seenIds.has(r.id)) r.id = `${r.id}-${L.id}`; seenIds.add(r.id); }
   for (const L of p.levels) {
     const links = doorLinks(L);
     for (const r of L.rooms) {
       r.labelAt = r.labelAt || labelPoint(r.polygon);
-      if (!r.spotPinned) r.spot = roomSpot(r, links);
+      if (!r.spotPinned) r.spot = roomSpot(r, links, blockersFor(p, L));
     }
   }
   for (const f of p.finishes) f.focus = f.focus && roomExists(p, f.focus) ? f.focus : biggestRoom(p.levels[0], f.id === 'counter' || f.id === 'cabinet' ? /廚|kitchen/i : null);
@@ -242,22 +245,45 @@ function biggestRoom(L, re) {
   return (named || rooms.sort((a, b) => polygonArea(b.polygon) - polygonArea(a.polygon))[0] || {}).id;
 }
 
-function roomSpot(r, links) {
-  const c = labelPoint(r.polygon);
-  const door = links.find(l => l.a === r.id || l.b === r.id);
-  let pos, look;
-  if (door) {
-    const dir = door.a === r.id ? 1 : -1; // into the room along the normal
-    const inside = [door.m[0] + door.n[0] * dir * 0.7, door.m[1] + door.n[1] * dir * 0.7];
-    pos = pointInPolygon(inside, r.polygon) ? inside : c;
-    look = [c[0] + (c[0] - pos[0]) * 0.8, c[1] + (c[1] - pos[1]) * 0.8];
-    if (Math.hypot(look[0] - pos[0], look[1] - pos[1]) < 1) look = [pos[0] + door.n[0] * dir * 3, pos[1] + door.n[1] * dir * 3];
-  } else {
-    const b = bbox(r.polygon);
-    pos = [b.x0 + (b.x1 - b.x0) * 0.2, b.z0 + (b.z1 - b.z0) * 0.2];
-    if (!pointInPolygon(pos, r.polygon)) pos = c;
-    look = [b.x1, b.z1];
+// things a standing camera must not be inside: stair runs (from or to this floor), stairwell openings, furniture
+function blockersFor(p, L) {
+  const boxes = [];
+  for (const st of p.stairs || []) if (st.from === L.id || st.to === L.id) { const b = stairBox(st); boxes.push({ ...b, pad: 0.45 }); }
+  for (const v of L.voids || []) { const b = bbox(v.polygon); boxes.push({ ...b, pad: 0.35 }); }
+  for (const f of L.furniture || []) {
+    if (!(f.w > 0 && f.d > 0) || f.x == null) continue;
+    const q = Math.abs(Math.round((f.rot || 0) / 90)) % 2 === 1, hw = (q ? f.d : f.w) / 2, hd = (q ? f.w : f.d) / 2;
+    boxes.push({ x0: f.x - hw, x1: f.x + hw, z0: f.z - hd, z1: f.z + hd, pad: 0.25 });
   }
+  return boxes;
+}
+const segDist = (p, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / L2)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dz); };
+// where a visitor stands on arriving in a room: a free spot (clear of walls, stairs and furniture) near the door,
+// looking across the longest open line of the room — also the natural angle for a render
+function roomSpot(r, links, blockers = []) {
+  const c = labelPoint(r.polygon), poly = r.polygon;
+  const edgeDist = q => { let m = Infinity; for (let i = 0; i < poly.length; i++) m = Math.min(m, segDist(q, poly[i], poly[(i + 1) % poly.length])); return m; };
+  const free = q => pointInPolygon(q, poly) && edgeDist(q) >= 0.4 && !blockers.some(b => q[0] > b.x0 - b.pad && q[0] < b.x1 + b.pad && q[1] > b.z0 - b.pad && q[1] < b.z1 + b.pad);
+  const door = links.find(l => l.a === r.id || l.b === r.id);
+  const dir = door ? (door.a === r.id ? 1 : -1) : 0;
+  const atDoor = door ? [door.m[0] + door.n[0] * dir * 0.7, door.m[1] + door.n[1] * dir * 0.7] : null;
+  // free sample points across the room
+  const b = bbox(poly), step = Math.max(0.3, Math.min(0.6, Math.sqrt(polygonArea(poly)) / 12)), pts = [];
+  for (let x = b.x0 + step / 2; x < b.x1; x += step) for (let z = b.z0 + step / 2; z < b.z1; z += step) if (free([x, z])) pts.push([x, z]);
+  let pos, look;
+  if (atDoor && free(atDoor) && pts.length) { // classic: just inside the door, looking at the far end
+    pos = atDoor; look = pts.reduce((a, q) => (Math.hypot(q[0] - pos[0], q[1] - pos[1]) > Math.hypot(a[0] - pos[0], a[1] - pos[1]) ? q : a), pts[0]);
+  } else if (pts.length > 1) { // the two free points farthest apart; stand at the one nearer the door
+    let best = [pts[0], pts[0]], bd = -1;
+    const S = pts.length > 400 ? pts.filter((_, i) => i % Math.ceil(pts.length / 400) === 0) : pts;
+    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) { const d = Math.hypot(S[i][0] - S[j][0], S[i][1] - S[j][1]); if (d > bd) { bd = d; best = [S[i], S[j]]; } }
+    const ref = atDoor || c;
+    [pos, look] = Math.hypot(best[0][0] - ref[0], best[0][1] - ref[1]) <= Math.hypot(best[1][0] - ref[0], best[1][1] - ref[1]) ? best : [best[1], best[0]];
+  } else { // tiny or fully furnished room: the old rule
+    pos = atDoor && pointInPolygon(atDoor, poly) ? atDoor : c;
+    look = [c[0] + (c[0] - pos[0]) * 0.8, c[1] + (c[1] - pos[1]) * 0.8];
+  }
+  if (Math.hypot(look[0] - pos[0], look[1] - pos[1]) < 1) look = door ? [pos[0] + door.n[0] * dir * 3, pos[1] + door.n[1] * dir * 3] : [b.x1, b.z1];
   return { pos: pos.map(v => +v.toFixed(2)), look: look.map(v => +v.toFixed(2)) };
 }
 
