@@ -98,8 +98,24 @@ export function extractPlanLines(img) {
   let cut = pk; while (cut < 250 && sm(cut) > 0.12 * sm(pk)) cut++;
   let c60 = 0, c140 = 0; for (let i = 0; i < 140; i++) { if (i < 60) c60 += hist0[i]; c140 += hist0[i]; }
   const busy = c60 > 0 && (c140 - c60) / c60 > 0.6; // lots of mid-grey (rendered furniture, tiles) next to the ink
-  const thr = busy ? Math.max(60, Math.min(140, pk + 70, Math.max(pk + 15, cut + 10))) : Math.max(60, Math.min(140, otsu(lum) - 10));
+  // busy pictures: stay close to the ink itself (≤ peak + 30), or watercolour shadows beside the walls merge into them
+  const thr = busy ? Math.max(60, Math.min(140, pk + 30, Math.max(pk + 15, cut + 10))) : Math.max(60, Math.min(140, otsu(lum) - 10));
   const dark = new Uint8Array(W * H); for (let i = 0; i < lum.length; i++) dark[i] = lum[i] < thr;
+  // a border frame around the whole picture is not a building: rows/columns near an edge that are dark for
+  // most of their length are cleared (with everything outside them) before walls are looked for
+  const band = Math.round(Math.min(W, H) * 0.06);
+  const rowDark = y => { let n = 0; for (let x = 0; x < W; x++) n += dark[y * W + x]; return n / W; };
+  const colDark = x => { let n = 0; for (let y = 0; y < H; y++) n += dark[y * W + x]; return n / H; };
+  let top = -1, bot = H, left = -1, right = W;
+  for (let y = 0; y < band; y++) if (rowDark(y) > 0.7) top = y;
+  for (let y = H - 1; y >= H - band; y--) if (rowDark(y) > 0.7) bot = y;
+  for (let x = 0; x < band; x++) if (colDark(x) > 0.7) left = x;
+  for (let x = W - 1; x >= W - band; x--) if (colDark(x) > 0.7) right = x;
+  if (top >= 0 || bot < H || left >= 0 || right < W) {
+    const pad = 3;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+      if ((top >= 0 && y <= top + pad) || (bot < H && y >= bot - pad) || (left >= 0 && x <= left + pad) || (right < W && x >= right - pad)) dark[y * W + x] = 0;
+  }
   const { hr, vr } = runs(dark, W, H);
   // wall thickness = the most common width of LONG dark strokes (≥ 4× longer than wide) — text and fixtures are short
   const hist = new Float64Array(80);
@@ -109,7 +125,7 @@ export function extractPlanLines(img) {
     if (h >= 4 * v && v >= minW && v < 80) hist[v]++; else if (v >= 4 * h && h >= minW && h < 80) hist[h]++;
   }
   let tPx = 0, best = 0;
-  for (let w = minW; w < 80; w++) { const v = hist[w - 1] * 0.5 + hist[w] + hist[w + 1] * 0.5; if (v > best) { best = v; tPx = w; } }
+  for (let w = minW; w < 80; w++) { const v = (hist[w - 1] * 0.5 + hist[w] + hist[w + 1] * 0.5) / Math.sqrt(w); if (v > best) { best = v; tPx = w; } } // leans towards length over ink area: pillars are thick but few
   if (!tPx) return { faces: [], thin: [], tPx: 0 };
   // partitions are often under half the exterior wall: keep every elongated stroke at least ~40% of it
   const k = Math.max(minW, Math.round(tPx * 0.4));
@@ -130,14 +146,21 @@ export function extractPlanLines(img) {
   const faces = [], thinLines = [], boxes = []; // boxes[i] = work-px bounds of the wall behind faces[2i], faces[2i+1]
   const back = v => v / s; // work px → original px
   const taken = new Uint8Array(W * H); // wall pixels already explained by straight bars
+  // candidates first, so each can be compared with the typical wall ink (length-weighted median of all of them)
+  const cands = [];
+  for (const horizontal of [true, false]) for (const b of bars(wall, W, H, L, horizontal)) {
+    if (b.t < k || b.t > tPx * 3.5) continue;
+    const st = coreStats(b, horizontal);
+    cands.push({ b, horizontal, st });
+    if (debug) debug.push({ horizontal, c0: b.c0 / s, c1: b.c1 / s, m: b.m / s, t: b.t / s, ...st });
+  }
+  const byLum = cands.slice().sort((x, y) => x.st.lum - y.st.lum), totalLen = cands.reduce((a, c) => a + c.b.c1 - c.b.c0, 0);
+  let acc = 0, inkRef = 255; for (const c of byLum) { acc += c.b.c1 - c.b.c0; if (acc >= totalLen / 2) { inkRef = c.st.lum; break; } }
   for (const horizontal of [true, false]) {
-    for (const b of bars(wall, W, H, L, horizontal)) {
-      if (b.t < k || b.t > tPx * 3.5) continue;
-      const st = coreStats(b, horizontal);
-      if (debug) debug.push({ horizontal, c0: b.c0 / s, c1: b.c1 / s, m: b.m / s, t: b.t / s, ...st });
+    for (const { b, st } of cands.filter(c => c.horizontal === horizontal)) {
       // rendered objects (cars, dark sofas) have edges as thick and dark as walls, but their "ink" is lighter
-      // or tinted; wall ink is the image's darkest, colourless tone
-      if (busy && (st.lum > pk + 12 || st.chroma > 38)) continue;
+      // or tinted than the walls' own ink
+      if (busy && (st.lum > inkRef + 14 || st.chroma > 38)) continue;
       for (let c = Math.max(0, b.c0 - 2); c < Math.min(horizontal ? W : H, b.c1 + 2); c++) for (let r = Math.floor(b.m - b.t / 2 - 2); r <= Math.ceil(b.m + b.t / 2 + 2); r++) { const i = horizontal ? r * W + c : c * W + r; if (r >= 0 && r < (horizontal ? H : W)) taken[i] = 1; }
       for (const side of [-1, 1]) {
         const m = b.m + side * b.t / 2;
