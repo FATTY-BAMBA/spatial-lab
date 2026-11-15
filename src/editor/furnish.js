@@ -4,6 +4,7 @@
 // in front of each piece free, and keeping tall pieces out of windows.
 // Item orientation follows the plan format: an item's back faces (−sin r, −cos r), so rot 0 sits against a wall on its −z side.
 import { pointInPolygon, polygonArea, wallFrame, stairBox } from '../plan.js';
+import { dressLevel } from './dress.js';
 
 const G = 0.05; // grid (m)
 const FREE = 0, HARD = 1, SOFT = 2, KEEP = 3; // SOFT = someone's clearance, KEEP = door swing / opening (no furniture)
@@ -330,14 +331,14 @@ function furnishStudy(R, out) {
 // removes earlier auto-placed pieces but keeps anything the user placed by hand). Returns the number of items added.
 export function autoFurnish(level, { replace = false, stairs = [], skipDrawn = false } = {}) {
   // pieces read from the drawing (drawn) survive a re-run; rooms that have them keep the drawing's layout
-  if (replace) level.furniture = (level.furniture || []).filter(f => !f.auto || f.drawn);
+  if (replace) level.furniture = (level.furniture || []).filter(f => (!f.auto || f.drawn) && !f.dress);
   level.furniture = level.furniture || [];
   let added = 0;
   for (const room of level.rooms || []) {
     const type = roomType(room);
     if (type === 'none') continue;
     if (level.furniture.some(f => f.drawn && pointInPolygon([f.x, f.z], room.polygon))) continue;
-    if (!replace && level.furniture.some(f => pointInPolygon([f.x, f.z], room.polygon))) continue;
+    if (!replace && level.furniture.some(f => !f.dress && pointInPolygon([f.x, f.z], room.polygon))) continue;
     const R = roomGrid(level, room);
     for (const f of level.furniture) boxMark(R, rotBox(f), HARD);
     // stair flights (going up from here or arriving from below) plus a landing in front stay clear
@@ -361,6 +362,7 @@ export function autoFurnish(level, { replace = false, stairs = [], skipDrawn = f
     if (type === 'living' && polygonArea(room.polygon) >= 26 && !(level.rooms || []).some(r => /餐|dining/i.test(`${r.name} ${r.nameEn}`))) furnishDining(R, out);
     level.furniture.push(...out); added += out.length;
   }
+  dressLevel(level, roomType); // curtains, lights, hood, art, rugs, plants
   return added;
 }
 

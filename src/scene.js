@@ -186,11 +186,15 @@ export async function createWorld(plan, renderer, opts = {}) {
   } else {
     const pav = tex('paving').clone(); pav.needsUpdate = true; pav.repeat.set(1 / 4.8, 1 / 4.8);
     const pb = bumpTex('paving');
-    const ground = new THREE.Mesh(planeXZ(-40, -40, 80, 80), std({ map: pav, bumpMap: pb, bumpScale: 1, roughness: 0.9 }));
+    // site around the actual building (all floors): street along its front, two trees clear of every floor
+    const ws = plan.levels.flatMap(L => L.walls || []), xs = ws.flatMap(w => [w.a[0], w.b[0]]), zs = ws.flatMap(w => [w.a[1], w.b[1]]);
+    const bx0 = xs.length ? Math.min(...xs) : 0, bx1 = xs.length ? Math.max(...xs) : 10, bz0 = zs.length ? Math.min(...zs) : 0, bz1 = zs.length ? Math.max(...zs) : 10;
+    const gcx = Math.round((bx0 + bx1) / 2), gcz = Math.round((bz0 + bz1) / 2);
+    const ground = new THREE.Mesh(planeXZ(gcx - 40, gcz - 40, 80, 80), std({ map: pav, bumpMap: pb, bumpScale: 1, roughness: 0.9 }));
     ground.position.y = -0.005; ground.receiveShadow = true; siteG.add(ground);
-    const road = new THREE.Mesh(planeXZ(-40, 17.5, 80, 7), M.asphalt);
+    const road = new THREE.Mesh(planeXZ(gcx - 40, bz1 + 3, 80, 7), M.asphalt);
     road.position.y = -0.002; road.receiveShadow = true; siteG.add(road);
-    siteG.add(makeTree(6.6, 16.3, M), makeTree(10.2, 3.5, M, 0.8));
+    siteG.add(makeTree(bx1 + 2.6, bz1 + 1.4, M), makeTree(bx0 - 2.6, bz0 + Math.min(4, (bz1 - bz0) / 3), M, 0.8));
   }
 
   // ---------- levels ----------
@@ -896,6 +900,13 @@ function buildItem(f, ctx) {
       P(geo, M.leaf, 0, 0.85, 0, false); P(geo, M.leaf, 0.12, 1.2, 0.05, false).scale.setScalar(0.7);
       break;
     }
+    case 'art': { // framed canvas on the wall: soft abstract composition, a different one per piece
+      const h = f.h || 0.8, y = f.y || 1.5;
+      P(boxGeo(w + 0.05, h + 0.05, 0.03), M.wood, 0, y, 0, false);
+      const m = P(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: artTexture(f.seed || 7, w / h), roughness: 0.92 }), 0, y, 0.0165, false);
+      m.castShadow = false;
+      break;
+    }
     case 'pendant':
       P(new THREE.CylinderGeometry(0.004, 0.004, 0.9, 4), M.black, 0, 2.6, 0, false);
       P(new THREE.ConeGeometry(0.18, 0.24, 24, 1, true), M.shade, 0, 2.05, 0, false);
@@ -944,4 +955,31 @@ function buildItem(f, ctx) {
     default: P(boxGeo(w, 0.8, d), M.lightWood, 0, 0.4, 0);
   }
   return g;
+}
+
+// abstract canvas for 'art' pieces: warm ground, a few large soft forms in muted earth tones, a fine line
+const artCache = new Map();
+function artTexture(seed, aspect) {
+  const key = `${seed}:${aspect.toFixed(2)}`;
+  if (artCache.has(key)) return artCache.get(key);
+  let st = (seed * 9301 + 49297) % 233280; const rnd = () => (st = (st * 9301 + 49297) % 233280) / 233280;
+  const W = 512, H = Math.max(160, Math.round(W / aspect)), c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const grounds = ['#efe9df', '#e9e2d6', '#f2eee6', '#e4ddd2'], inks = ['#b9875f', '#7d8a74', '#c9b79c', '#5f5a55', '#a45f45', '#8fa0a8', '#d8c3a5', '#3f4a52'];
+  g.fillStyle = grounds[Math.floor(rnd() * grounds.length)]; g.fillRect(0, 0, W, H);
+  const n = 3 + Math.floor(rnd() * 3);
+  for (let i = 0; i < n; i++) {
+    g.globalAlpha = 0.55 + rnd() * 0.4; g.fillStyle = inks[Math.floor(rnd() * inks.length)];
+    const x = rnd() * W, y = rnd() * H, r = (0.18 + rnd() * 0.3) * Math.min(W, H), k = rnd();
+    g.beginPath();
+    if (k < 0.4) g.arc(x, y, r, 0, Math.PI * 2);
+    else if (k < 0.7) { g.moveTo(x - r, y + r); g.lineTo(x - r, y); g.arc(x, y, r, Math.PI, 0); g.lineTo(x + r, y + r); g.closePath(); }
+    else g.rect(x - r, y - r * 0.6, r * 1.6, r * 1.2);
+    g.fill();
+  }
+  g.globalAlpha = 0.8; g.strokeStyle = '#2f2b28'; g.lineWidth = 2; g.beginPath();
+  const y0 = H * (0.3 + rnd() * 0.4); g.moveTo(W * 0.08, y0); g.bezierCurveTo(W * 0.35, y0 - H * 0.25 * rnd(), W * 0.65, y0 + H * 0.25 * rnd(), W * 0.92, y0 - H * 0.1); g.stroke();
+  g.globalAlpha = 0.06; for (let i = 0; i < 1800; i++) { g.fillStyle = rnd() > 0.5 ? '#000' : '#fff'; g.fillRect(rnd() * W, rnd() * H, 1, 1); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  artCache.set(key, t); return t;
 }
