@@ -4,7 +4,7 @@
 import { polygonArea, bbox, toPing, wallFrame, pointInPolygon, itemFootprint } from '../plan.js';
 import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
-import { parseDXF, detectWalls, closeCorners } from './dxf.js';
+import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { isEn, t, unitLabel, translateDom, langSwitch } from '../i18n.js';
 
 // ---------------------------------------------------------------- language
@@ -46,7 +46,7 @@ translateDom({
   'DXF 透明度': 'DXF opacity',
   '自動辨識牆體': 'Detect walls',
   '移除': 'Remove',
-  '圓點：顯示圖層；單選：牆線圖層。描牆時會吸附 DXF 端點。': 'Checkbox: show layer. Radio: wall layer. Wall tracing snaps to DXF endpoints.',
+  '左框：顯示圖層；右框：牆線圖層（可多選）。描牆時會吸附 DXF 端點。': 'Left box: show layer. Right box: wall layers (pick several). Wall tracing snaps to DXF endpoints.',
   '滾輪縮放 · 空白鍵/右鍵拖曳平移 · Ctrl+Z 復原': 'Scroll to zoom · Space or right-drag to pan · Ctrl+Z to undo',
 });
 if (isEn) document.title = 'Spatial Lab Plan Editor';
@@ -125,7 +125,7 @@ let tool = 'select';
 let sel = null; // {type, wall, opening, room, item, stair}
 let hover = null;
 let view = { x0: -2, z0: -2, s: 60 };
-let underlay = { img: null, imgEl: null, x: 0, z: 0, mpp: 0.01, opacity: 0.55, dxf: null, dxfLayers: new Set(), dxfOpacity: 0.7 };
+let underlay = { img: null, imgEl: null, x: 0, z: 0, mpp: 0.01, opacity: 0.55, dxf: null, dxfLayers: new Set(), wallLayers: new Set(), dxfOpacity: 0.7 };
 let draft = null; // wall drawing { pts: [...] }
 let typed = '';
 let pendingItem = null; // catalogue entry to place
@@ -759,7 +759,7 @@ $('#btn-new').addEventListener('click', () => { if (doc.levels.some(L => L.walls
 $('#btn-sample').addEventListener('change', async e => {
   const v = e.target.value; e.target.value = '';
   if (!v) return;
-  if (v === 'dxf') { const t = await (await fetch('samples/sample-2br-apartment.dxf')).text(); importDXF(t, 'sample-2br-apartment.dxf'); return; }
+  if (v === 'dxf') { const b = await (await fetch('samples/sample-2br-apartment.dxf')).arrayBuffer(); importDXF(b, 'sample-2br-apartment.dxf'); return; }
   const d = await (await fetch(`data/${v}.json`)).json();
   loadDoc(fromBuiltIn(d));
 });
@@ -806,7 +806,7 @@ function fromBuiltIn(d) {
   }
   return out;
 }
-$('#file-dxf').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; importDXF(await f.text(), f.name); e.target.value = ''; });
+$('#file-dxf').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; importDXF(await f.arrayBuffer(), f.name); e.target.value = ''; });
 $('#file-img').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   const img = new Image();
@@ -830,42 +830,48 @@ async function open3D() {
   location.href = 'index.html?p=custom';
 }
 
-function importDXF(text, name) {
+const ROOMWORD = /房|廳|厅|室|臥|卧|廚|厨|浴|廁|厕|衛|卫|陽台|阳台|玄關|書房|儲|倉|走道|梯|辦公|會議|大廳|茶水|機房|room|bed|living|dining|kitchen|bath|wc|toilet|hall|lobby|office|meeting|conference|storage|store|closet|laundry|utility|garage|study|foyer|entry|corridor|balcony|terrace|pantry|shop|retail|电|電氣|electrical|mech/i;
+const ROOMRANK = [/客廳|客厅|起居|living|lounge/i, /餐廳|餐厅|dining/i, /臥|卧|bed/i, /辦公|office|會議|meeting/i, /廚|厨|kitchen/i];
+function importDXF(src, name) {
   let d;
-  try { d = parseDXF(text); } catch (err) { console.error(err); toast(t('DXF 讀取失敗：請另存為 ASCII DXF（R2010 或更舊）', 'Could not read the DXF. Save it as ASCII DXF (R2010 or older).')); return; }
+  if (/\.dwg$/i.test(name || '')) { toast(t('請先在 CAD 中另存為 DXF（DWG 尚不支援）', 'Save it as DXF from your CAD app first (DWG is not supported yet).')); return; }
+  try { d = parseDXF(typeof src === 'string' ? src : decodeDXF(src)); } catch (err) { console.error(err); toast(t('DXF 讀取失敗：請另存為 ASCII DXF（R2010 或更舊）', 'Could not read the DXF. Save it as ASCII DXF (R2010 or older).')); return; }
   if (!d.segs.length) { toast(t('這個 DXF 沒有可用的線條', 'This DXF has no usable lines')); return; }
   underlay.dxf = d;
-  const wallish = Object.keys(d.layers).filter(l => /wall|牆|a-wall|壁/i.test(l));
   underlay.dxfLayers = new Set(Object.keys(d.layers));
-  buildLayerList(wallish);
+  underlay.wallLayers = new Set(defaultWallLayers(d));
+  buildLayerList();
   $('#ul-dxf').hidden = false;
   $('#dxf-name').textContent = `${name} · ${(d.units * 1000).toFixed(0) === '1' ? 'mm' : d.units === 0.01 ? 'cm' : 'm'} · ${d.segs.length} ${t('線段', 'lines')}`;
   fitView();
-  toast(t('DXF 已載入。勾選牆線圖層後按「自動辨識牆體」，或直接沿著藍線描牆。', 'DXF loaded. Pick the wall layer and press “Detect walls”, or trace walls along the blue lines.'));
+  toast(t(`DXF 已載入，牆線圖層：${[...underlay.wallLayers].join('、')}。按「自動辨識牆體」，或直接沿著藍線描牆。`, `DXF loaded. Wall layers: ${[...underlay.wallLayers].join(', ')}. Press “Detect walls”, or trace along the blue lines.`));
 }
-function buildLayerList(wallish) {
+function buildLayerList() {
   const host = $('#dxf-layers'); host.innerHTML = '';
   for (const [name, n] of Object.entries(underlay.dxf.layers).sort((a, b) => b[1] - a[1])) {
     const row = document.createElement('label'); row.className = 'layer';
-    row.innerHTML = `<input type="checkbox" ${underlay.dxfLayers.has(name) ? 'checked' : ''}><span>${name}</span><em>${n}</em><input type="radio" name="wl" title="${t('牆線圖層', 'Wall layer')}" ${wallish.includes(name) || (!wallish.length && n === Math.max(...Object.values(underlay.dxf.layers))) ? 'checked' : ''} value="${name}">`;
-    row.querySelector('input[type=checkbox]').addEventListener('change', e => { e.target.checked ? underlay.dxfLayers.add(name) : underlay.dxfLayers.delete(name); render(); });
+    row.innerHTML = `<input type="checkbox" ${underlay.dxfLayers.has(name) ? 'checked' : ''}><span>${name}</span><em>${n}</em><input type="checkbox" class="wl" title="${t('牆線圖層', 'Wall layer')}" ${underlay.wallLayers.has(name) ? 'checked' : ''}>`;
+    const [show, wl] = row.querySelectorAll('input');
+    show.addEventListener('change', e => { e.target.checked ? underlay.dxfLayers.add(name) : underlay.dxfLayers.delete(name); render(); });
+    wl.addEventListener('change', e => { e.target.checked ? underlay.wallLayers.add(name) : underlay.wallLayers.delete(name); });
     host.appendChild(row);
   }
 }
 $('#dxf-detect').addEventListener('click', () => {
-  const layer = ($('#dxf-layers input[type=radio]:checked') || {}).value;
-  const segs = underlay.dxf.segs.filter(s => s.layer === layer);
-  const others = underlay.dxf.segs.filter(s => s.layer !== layer && !s.arc);
-  const walls = closeCorners(detectWalls(segs, { others }));
-  if (!walls.length) { toast(t('這個圖層找不到成對的牆線，請改選圖層或手動描繪', 'No paired wall lines on this layer. Pick another layer or trace by hand.')); return; }
+  if (!underlay.wallLayers.size) { toast(t('請先勾選至少一個牆線圖層', 'Tick at least one wall layer first')); return; }
+  const walls = wallsFromDXF(underlay.dxf, [...underlay.wallLayers]);
+  if (!walls.some(w => w.kind !== 'zone')) { toast(t('這些圖層找不到牆線，請改選圖層或手動描繪', 'No wall lines on these layers. Pick other layers or trace by hand.')); return; }
   const L = level();
   sel = null;
   L.walls = walls.map((w, i) => ({ id: `d${i}`, ...w }));
   detectRooms(L);
   // name rooms from DXF text inside them
   for (const r of L.rooms) {
-    const t = underlay.dxf.texts.find(t => pointInPolygon(t.p, r.polygon) && /[一-鿿]|room|bed|living|kitchen|bath/i.test(t.text));
-    if (t) { r.name = t.text.slice(0, 8); r.nameEn = EN[r.name] || (/[一-鿿]/.test(r.name) ? '' : r.name); if (/陽台|露台|balcony/i.test(t.text)) { r.outdoor = true; r.finish = 'balcony'; } if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
+    const inside = underlay.dxf.texts.filter(t => pointInPolygon(t.p, r.polygon) && !/^[\d\s.,:×x*+\-=/'"mM²㎡]+$/.test(t.text) && t.text.length <= 24);
+    // open plans carry several labels (玄關 + 客廳 + 餐廳): the main living space names the room
+    const rank = t => { const i = ROOMRANK.findIndex(re => re.test(t.text)); return i < 0 ? 99 : i; };
+    const t = inside.filter(t => ROOMWORD.test(t.text)).sort((a, b) => rank(a) - rank(b))[0] || inside.find(t => /[一-鿿가-힣]/.test(t.text));
+    if (t) { r.name = t.text.replace(/\s*[\d.]+\s*(m²|㎡|m2|坪)\s*$/i, '').slice(0, 10); r.nameEn = EN[r.name] || (/[一-鿿]/.test(r.name) ? '' : r.name); if (/陽台|露台|balcony/i.test(t.text)) { r.outdoor = true; r.finish = 'balcony'; } if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
   }
   // the exterior door closest to an "entrance" label is the main door
   const ent = underlay.dxf.texts.find(t => /玄關|入口|entry|entrance/i.test(t.text));
