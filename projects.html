@@ -66,8 +66,9 @@ h1 { font-family: var(--display); font-weight: 900; font-size: clamp(26px, 4vw, 
 #loading i { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--hair-2); border-top-color: var(--brass); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hero-up { display: grid; grid-template-columns: 1.15fr 1fr; gap: 0; background: linear-gradient(135deg, #241e17, #1c1813); border: 1px solid var(--hair-2); border-radius: 18px; overflow: hidden; margin: 6px 0 36px; }
-.hero-up .drop { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; padding: 30px 32px; text-decoration: none; border-right: 1px solid var(--hair); position: relative; }
-.hero-up .drop:hover .btn.go { background: var(--brass-hi); }
+.hero-up .drop { cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; padding: 30px 32px; text-decoration: none; border-right: 1px solid var(--hair); position: relative; }
+.hero-up .drop:hover .btn.go, .hero-up .drop.over .btn.go { background: var(--brass-hi); }
+.hero-up .drop.over { background: rgba(201,162,106,.08); outline: 2px dashed var(--brass); outline-offset: -10px; }
 .hero-up .ic { width: 52px; height: 52px; border-radius: 14px; background: rgba(201,162,106,.14); display: grid; place-items: center; }
 .hero-up h2 { font-family: var(--display); font-size: 22px; margin: 2px 0 0; }
 .hero-up .drop p { margin: 0; color: var(--text-2); line-height: 1.6; }
@@ -109,13 +110,13 @@ h1 { font-family: var(--display); font-weight: 900; font-size: clamp(26px, 4vw, 
     <h1 id="l-h"></h1>
     <p class="lede" id="l-p"></p>
     <div class="hero-up">
-      <a class="drop" href="/editor?new=1">
+      <label class="drop" id="drop"><input type="file" id="pick" accept="image/*,application/pdf,.pdf,.dxf,.dwg" hidden>
         <span class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e3c690" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span>
         <h2 id="u-h"></h2>
         <p id="u-p"></p>
         <span class="fmt"><span>格局圖 JPG / PNG</span><span>PDF</span><span>DXF</span><span id="u-multi"></span></span>
-        <span class="row"><span class="btn go" id="u-b"></span></span>
-      </a>
+        <span class="row"><span class="btn go" id="u-b"></span><span class="alt" id="u-drag"></span></span>
+      </label>
       <ol class="steps">
         <li><div><b id="s1"></b><span id="s1d"></span></div></li>
         <li><div><b id="s2"></b><span id="s2d"></span></div></li>
@@ -142,6 +143,18 @@ $('#u-h').textContent = t('上傳平面圖，開始新專案', 'Upload a plan to
 $('#u-p').textContent = t('591 格局圖、建案 DM、掃描或 CAD 都可以。透天多層畫在同一張也沒問題。', 'Real-estate plan pictures, brochures, scans or CAD. Multi-floor plans on one sheet work too.');
 $('#u-multi').textContent = t('多樓層', 'Multi-floor');
 $('#u-b').textContent = t('選擇檔案', 'Choose a file');
+$('#u-drag').textContent = t('或把檔案拖進來', 'or drop it here');
+// picked or dropped plan → editor imports it right away (handed over through IndexedDB)
+async function startWith(file) {
+  if (!file) return;
+  try { const H = await import('./src/handoff.js'); await H.putFile(file); location.href = '/editor?new=1&upload=1'; }
+  catch { location.href = '/editor?new=1'; }
+}
+$('#pick').addEventListener('change', e => startWith(e.target.files[0]));
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => startWith(e.dataTransfer.files[0]));
 $('#s1').textContent = t('自動辨識', 'Read automatically'); $('#s1d').textContent = t('牆、門窗、樓梯與各樓層，AI 為房間命名。', 'Walls, doors, windows, stairs and floors; AI names the rooms.');
 $('#s2').textContent = t('自動配置家具', 'Furnished for you'); $('#s2d').textContent = t('依房型擺好家具，用「檢查」一鍵補齊缺口。', 'Each room laid out by type; 檢查 closes any gaps in one click.');
 $('#s3').textContent = t('3D 導覽與報價', 'Walk it in 3D, get a quote'); $('#s3d').textContent = t('換風格、看報價，再用唯讀連結分享給客戶。', 'Switch styles, see the quote, share a read-only link.');

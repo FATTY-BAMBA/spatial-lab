@@ -7,6 +7,7 @@ import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { stairLocal, stairBox } from '../plan.js';
 import * as Cloud from '../cloud.js';
 import { placeDrawn, insideWalls } from './drawn.js';
+import { takeFile } from '../handoff.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
 import { findIssues, applyFix, fixAll } from './issues.js';
@@ -52,6 +53,14 @@ translateDom({
   'DXF 底圖': 'DXF underlay',
   'DXF 透明度': 'DXF opacity',
   '自動辨識牆體': 'Detect walls',
+  '正在把平面圖變成 3D': 'Turning your plan into 3D',
+  '讀取圖面': 'Reading the drawing',
+  '牆體、門窗與樓層': 'Walls, openings and floors',
+  'AI 辨識房間': 'AI names the rooms',
+  '依圖擺放家具與佈置': 'Furniture as drawn, plus decor',
+  '儲存到你的帳號': 'Saving to your account',
+  '先檢查平面': 'Check the plan first',
+  '開啟 3D 導覽': 'Open the 3D walk-through',
   '移除': 'Remove',
   '左框：顯示圖層；右框：牆線圖層（可多選）。描牆時會吸附 DXF 端點。': 'Left box: show layer. Right box: wall layers (pick several). Wall tracing snaps to DXF endpoints.',
   '滾輪縮放 · 空白鍵/右鍵拖曳平移 · Ctrl+Z 復原': 'Scroll to zoom · Space or right-drag to pan · Ctrl+Z to undo',
@@ -189,6 +198,88 @@ async function cloudSave() {
   cloud.busy = false;
   if (cloud.again) { cloud.again = false; cloudSoon(); }
 }
+// save right now (used before leaving for the 3D view); true when the project is in the account
+async function cloudFlush() {
+  if (!cloud.user) return false;
+  clearTimeout(cloud.timer);
+  for (let i = 0; i < 50 && cloud.busy; i++) await new Promise(r => setTimeout(r, 200));
+  await cloudSave();
+  return !!cloud.id;
+}
+function go3D() { if (cloud.id) location.href = `/?id=${encodeURIComponent(cloud.id)}#explore`; else open3D(true); }
+
+// ---------------------------------------------------------------- import progress (picture → 3D)
+// Shown while a plan picture becomes a model: each step ticks off with what it found; at the end a short
+// summary and the 3D walk-through opens by itself (or the designer stays to check the plan).
+const flow = {
+  on: false, timer: 0,
+  el: () => $('#flow'),
+  start(name) {
+    const el = this.el(); if (!el) return;
+    this.on = true; this.t0 = Date.now(); clearInterval(this.timer);
+    el.hidden = false; el.classList.remove('done');
+    el.querySelector('#flow-h').textContent = t('正在把平面圖變成 3D', 'Turning your plan into 3D');
+    el.querySelector('.fn').textContent = name || '';
+    el.querySelector('.pv').style.backgroundImage = 'none';
+    el.querySelectorAll('li').forEach(li => { li.className = ''; li.querySelector('small').textContent = ''; });
+    el.querySelector('.sum').hidden = true; el.querySelector('.acts').hidden = true;
+    this.step('read', 'active');
+  },
+  preview(src) { if (this.on) this.el().querySelector('.pv').style.backgroundImage = `url("${src}")`; },
+  step(k, state, note) {
+    if (!this.on) return;
+    const li = this.el().querySelector(`li[data-k="${k}"]`); if (!li) return;
+    li.className = state; if (note != null) li.querySelector('small').textContent = note;
+  },
+  fail(msg) {
+    if (!this.on) return;
+    const el = this.el(); el.classList.add('done');
+    el.querySelector('#flow-h').textContent = t('需要你幫一下', 'This one needs a hand');
+    el.querySelectorAll('li.active').forEach(li => { li.className = 'skip'; });
+    const sum = el.querySelector('.sum'); sum.hidden = false; sum.textContent = msg;
+    const acts = el.querySelector('.acts'); acts.hidden = false; acts.querySelector('.go').hidden = true;
+    acts.querySelector('.stay').textContent = t('手動描牆', 'Trace by hand');
+    acts.querySelector('.stay').onclick = () => this.close();
+    this.on = false;
+  },
+  async afterDetect(aiPromise) {
+    if (!this.on) return;
+    const nWalls = doc.levels.reduce((n, L) => n + L.walls.length, 0);
+    this.step('walls', 'done', t(`${doc.levels.length} 層 · ${nWalls} 道牆`, `${doc.levels.length} floor${doc.levels.length > 1 ? 's' : ''} · ${nWalls} walls`));
+    this.step('rooms', 'active');
+    const signedIn = !!(await Cloud.accessToken());
+    const ok = await aiPromise;
+    if (!ok) {
+      this.step('rooms', 'skip', signedIn ? t('AI 暫時無法使用，已用規則命名', 'AI unavailable; rule-based names') : t('登入後可用 AI', 'sign in for AI'));
+      this.step('furniture', 'done', t('標準配置', 'standard layout'));
+    }
+    this.step('save', 'active');
+    const saved = await cloudFlush().catch(() => false);
+    this.step('save', saved ? 'done' : 'skip', saved ? t('已儲存', 'saved') : t('未登入：只存在這台電腦', 'not signed in: this browser only'));
+    this.finish();
+  },
+  finish() {
+    const el = this.el(); el.classList.add('done');
+    const rooms = doc.levels.reduce((n, L) => n + L.rooms.length, 0), items = doc.levels.reduce((n, L) => n + (L.furniture || []).filter(f => !f.dress).length, 0);
+    const deco = doc.levels.reduce((n, L) => n + (L.furniture || []).filter(f => f.dress).length, 0);
+    const iss = doc.levels.reduce((n, L) => n + findIssues(L).length, 0), secs = Math.round((Date.now() - this.t0) / 1000);
+    el.querySelector('#flow-h').textContent = t('完成，可以走進去了', 'Done. Walk in.');
+    const sum = el.querySelector('.sum'); sum.hidden = false;
+    sum.innerHTML = t(`<b>${doc.levels.length} 層、${rooms} 個房間、${items} 件家具</b>（另加 ${deco} 件窗簾、燈具與佈置），共 ${secs} 秒。`, `<b>${doc.levels.length} floor${doc.levels.length > 1 ? 's' : ''}, ${rooms} rooms, ${items} pieces of furniture</b> (plus ${deco} curtains, lights and decor) in ${secs} s.`)
+      + (iss ? t(`<br>「檢查」列出 ${iss} 處可補強的地方（例如沒接上的牆），之後可以一鍵補上。`, `<br>“Check” lists ${iss} things worth fixing (like walls that don't meet); most are one click.`) : '');
+    const acts = el.querySelector('.acts'); acts.hidden = false;
+    const goB = acts.querySelector('.go'), stay = acts.querySelector('.stay'); goB.hidden = false;
+    stay.textContent = t('先檢查平面', 'Check the plan first');
+    let n = 5; const label = () => { goB.textContent = t(`開啟 3D 導覽（${n}）`, `Open the 3D walk-through (${n})`); }; label();
+    this.timer = setInterval(() => { n--; if (n <= 0) { clearInterval(this.timer); go3D(); } else label(); }, 1000);
+    goB.onclick = () => { clearInterval(this.timer); go3D(); };
+    stay.onclick = () => { clearInterval(this.timer); goB.textContent = t('開啟 3D 導覽', 'Open the 3D walk-through'); this.close(); };
+    this.on = false;
+  },
+  close() { clearInterval(this.timer); this.on = false; this.el().hidden = true; },
+};
+// picture imports: AI names the rooms and reads the drawn furniture; the progress screen follows along
+function runAI() { const p = aiNameRooms({ quiet: true }); if (flow.on) flow.afterDetect(p); return p; }
 // small top-down picture of the ground floor for the projects page
 function planThumb() {
   try {
@@ -933,11 +1024,17 @@ $('#file-dxf').addEventListener('change', async e => { const f = e.target.files[
 $('#file-img').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   e.target.value = '';
+  importImageFile(f);
+});
+async function importImageFile(f) {
   nameFromFile(f.name);
+  if (!doc.levels.some(L => L.walls.length)) flow.start(f.name);
   let src;
   try { src = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name) ? await pdfToImage(f) : URL.createObjectURL(f); }
-  catch (err) { console.error(err); toast(t('無法讀取這個 PDF', 'Could not read this PDF')); return; }
+  catch (err) { console.error(err); flow.fail(t('無法讀取這個 PDF', 'Could not read this PDF')); toast(t('無法讀取這個 PDF', 'Could not read this PDF')); return; }
+  flow.preview(src);
   const img = new Image();
+  img.onerror = () => flow.fail(t('無法讀取這張圖片', 'Could not read this picture'));
   img.onload = () => {
     underlay.imgEl = img; underlay.x = 0; underlay.z = 0;
     // find the walls once; the drawn wall thickness also gives a first guess at the scale (exterior wall ≈ 25 cm)
@@ -949,12 +1046,16 @@ $('#file-img').addEventListener('change', async e => {
     underlay.mpp = underlay.lines && underlay.lines.tPx ? 0.18 / underlay.lines.tPx : 12 / img.width;
     $('#ul-img').hidden = false; fitView();
     // empty project: go straight to walls, rooms, furniture and AI names (scale from wall thickness; a printed size corrects it)
-    if (underlay.lines && underlay.lines.faces.length && !doc.levels.some(L => L.walls.length)) { setTool('select'); $('#img-detect').click(); return; }
+    if (underlay.lines && underlay.lines.faces.length && !doc.levels.some(L => L.walls.length)) {
+      flow.step('read', 'done', `${img.width}×${img.height}`); flow.step('walls', 'active');
+      setTool('select'); setTimeout(() => $('#img-detect').click(), 60); return;
+    }
+    if (flow.on) flow.fail(t('這張圖找不到清楚的牆線。可以手動描牆，或換一張解析度較高的格局圖。', 'No clear walls found in this picture. Trace them by hand, or try a sharper plan.'));
     setTool('scale');
     toast(t('底圖已載入，比例已依牆厚估算。點兩個已知距離的點校正比例（例如一道標有尺寸的牆），再按「自動辨識牆體」。', 'Plan loaded; scale estimated from the wall thickness. Click two points a known distance apart to correct it (e.g. a dimensioned wall), then press “Detect walls”.'));
   };
   img.src = src;
-});
+}
 // First page of a PDF → PNG data URL, rendered at ~2400 px on the long side
 async function pdfToImage(file) {
   const pdfjs = await import('../../vendor/pdfjs/pdf.min.mjs');
@@ -990,6 +1091,7 @@ async function aiNameRooms({ quiet = false } = {}) {
   });
   if (!marks.length) return false;
   if (!quiet) toast(t('AI 正在辨識房間…', 'AI is identifying the rooms…'));
+  flow.step('rooms', 'active', t('約 20–40 秒', 'about 20–40 s'));
   let out;
   try {
     const token = await Cloud.accessToken();
@@ -998,6 +1100,7 @@ async function aiNameRooms({ quiet = false } = {}) {
     if (r.status === 401) { if (!quiet) toast(t('請重新登入後再試', 'Please sign in again')); return false; }
     if (r.status === 503 || r.status === 404) { aiState = 'off'; if (!quiet) toast(t('AI 命名尚未啟用（伺服器未設定金鑰），已使用規則命名。', 'AI naming is not enabled on the server yet; rule-based names are used.')); return false; }
     out = await r.json(); if (!r.ok) throw new Error(out.error || r.status);
+    flow.step('rooms', 'done', t(`${out.rooms.length} 間`, `${out.rooms.length} rooms`)); flow.step('furniture', 'active', t(`圖面上 ${(out.items || []).length} 件`, `${(out.items || []).length} drawn`));
     // second look: the drawing has furniture but some furnishable rooms came back empty → ask about just those rooms
     if ((out.items || []).length >= 3) {
       const hit = new Set(out.items.map(it => it.n));
@@ -1012,6 +1115,7 @@ async function aiNameRooms({ quiet = false } = {}) {
       const empty = marks.filter(m => /客|餐|廚|臥|書|和|浴/.test(typeOf.get(m.n) || '') && ((!hit.has(m.n) && polygonArea(m.r.polygon) >= 4.5) || lopsided(m))).map(m => m.n);
       if (empty.length) {
         if (!quiet) toast(t('AI 再看一次部分房間的家具…', 'AI is taking a second look at some rooms…'));
+        flow.step('furniture', 'active', t('AI 再看一次部分房間…', 'second look at some rooms…'));
         const r2 = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length, size: [c.width, c.height], focus: empty }) });
         if (r2.ok) { // keep what the second look adds; drop near-duplicates of items already found
           const o2 = await r2.json(), same = (a, b) => a.kind === b.kind && Math.abs((a.box[0] + a.box[2]) - (b.box[0] + b.box[2])) < 30 && Math.abs((a.box[1] + a.box[3]) - (b.box[1] + b.box[3])) < 30;
@@ -1079,6 +1183,7 @@ async function aiNameRooms({ quiet = false } = {}) {
     autoFurnish(L, { replace: false, stairs: doc.stairs, skipDrawn: true });
   }
   commit();
+  flow.step('furniture', 'done', nDrawn ? t(`${nDrawn} 件依圖面`, `${nDrawn} as drawn`) : t('標準配置', 'standard layout'));
   toast(nDrawn
     ? t(`AI 已命名 ${out.rooms.length} 個房間，並依圖面擺放 ${nDrawn} 件家具${out.scale ? '；比例已依圖面尺寸校正' : ''}。`, `AI named ${plural(out.rooms.length, 'room')} and placed ${nDrawn} pieces as drawn${out.scale ? '; scale set from a printed size' : ''}.`)
     : t(`AI 已命名 ${out.rooms.length} 個房間${out.scale ? '、依圖面尺寸校正比例' : ''}，家具已依房間類型重新配置。`, `AI named ${plural(out.rooms.length, 'room')}${out.scale ? ' and set the scale from a printed size' : ''}; furniture was rearranged to match.`));
@@ -1126,9 +1231,9 @@ function rescalePlan(f) {
 }
 
 $('#img-detect').addEventListener('click', () => {
-  if (!underlay.imgEl || !underlay.lines || !underlay.lines.faces.length) { toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
+  if (!underlay.imgEl || !underlay.lines || !underlay.lines.faces.length) { flow.fail(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
   const { walls, floors } = wallsFromImage(underlay.lines, { mpp: underlay.mpp, ox: underlay.x, oz: underlay.z });
-  if (!walls.length) { toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
+  if (!walls.length) { flow.fail(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
   sel = null;
   if (floors.length > 1) {
     // 透天 plans: one picture, several floors side by side (left → right = 1F, 2F, 3F…)
@@ -1144,7 +1249,7 @@ $('#img-detect').addEventListener('click', () => {
     lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
     toast(t(`偵測到 ${floors.length} 個樓層（左到右為 1F→${floors.length}F），房間：${counts}。各樓層已對齊到 1F 位置；請逐層檢查缺口與門窗。`, `Found ${floors.length} floors (left to right = 1F→${floors.length}F). Rooms: ${counts}. Floors are aligned onto 1F; check each floor for gaps and openings.`));
-    aiNameRooms({ quiet: true });
+    runAI();
     return;
   }
   // a new picture replaces the floors an earlier picture created; otherwise only the current floor
@@ -1159,7 +1264,7 @@ $('#img-detect').addEventListener('click', () => {
   autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
   toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查缺口、門窗與房間名稱；未封閉的空間用「牆」補上。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check gaps, doors/windows and room names; close open spaces with the Wall tool.`));
-  aiNameRooms({ quiet: true });
+  runAI();
 });
 $('#ul-opacity').addEventListener('input', e => { underlay.opacity = +e.target.value; render(); });
 $('#ul-remove').addEventListener('click', () => { underlay.imgEl = null; $('#ul-img').hidden = true; render(); });
@@ -1168,13 +1273,13 @@ $('#btn-download').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${(isEn ? doc.project.nameEn || doc.project.name : doc.project.name) || 'plan'}.spatial.json`; a.click();
 });
-$('#btn-3d').addEventListener('click', open3D);
-async function open3D() {
+$('#btn-3d').addEventListener('click', () => open3D());
+async function open3D(explore = false) {
   if (!doc.levels[0].rooms.length) { toast(t('還沒有封閉的房間：先畫出外牆和隔間。', 'No closed rooms yet. Draw the exterior walls and partitions first.')); return; }
   const base = await (await fetch('data/apartment.json')).json();
   const full = completePlan(doc, base);
   try { localStorage.setItem('spatial.custom', JSON.stringify(full)); } catch { toast(t('瀏覽器儲存空間不足', 'Not enough browser storage')); return; }
-  location.href = 'index.html?p=custom';
+  location.href = `index.html?p=custom${explore ? '#explore' : ''}`;
 }
 
 const ROOMWORD = /房|廳|厅|室|臥|卧|廚|厨|浴|廁|厕|衛|卫|陽台|阳台|玄關|書房|儲|倉|走道|梯|辦公|會議|大廳|茶水|機房|room|bed|living|dining|kitchen|bath|wc|toilet|hall|lobby|office|meeting|conference|storage|store|closet|laundry|utility|garage|study|foyer|entry|corridor|balcony|terrace|pantry|shop|retail|电|電氣|electrical|mech/i;
@@ -1250,6 +1355,12 @@ addEventListener('resize', resize);
   else if (saved && saved.levels) loadDoc(saved, false);
   else loadDoc(blank(), false);
   cloud.ready = true; cloudHeader();
+  // a file picked on the projects page: import it straight away
+  if (params.get('upload')) {
+    const u = new URL(location.href); u.searchParams.delete('upload'); history.replaceState(null, '', u);
+    const f = await takeFile().catch(() => null);
+    if (f) setTimeout(() => (/\.(dxf|dwg)$/i.test(f.name) ? f.arrayBuffer().then(b => { nameFromFile(f.name); importDXF(b, f.name); }) : importImageFile(f)), 50);
+  }
   Cloud.onAuth(u => { const was = cloud.user; cloud.user = u; if (!!was !== !!u) cloudHeader(); });
   resize(); fitView();
   setTool(doc.levels[0].walls.length ? 'select' : 'wall');

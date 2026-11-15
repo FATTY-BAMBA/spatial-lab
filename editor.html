@@ -138,6 +138,31 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
   .brand span, .brand b { display: none; }
   #catalog { width: 180px; }
 }
+
+/* import progress: upload → walls → rooms → furniture → saved → 3D */
+#flow { position: fixed; inset: 0; z-index: 80; background: rgba(12, 10, 8, .82); backdrop-filter: blur(6px); display: grid; place-items: center; padding: 16px; }
+#flow .card { width: min(560px, 100%); background: var(--panel); border: 1px solid var(--hair-2); border-radius: 18px; overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,.55); }
+#flow .pv { position: relative; height: 180px; background: #f3efe8 center / contain no-repeat; border-bottom: 1px solid var(--hair); }
+#flow .pv::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 35%, rgba(201,162,106,.28) 50%, transparent 65%); background-size: 250% 100%; animation: flowscan 1.6s linear infinite; }
+#flow.done .pv::after { display: none; }
+@keyframes flowscan { from { background-position: 125% 0; } to { background-position: -125% 0; } }
+#flow .bd { padding: 20px 24px 22px; }
+#flow h2 { margin: 0 0 2px; font-family: var(--display); font-size: 21px; }
+#flow .fn { color: var(--text-3); font-size: 12.5px; margin-bottom: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#flow ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+#flow li { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; color: var(--text-3); }
+#flow li i { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--hair-2); display: grid; place-items: center; font-style: normal; font-size: 11px; }
+#flow li.active { color: var(--text); } #flow li.active i { border-color: var(--brass); border-top-color: transparent; animation: flowspin .8s linear infinite; }
+#flow li.done { color: var(--text); } #flow li.done i { background: var(--brass); border-color: var(--brass); color: var(--on-brass); } #flow li.done i::after { content: "✓"; }
+#flow li.skip i { border-style: dashed; } #flow li.skip i::after { content: "–"; }
+#flow li small { color: var(--text-2); font-size: 12.5px; text-align: right; }
+@keyframes flowspin { to { transform: rotate(360deg); } }
+#flow .sum { margin-top: 18px; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); color: var(--text-2); font-size: 13px; line-height: 1.6; }
+#flow .sum b { color: var(--text); }
+#flow .acts { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+#flow .acts button { flex: 1; min-width: 150px; padding: 11px 14px; border-radius: 999px; border: 1px solid var(--hair-2); background: var(--panel-2); color: var(--text); font-weight: 500; }
+#flow .acts .go { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
+#flow .acts .go:hover { background: var(--brass-hi); }
 </style>
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -175,6 +200,25 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
     <div id="catalog" hidden><h3>家具</h3><p>選一件，點擊平面放置；R 旋轉。</p><div id="catalog-list"></div></div>
     <form id="scale-ask" hidden><b>這兩點的實際距離？</b><input id="scale-len" placeholder="例如 360（cm）或 3.6（m）" inputmode="decimal"><button type="submit">設定比例</button></form>
     <div id="toast" hidden></div>
+<div id="flow" hidden role="dialog" aria-modal="true" aria-labelledby="flow-h">
+  <div class="card">
+    <div class="pv"></div>
+    <div class="bd">
+      <h2 id="flow-h">正在把平面圖變成 3D</h2>
+      <div class="fn"></div>
+      <ol>
+        <li data-k="read"><i></i><span>讀取圖面</span><small></small></li>
+        <li data-k="walls"><i></i><span>牆體、門窗與樓層</span><small></small></li>
+        <li data-k="rooms"><i></i><span>AI 辨識房間</span><small></small></li>
+        <li data-k="furniture"><i></i><span>依圖擺放家具與佈置</span><small></small></li>
+        <li data-k="save"><i></i><span>儲存到你的帳號</span><small></small></li>
+      </ol>
+      <div class="sum" hidden></div>
+      <div class="acts" hidden><button type="button" class="stay">先檢查平面</button><button type="button" class="go">開啟 3D 導覽</button></div>
+    </div>
+  </div>
+</div>
+
   </main>
   <aside>
     <section class="panel" id="props"></section>
