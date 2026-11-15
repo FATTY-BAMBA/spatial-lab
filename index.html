@@ -576,6 +576,9 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
 .act-book:hover { background: rgba(201, 162, 90, 0.12); color: var(--text); }
 .hero-book { margin: 16px 0 0; font-size: 14.5px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .hero-book a { color: var(--brass-hi); font-weight: 700; text-decoration: none; border-bottom: 1px solid currentColor; }
+.hero-book .or { color: var(--text-3); }
+.cloud-miss { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 50; background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 14px; }
+.act-acct { color: var(--text); }
 .pp-bar .pp-book { color: var(--brass-hi); font-weight: 700; text-decoration: none; padding: 11px 6px; white-space: nowrap; align-self: center; }
 .pp-bar .pp-book:hover { color: var(--text); }
 @media (max-width: 860px) { .act-book { display: none; } }
@@ -597,6 +600,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
     <a id="edit-link" class="act" href="editor.html" title="編輯平面"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 14h12M3 10.5 10.5 3l2.5 2.5L5.5 13H3z"/></svg><span class="lbl">編輯平面</span></a>
     <button type="button" id="ai-open" class="act" title="AI 效果圖" hidden><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M7 1.5 8.4 6 13 7.5 8.4 9 7 13.5 5.6 9 1 7.5 5.6 6z"/><path d="M13 1.5v3M11.5 3h3"/></svg><span class="lbl">AI 效果圖</span></button>
     <button type="button" id="export-open" class="act" title="匯出" aria-haspopup="dialog" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 10V2M5 5l3-3 3 3M2.5 9v4.5h11V9"/></svg><span class="lbl">匯出</span></button>
+    <a id="acct-link" class="act act-acct" href="/projects"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.8-2.8 3-4.2 5.5-4.2s4.7 1.4 5.5 4.2"/></svg><span class="lbl">登入</span></a>
     <a class="act act-book" href="https://primestrideai.com/zh/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>預約示範</a>
     <button type="button" id="proposal-top" class="act primary"><span class="lbl">提案</span></button>
   </div>
@@ -623,7 +627,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
       <a class="btn btn-brass" href="assets/ai/video/spatial-lab-zh.mp4" data-film><span class="play">▶</span>看 41 秒影片</a>
       <button type="button" class="btn btn-ghost" id="hero-start">開始導覽</button>
     </div>
-    <p class="hero-book"><span>想看它用在你的案子上？</span><a href="https://primestrideai.com/zh/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>預約 15 分鐘示範 →</a></p>
+    <p class="hero-book"><span>想看它用在你的案子上？</span><a href="https://primestrideai.com/zh/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>預約 15 分鐘示範 →</a><span class="or">或</span><a href="/projects" class="hero-try">登入，上傳你的平面圖 →</a></p>
     <div class="projects" aria-label="示範案"><span>示範案</span><a href="?p=apartment" data-project-link="apartment">大樓 3 房 2 廳</a><a href="?p=townhouse" data-project-link="townhouse">透天 2 樓</a><a href="?p=custom" data-project-link="custom" id="custom-link" hidden>我的平面</a><a href="editor.html" class="draw-own">＋ 畫我的平面</a></div>
   </div>
   <span class="hero-tag">AI 效果圖，依本案 3D 幾何生成</span>

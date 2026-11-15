@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="theme-color" content="#16130f">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我的專案 · Spatial Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap">
+<style>
+:root {
+  --night: #16130f; --panel: #1f1b16; --panel-2: #29231c; --panel-3: #342d24;
+  --hair: rgba(237,229,215,.10); --hair-2: rgba(237,229,215,.2);
+  --text: #ede5d7; --text-2: #b4a998; --text-3: #7f7568;
+  --brass: #c9a26a; --brass-hi: #e3c690; --on-brass: #1b140b; --seal: #c4432f;
+  --display: "Noto Serif TC", "Noto Serif CJK TC", "Songti TC", serif; --body: "Noto Sans TC", "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--night); color: var(--text); font-family: var(--body); font-size: 14px; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+a { color: inherit; }
+header { display: flex; align-items: center; gap: 12px; padding: 14px max(16px, env(safe-area-inset-left)); border-bottom: 1px solid var(--hair); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand b { font-family: var(--display); font-size: 17px; }
+.brand span { color: var(--text-2); padding-left: 10px; border-left: 1px solid var(--hair-2); font-size: 13px; }
+.spacer { flex: 1; }
+.who { color: var(--text-2); font-size: 13px; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn { border: 1px solid var(--hair-2); background: var(--panel-2); color: var(--text); padding: 8px 14px; border-radius: 999px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.btn:hover { border-color: var(--brass); }
+.btn.go { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
+.btn.go:hover { background: var(--brass-hi); }
+main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(26px, 4vw, 38px); margin: 0 0 6px; }
+.lede { color: var(--text-2); margin: 0 0 26px; line-height: 1.7; }
+.gate { max-width: 460px; margin: 10vh auto 0; text-align: center; }
+.gate h1 { margin-bottom: 10px; }
+.gate .btn.go { font-size: 15px; padding: 12px 22px; }
+.gate small { display: block; color: var(--text-3); margin-top: 18px; line-height: 1.7; }
+.bar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--hair); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.card .thumb { aspect-ratio: 3 / 2; background: var(--panel-2) center / contain no-repeat; border-bottom: 1px solid var(--hair); display: block; }
+.card .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.card .name { font-weight: 700; font-size: 15px; background: none; border: 1px solid transparent; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; width: calc(100% + 8px); }
+.card .name:hover, .card .name:focus { border-color: var(--hair-2); outline: none; }
+.card .meta { color: var(--text-3); font-size: 12px; }
+.card .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.card .acts .btn { padding: 6px 12px; font-size: 13px; }
+.card .acts .del { margin-left: auto; color: var(--text-3); border-color: transparent; background: none; }
+.card .acts .del:hover { color: var(--seal); }
+.share { display: flex; gap: 6px; align-items: center; }
+.share input { flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--hair); border-radius: 8px; padding: 6px 8px; font-size: 12px; color: var(--text-2); }
+.new { border: 1.5px dashed var(--hair-2); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 250px; color: var(--text-2); text-decoration: none; }
+.new:hover { border-color: var(--brass); color: var(--text); }
+.new b { font-size: 34px; font-weight: 400; color: var(--brass); line-height: 1; }
+.empty { color: var(--text-3); }
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 9; }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/" aria-label="回到 Spatial Lab"><svg width="24" height="24" viewBox="0 0 26 26" fill="none" stroke="#c9a26a" stroke-width="1.6" aria-hidden="true"><path d="M8 24H2V2h22v22H14"/><path d="M8 24v-6a6 6 0 0 1 6 6" stroke-width="1.2"/><path d="M15 2v9h9" stroke-width="1.2"/></svg><b>PrimeStride</b><span>Spatial Lab</span></a>
+  <span class="spacer"></span>
+  <span class="who" id="who"></span>
+  <button type="button" class="btn" id="out" hidden></button>
+</header>
+<main>
+  <section class="gate" id="gate" hidden>
+    <h1 id="g-h"></h1>
+    <p class="lede" id="g-p"></p>
+    <button type="button" class="btn go" id="in"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-16.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2 1.4-4.7 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg><span id="in-t"></span></button>
+    <small id="g-s"></small>
+  </section>
+  <section id="list" hidden>
+    <h1 id="l-h"></h1>
+    <p class="lede" id="l-p"></p>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+<div id="toast" hidden></div>
+<script type="module">
+import { t, isEn } from './src/i18n.js';
+import * as C from './src/cloud.js';
+const $ = s => document.querySelector(s);
+const toast = m => { const e = $('#toast'); e.textContent = m; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (e.hidden = true), 2600); };
+document.title = t('我的專案 · Spatial Lab', 'My projects · Spatial Lab');
+$('#g-h').textContent = t('登入，開始用你的平面圖', 'Sign in to use your own plans');
+$('#g-p').textContent = t('上傳格局圖、DXF 或 PDF，幾秒內長成可走進去的 3D 空間：自動辨識房間、擺好家具、即時報價。專案會存在你的帳號，隨時回來修改或分享給客戶。', 'Upload a plan picture, DXF or PDF and walk it in 3D within seconds: rooms named, furniture placed, quote updated. Projects are saved to your account to revise or share with clients.');
+$('#in-t').textContent = t('使用 Google 登入', 'Sign in with Google');
+$('#g-s').textContent = t('想先看我們示範？回到首頁「預約示範」。', 'Prefer a walkthrough first? Use “Book a demo” on the home page.');
+$('#l-h').textContent = t('我的專案', 'My projects');
+$('#l-p').textContent = t('每個專案都會自動儲存。開啟分享後，客戶用連結就能看 3D、換風格、看報價（不能修改）。', 'Projects save automatically. Turn on sharing and clients can walk the 3D, switch styles and see the quote from a link (read-only).');
+$('#out').textContent = t('登出', 'Sign out');
+$('#in').addEventListener('click', async () => { try { await C.signIn('/projects'); } catch (e) { toast(t('無法登入：', 'Could not sign in: ') + e.message); } });
+$('#out').addEventListener('click', async () => { await C.signOut(); location.reload(); });
+
+const fmt = d => new Date(d).toLocaleString(isEn ? 'en' : 'zh-TW', { dateStyle: 'medium', timeStyle: 'short' });
+async function render() {
+  const user = await C.currentUser();
+  $('#gate').hidden = !!user; $('#list').hidden = !user; $('#out').hidden = !user;
+  $('#who').textContent = user ? (user.user_metadata && user.user_metadata.full_name) || user.email || '' : '';
+  if (!user) return;
+  let rows = [];
+  try { rows = await C.listProjects(); } catch (e) { toast(t('讀取專案失敗', 'Could not load projects')); }
+  const grid = $('#grid'); grid.innerHTML = '';
+  const add = document.createElement('a'); add.className = 'new'; add.href = '/editor?new=1';
+  add.innerHTML = `<b>＋</b><span>${t('上傳平面圖／新專案', 'Upload a plan / new project')}</span><small style="color:var(--text-3)">${t('格局圖圖片、PDF 或 DXF', 'Plan picture, PDF or DXF')}</small>`;
+  grid.appendChild(add);
+  for (const p of rows) {
+    const c = document.createElement('article'); c.className = 'card';
+    c.innerHTML = `<a class="thumb" href="/?id=${p.id}" style="background-image:${p.thumb ? `url(${p.thumb})` : 'none'}" aria-label="${t('在 3D 中開啟', 'Open in 3D')}"></a>
+      <div class="body"><input class="name" value="" aria-label="${t('專案名稱', 'Project name')}"><span class="meta">${t('更新於', 'Updated')} ${fmt(p.updated_at)}</span>
+      <div class="acts"><a class="btn go" href="/?id=${p.id}">${t('3D 導覽', 'Open 3D')}</a><a class="btn" href="/editor?id=${p.id}">${t('編輯平面', 'Edit plan')}</a><button type="button" class="btn sh">${p.share_token ? t('分享中', 'Shared') : t('分享', 'Share')}</button><button type="button" class="btn del" title="${t('刪除', 'Delete')}">✕</button></div>
+      <div class="share" ${p.share_token ? '' : 'hidden'}><input readonly value="${p.share_token ? C.shareUrl(p.share_token) : ''}"><button type="button" class="btn cp">${t('複製', 'Copy')}</button><button type="button" class="btn off">${t('停止', 'Stop')}</button></div></div>`;
+    const name = c.querySelector('.name'); name.value = p.name;
+    name.addEventListener('change', async () => { try { await C.renameProject(p.id, name.value.trim() || p.name); toast(t('已更新名稱', 'Renamed')); } catch { toast(t('更新失敗', 'Could not rename')); } });
+    const box = c.querySelector('.share'), inp = box.querySelector('input');
+    c.querySelector('.sh').addEventListener('click', async () => {
+      try { const tok = p.share_token || await C.setShare(p.id, true); p.share_token = tok; inp.value = C.shareUrl(tok); box.hidden = false; c.querySelector('.sh').textContent = t('分享中', 'Shared'); await navigator.clipboard.writeText(inp.value).catch(() => {}); toast(t('已複製分享連結（唯讀）', 'Share link copied (read-only)')); } catch { toast(t('無法建立分享連結', 'Could not create a share link')); }
+    });
+    box.querySelector('.cp').addEventListener('click', async () => { await navigator.clipboard.writeText(inp.value).catch(() => {}); toast(t('已複製', 'Copied')); });
+    box.querySelector('.off').addEventListener('click', async () => { await C.setShare(p.id, false); p.share_token = null; box.hidden = true; c.querySelector('.sh').textContent = t('分享', 'Share'); toast(t('已停止分享，舊連結失效', 'Sharing stopped; the old link no longer works')); });
+    c.querySelector('.del').addEventListener('click', async () => { if (!confirm(t(`刪除「${p.name}」？此動作無法復原。`, `Delete “${p.name}”? This cannot be undone.`))) return; await C.deleteProject(p.id); c.remove(); toast(t('已刪除', 'Deleted')); });
+    grid.appendChild(c);
+  }
+}
+C.onAuth(() => render());
+render();
+</script>
+</body>
+</html>

@@ -34,12 +34,36 @@ async function boot() {
   document.querySelector('.bar .actions')?.prepend(langSwitch());
   if (isEn) document.title = 'PrimeStride Spatial Lab: from floor plan to a signable proposal';
   const params = new URLSearchParams(location.search);
-  let customPlan = null;
+  let customPlan = null, sharedView = false;
   if (params.get('p') === 'custom') { try { customPlan = JSON.parse(localStorage.getItem('spatial.custom') || 'null'); } catch {} }
+  // saved projects: ?id= (the owner, signed in) or ?share= (anyone with the link, read-only)
+  const cloudId = params.get('id'), shareTok = params.get('share');
+  if (!customPlan && (cloudId || shareTok)) {
+    try {
+      const C = await import('./cloud.js');
+      const row = shareTok ? await C.sharedProject(shareTok) : await C.loadProject(cloudId);
+      if (row) {
+        const [{ completePlan }, base] = await Promise.all([import('./editor/geometry.js'), loadPlan('data/apartment.json')]);
+        customPlan = completePlan(row.doc, base); sharedView = !!shareTok;
+      }
+    } catch (e) { console.warn('cloud plan', e); }
+    if (!customPlan) { const note = document.createElement('div'); note.className = 'cloud-miss'; note.textContent = shareTok ? t('這個分享連結已失效或不存在。', 'This share link has expired or does not exist.') : t('找不到這個專案，請先登入。', 'Project not found — please sign in.'); document.body.appendChild(note); setTimeout(() => note.remove(), 6000); }
+  }
   const projectKey = customPlan ? 'custom' : PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
   const plan = localizeData(customPlan || (await loadPlan(PROJECTS[projectKey])));
   const editLink = document.getElementById('edit-link');
-  if (editLink) editLink.href = `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
+  if (editLink) editLink.href = cloudId && customPlan ? `/editor?id=${encodeURIComponent(cloudId)}` : `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
+  if (sharedView) { document.body.classList.add('shared-view'); if (editLink) editLink.hidden = true; }
+  // account link: 登入 → 我的專案 once signed in (checked lazily so the page never waits on it)
+  const acct = document.getElementById('acct-link');
+  if (acct) {
+    acct.querySelector('.lbl').textContent = t('登入', 'Sign in');
+    const hero = document.querySelector('.hero-try'), or = document.querySelector('.hero-book .or');
+    if (hero) hero.textContent = t('登入，上傳你的平面圖 →', 'Sign in and upload your plan →');
+    if (or) or.textContent = t('或', 'or');
+    // a stored session means signed in; reading it directly avoids loading the auth library on every visit
+    try { if (localStorage.getItem('sb-mhzdimntfcovzffidfxf-auth-token')) acct.querySelector('.lbl').textContent = t('我的專案', 'My projects'); } catch {}
+  }
   const catalog = localizeData(await loadPlan('data/styles.json').catch(() => ({ extraOptions: {}, styles: [] })));
   for (const g of plan.finishes) for (const o of catalog.extraOptions[g.id] || []) if (!g.options.some(x => x.id === o.id)) g.options.push(o);
   document.body.dataset.project = projectKey;

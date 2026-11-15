@@ -105,6 +105,8 @@ aside { grid-area: side; border-left: 1px solid var(--hair); background: var(--p
 .issues li button { flex: none; padding: 3px 10px; font-size: 12px; border: 1px solid var(--hair); background: var(--panel); color: var(--text-2); border-radius: 999px; }
 .issues li button:hover { background: var(--brass); border-color: var(--brass); color: var(--on-brass); }
 .furnish-row { margin: 0 0 14px; display: grid; gap: 6px; } .furnish-row button.ghost { background: transparent; color: var(--text); border-color: var(--hair); font-weight: 500; } .furnish-row button { width: 100%; padding: 8px 12px; border-radius: 999px; background: var(--brass); border: 1px solid var(--brass); color: var(--on-brass); font-weight: 700; }
+.acct { display: inline-flex; align-items: center; gap: 8px; } .acct a.hbtn { text-decoration: none; }
+.cloud-status { font-size: 12px; color: var(--text-3); white-space: nowrap; } .cloud-status.ok::before { content: '● '; color: #7cc28a; } .cloud-status.err { color: var(--seal); }
 .sched { width: 100%; border-collapse: collapse; font-size: 13px; }
 .sched th, .sched td { padding: 7px 6px; border-bottom: 1px solid var(--hair); text-align: left; }
 .sched th { font-size: 11.5px; color: var(--text-3); font-weight: 500; }
@@ -151,6 +153,7 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
     <label class="hbtn">開啟 JSON<input type="file" id="file-json" accept=".json,application/json"></label>
     <button type="button" class="hbtn" id="btn-download">下載 JSON</button>
     <span class="spacer"></span>
+    <span id="acct" class="acct"></span>
     <button type="button" class="hbtn primary" id="btn-3d">在 3D 中查看</button>
   </header>
   <nav id="tools" aria-label="工具">

@@ -15,11 +15,25 @@ If the drawing prints the size of any numbered room (like "3.2 x 4.1", "320×410
 Answer with JSON only, no prose:
 {"rooms":[{"n":1,"type":"客廳","label":"<printed label if any, else empty>","stairs":false}],"scale":null}`;
 
+// Signed-in designers only (Supabase session token), so the AI credit can't be spent by anyone on the internet.
+const SB_URL = 'https://mhzdimntfcovzffidfxf.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oemRpbW50ZmNvdnpmZmlkZnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0Nzg1NDMsImV4cCI6MjEwNDA1NDU0M30.pt2K5dTdLJIg8e2VSgQSsfl9Fh18v4EWSZuVs9AnADM';
+async function signedInUser(req) {
+  const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
+  if (!m) return null;
+  try {
+    const r = await fetch(`${SB_URL}/auth/v1/user`, { headers: { apikey: SB_ANON, authorization: `Bearer ${m[1]}` } });
+    if (!r.ok) return null;
+    const u = await r.json(); return u && u.id ? u : null;
+  } catch { return null; }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(503).json({ error: 'no-key' });
+  if (!(await signedInUser(req))) return res.status(401).json({ error: 'sign-in required' });
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { return res.status(400).json({ error: 'bad json' }); } }
   const { image, count, floors = 1 } = body || {};

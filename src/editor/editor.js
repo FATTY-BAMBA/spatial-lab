@@ -5,6 +5,7 @@ import { polygonArea, bbox, toPing, wallFrame, pointInPolygon, itemFootprint } f
 import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { stairLocal, stairBox } from '../plan.js';
+import * as Cloud from '../cloud.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
 import { findIssues, applyFix, fixAll } from './issues.js';
@@ -158,7 +159,56 @@ function commit(label) {
   refreshPanel();
   render();
 }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(doc)); } catch {} }
+function save() { try { localStorage.setItem(STORE, JSON.stringify(doc)); } catch {} cloudSoon(); }
+
+// ---------------------------------------------------------------- cloud (signed-in designers)
+// Plans save to the account a moment after each change; ?id= opens a saved project, ?new=1 starts a fresh one.
+const cloud = { user: null, id: null, timer: 0, busy: false, again: false, ready: false };
+function cloudStatus(text, cls = '') { const e = $('#cloud-status'); if (e) { e.textContent = text; e.className = `cloud-status ${cls}`; } }
+function cloudSoon() {
+  if (!cloud.ready || !cloud.user) return;
+  if (!cloud.id && !doc.levels.some(L => L.walls.length)) return; // nothing worth saving yet
+  clearTimeout(cloud.timer); cloudStatus(t('儲存中…', 'Saving…'));
+  cloud.timer = setTimeout(cloudSave, 1500);
+}
+async function cloudSave() {
+  if (cloud.busy) { cloud.again = true; return; }
+  cloud.busy = true;
+  try {
+    const id = await Cloud.saveProject({ id: cloud.id, name: doc.project.name, doc, thumb: planThumb() });
+    if (!cloud.id) { cloud.id = id; const u = new URL(location.href); u.searchParams.delete('new'); u.searchParams.set('id', id); history.replaceState(null, '', u); }
+    cloudStatus(t('已儲存到帳號', 'Saved to your account'), 'ok');
+  } catch (e) { console.warn('cloud save', e); cloudStatus(t('未能儲存，稍後重試', 'Not saved — retrying'), 'err'); clearTimeout(cloud.timer); cloud.timer = setTimeout(cloudSave, 8000); }
+  cloud.busy = false;
+  if (cloud.again) { cloud.again = false; cloudSoon(); }
+}
+// small top-down picture of the ground floor for the projects page
+function planThumb() {
+  try {
+    const L = doc.levels[0], pts = L.walls.flatMap(w => [w.a, w.b]); if (!pts.length) return null;
+    const b = bbox(pts), W = 480, H = 320, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const s = Math.min(W / (b.x1 - b.x0 + 1.2), H / (b.z1 - b.z0 + 1.2));
+    const v = { s, x0: (b.x0 + b.x1) / 2 - W / s / 2, z0: (b.z0 + b.z1) / 2 - H / s / 2 };
+    const g = c.getContext('2d'); g.fillStyle = '#16130f'; g.fillRect(0, 0, W, H);
+    drawLevel(doc, L, { canvas: c, view: v, pxPerM: s, noGrid: true, noDims: true, theme: 'dark' });
+    return c.toDataURL('image/jpeg', 0.72);
+  } catch { return null; }
+}
+function cloudHeader() {
+  const host = $('#acct'); if (!host) return;
+  host.innerHTML = '';
+  if (cloud.user) {
+    const st = document.createElement('span'); st.id = 'cloud-status'; st.className = 'cloud-status';
+    st.textContent = cloud.id ? t('已儲存到帳號', 'Saved to your account') : t('畫出牆後自動儲存', 'Saves once you draw');
+    const a = document.createElement('a'); a.className = 'hbtn'; a.href = '/projects'; a.textContent = t('我的專案', 'My projects');
+    host.append(st, a);
+  } else {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'hbtn'; b.textContent = t('登入以儲存', 'Sign in to save');
+    b.title = t('用 Google 登入，平面圖會存到你的帳號，也能用 AI 辨識房間', 'Sign in with Google to save plans to your account and use AI room naming');
+    b.addEventListener('click', () => Cloud.signIn('/projects').catch(() => toast(t('無法登入', 'Could not sign in'))));
+    host.append(b);
+  }
+}
 function loadDoc(d, fit = true) {
   doc = d; lv = 0; sel = null; draft = null;
   for (const L of doc.levels) { L.walls = L.walls || []; L.furniture = L.furniture || []; detectRooms(L); }
@@ -929,7 +979,10 @@ async function aiNameRooms({ quiet = false } = {}) {
   if (!quiet) toast(t('AI 正在辨識房間…', 'AI is identifying the rooms…'));
   let out;
   try {
-    const r = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length }) });
+    const token = await Cloud.accessToken();
+    if (!token) { if (!quiet) toast(t('登入後即可使用 AI 辨識房間名稱', 'Sign in to name rooms with AI')); else toast(t('已依規則命名房間；登入後可用 AI 辨識房間名稱。', 'Rooms got rule-based names; sign in to name them with AI.')); return false; }
+    const r = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length }) });
+    if (r.status === 401) { if (!quiet) toast(t('請重新登入後再試', 'Please sign in again')); return false; }
     if (r.status === 503 || r.status === 404) { aiState = 'off'; if (!quiet) toast(t('AI 命名尚未啟用（伺服器未設定金鑰），已使用規則命名。', 'AI naming is not enabled on the server yet; rule-based names are used.')); return false; }
     out = await r.json(); if (!r.ok) throw new Error(out.error || r.status);
   } catch (e) { console.warn('vision', e); if (!quiet) toast(t('AI 命名失敗，請稍後再試', 'AI naming failed; try again later')); return false; }
@@ -1132,10 +1185,18 @@ let saved = null;
 try { saved = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch {}
 addEventListener('resize', resize);
 (async () => {
-  const from = params.get('from');
-  if (from && from !== 'custom') { const d = await (await fetch(`data/${from === 'townhouse' ? 'house' : from}.json`)).json(); loadDoc(fromBuiltIn(d), false); }
+  const from = params.get('from'), cid = params.get('id');
+  cloud.user = await Cloud.currentUser();
+  if (cid && cloud.user) {
+    try { const row = await Cloud.loadProject(cid); cloud.id = cid; loadDoc(row.doc, false); }
+    catch { toast(t('找不到這個專案', 'Project not found')); loadDoc(blank(), false); }
+  } else if (cid) { location.href = '/projects'; return; }
+  else if (params.get('new')) loadDoc(blank(), false);
+  else if (from && from !== 'custom') { const d = await (await fetch(`data/${from === 'townhouse' ? 'house' : from}.json`)).json(); loadDoc(fromBuiltIn(d), false); }
   else if (saved && saved.levels) loadDoc(saved, false);
   else loadDoc(blank(), false);
+  cloud.ready = true; cloudHeader();
+  Cloud.onAuth(u => { const was = cloud.user; cloud.user = u; if (!!was !== !!u) cloudHeader(); });
   resize(); fitView();
   setTool(doc.levels[0].walls.length ? 'select' : 'wall');
   window.__editor = { get doc() { return doc; }, loadDoc, importDXF, open3D, setTool, commit, view, fitView, level };
