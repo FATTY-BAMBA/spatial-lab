@@ -1070,6 +1070,20 @@ async function pdfToImage(file) {
 // ---------------------------------------------------------------- AI room naming (image imports)
 // Draws a numbered marker in every detected room on the plan picture and asks /api/vision what each room is.
 // Applies names, wet/outdoor flags, a printed dimension as the true scale, stairs between floors, then refurnishes.
+// union of two item lists from separate AI reads: an item both reads found (same kind, boxes overlapping) is kept once
+// with the boxes averaged; an item only one read found is kept as well
+function mergeItems(A, B) {
+  const iou = (p, q) => { const ix = Math.max(0, Math.min(p[2], q[2]) - Math.max(p[0], q[0])), iy = Math.max(0, Math.min(p[3], q[3]) - Math.max(p[1], q[1])), i = ix * iy; const u = (p[2] - p[0]) * (p[3] - p[1]) + (q[2] - q[0]) * (q[3] - q[1]) - i; return u > 0 ? i / u : 0; };
+  const near = (p, q) => Math.hypot((p[0] + p[2]) / 2 - (q[0] + q[2]) / 2, (p[1] + p[3]) / 2 - (q[1] + q[3]) / 2) < 0.45 * Math.min(p[2] - p[0] + p[3] - p[1], q[2] - q[0] + q[3] - q[1]) / 2;
+  const out = A.map(x => ({ ...x, box: x.box.slice() })), used = new Set();
+  for (const y of B) {
+    let k = -1, best = 0;
+    out.forEach((x, i) => { if (used.has(i) || x.kind !== y.kind) return; const v = iou(x.box, y.box); if ((v > 0.25 || near(x.box, y.box)) && v >= best) { best = v; k = i; } });
+    if (k >= 0) { used.add(k); out[k].box = out[k].box.map((v, j) => Math.round((v + y.box[j]) / 2)); }
+    else out.push({ ...y, box: y.box.slice() });
+  }
+  return out;
+}
 // picture px (in the image sent to the AI, scale S) → plan metres on a floor with picture shift sh
 const toPlanPx = ([px, py], sh, S) => [underlay.x + (px / S + sh[0]) * underlay.mpp, underlay.z + (py / S + sh[1]) * underlay.mpp];
 let aiState = 'unknown'; // 'off' once the server says no key is configured
@@ -1096,10 +1110,18 @@ async function aiNameRooms({ quiet = false } = {}) {
   try {
     const token = await Cloud.accessToken();
     if (!token) { if (!quiet) toast(t('登入後即可使用 AI 辨識房間名稱', 'Sign in to name rooms with AI')); else toast(t('已依規則命名房間；登入後可用 AI 辨識房間名稱。', 'Rooms got rule-based names; sign in to name them with AI.')); return false; }
-    const r = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length, size: [c.width, c.height] }) });
+    // two independent reads in parallel, merged: the model's item lists vary run to run, the union is far steadier
+    const body = JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length, size: [c.width, c.height] });
+    const ask = () => fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body }).then(async r => ({ r, j: await r.json().catch(() => ({})) }), () => null);
+    const [a, b] = await Promise.all([ask(), ask()]);
+    const good = [a, b].filter(x => x && x.r.ok);
+    const r = (good[0] || a || b || {}).r;
+    if (!r) throw new Error('network');
     if (r.status === 401) { if (!quiet) toast(t('請重新登入後再試', 'Please sign in again')); return false; }
     if (r.status === 503 || r.status === 404) { aiState = 'off'; if (!quiet) toast(t('AI 命名尚未啟用（伺服器未設定金鑰），已使用規則命名。', 'AI naming is not enabled on the server yet; rule-based names are used.')); return false; }
-    out = await r.json(); if (!r.ok) throw new Error(out.error || r.status);
+    if (!good.length) throw new Error((a && a.j.error) || r.status);
+    out = good[0].j;
+    if (good[1]) out.items = mergeItems(out.items || [], good[1].j.items || []);
     flow.step('rooms', 'done', t(`${out.rooms.length} 間`, `${out.rooms.length} rooms`)); flow.step('furniture', 'active', t(`圖面上 ${(out.items || []).length} 件`, `${(out.items || []).length} drawn`));
     // second look: the drawing has furniture but some furnishable rooms came back empty → ask about just those rooms
     if ((out.items || []).length >= 3) {
