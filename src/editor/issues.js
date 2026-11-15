@@ -59,9 +59,10 @@ export function findIssues(level) {
     // b) a wall straight ahead
     for (const v of level.walls) {
       if (v === E.w) continue;
-      const { ux, uz, len } = frame(v), den = E.out[0] * uz - E.out[1] * ux; if (Math.abs(den) < 0.2) continue;
+      const { ux, uz, len } = frame(v); if (!(len > 1e-6)) continue;
+      const den = E.out[0] * uz - E.out[1] * ux; if (!(Math.abs(den) >= 0.2)) continue;
       const qx = v.a[0] - E.p[0], qz = v.a[1] - E.p[1], ta = (qx * uz - qz * ux) / den, tv = (qx * E.out[1] - qz * E.out[0]) / den;
-      if (ta < 0.02 || ta > REACH || tv < -0.02 || tv > len + 0.02) continue;
+      if (!(ta >= 0.02 && ta <= REACH && tv >= -0.02 && tv <= len + 0.02)) continue; // NaN-safe
       const d = ta - (v.t || 0.12) / 2 * Math.abs(den);
       if (!best || d < best.d - 0.15) best = { d: Math.max(0, d), type: 'extend', to: [r3(E.p[0] + E.out[0] * ta), r3(E.p[1] + E.out[1] * ta)], v };
     }

@@ -23,7 +23,8 @@ function projT(p, a, b) {
 
 // Build a planar graph from wall centrelines (split at crossings and T-junctions)
 export function wallGraph(walls) {
-  const segs = walls.filter(w => w.kind !== 'ignore').map(w => ({ a: w.a, b: w.b, ts: [0, 1] }));
+  const ok = p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]);
+  const segs = walls.filter(w => w.kind !== 'ignore' && ok(w.a) && ok(w.b) && Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) > EPS).map(w => ({ a: w.a, b: w.b, ts: [0, 1] }));
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
     const A = segs[i], B = segs[j];
     const hit = segIntersect(A.a, A.b, B.a, B.b);
@@ -77,7 +78,8 @@ export function findFaces(walls) {
     while (!used.has(a + '>' + b) && guard++ < 2000) {
       used.add(a + '>' + b);
       poly.push(verts.get(a));
-      const list = sorted.get(b), i = list.indexOf(a);
+      const list = sorted.get(b); if (!list || !list.length) break;
+      const i = list.indexOf(a);
       const c = list[(i - 1 + list.length) % list.length];
       a = b; b = c;
     }

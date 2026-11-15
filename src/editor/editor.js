@@ -7,6 +7,7 @@ import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
 import { findIssues, applyFix, fixAll } from './issues.js';
+import { autoFurnish } from './furnish.js';
 import { isEn, t, unitLabel, translateDom, langSwitch } from '../i18n.js';
 
 // ---------------------------------------------------------------- language
@@ -781,6 +782,14 @@ function refreshPanel() {
     const fa = box.querySelector('#fix-all');
     if (fa) fa.addEventListener('click', () => { const n = fixAll(level(), detectRooms); focusIssue = null; commit(); toast(t(`已補上 ${n} 處；剩下的請手動檢查`, `Fixed ${n}; check the rest by hand`)); });
   }
+  if (!sel && level().rooms.length) {
+    const row = document.createElement('div'); row.className = 'furnish-row';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'go';
+    b.textContent = level().furniture.some(f => f.auto) ? t('重新自動配置家具', 'Re-furnish automatically') : t('自動配置家具', 'Furnish automatically');
+    b.title = t('依房間類型與大小擺放家具，保留門與走道淨空；你手動放的家具不會被移動。', 'Places furniture by room type and size, keeping doors and walkways clear. Pieces you placed yourself stay put.');
+    b.addEventListener('click', () => { let n = 0; for (const L2 of doc.levels) n += autoFurnish(L2, { replace: true }); commit(); toast(t(`已配置 ${n} 件家具（Ctrl+Z 復原）。改房間名稱後再按一次，家具會跟著換。`, `Placed ${plural(n, 'piece')} (Ctrl+Z undoes). Rename rooms and press again to refurnish.`)); });
+    row.appendChild(b); host.appendChild(row);
+  }
   // room schedule
   const L = level();
   const rooms = L.rooms;
@@ -892,7 +901,8 @@ $('#img-detect').addEventListener('click', () => {
     if (doc.levels.some(L => L.walls.length) && !window.confirm(t(`圖中偵測到 ${floors.length} 個樓層，要取代目前所有樓層嗎？`, `Found ${floors.length} floors in this picture. Replace all current floors?`))) return;
     doc.levels = floors.map((ws, i) => { const L = newLevel(i); L.walls = ws.map((w, j) => ({ id: `i${i}_${j}`, ...w })); L.imgShift = (underlay.lines.floors[i].shift || [0, 0]).map(v => +v.toFixed(1)); return L; });
     for (let i = 1; i < doc.levels.length; i++) doc.levels[i].elevation = doc.levels[i - 1].elevation + doc.levels[i - 1].height;
-    for (const L of doc.levels) { L.rooms = []; detectRooms(L); }
+    let nF = 0;
+    for (const L of doc.levels) { L.rooms = []; detectRooms(L); nF += autoFurnish(L); }
     lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
     toast(t(`偵測到 ${floors.length} 個樓層（左到右為 1F→${floors.length}F），房間：${counts}。各樓層已對齊到 1F 位置；請逐層檢查缺口與門窗。`, `Found ${floors.length} floors (left to right = 1F→${floors.length}F). Rooms: ${counts}. Floors are aligned onto 1F; check each floor for gaps and openings.`));
@@ -903,6 +913,7 @@ $('#img-detect').addEventListener('click', () => {
   L.walls = walls.map((w, i) => ({ id: `i${i}`, ...w }));
   L.rooms = [];
   detectRooms(L);
+  autoFurnish(L, { replace: true });
   commit();
   toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查缺口、門窗與房間名稱；未封閉的空間用「牆」補上。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check gaps, doors/windows and room names; close open spaces with the Wall tool.`));
 });
@@ -970,8 +981,9 @@ $('#dxf-detect').addEventListener('click', () => {
   let best = null;
   for (const w of L.walls) { if (!w.ext) continue; const { ux, uz } = wallFrame(w); for (const o of w.openings) if (o.type === 'door') { const m = [w.a[0] + ux * (o.offset + o.width / 2), w.a[1] + uz * (o.offset + o.width / 2)]; const d = ent ? Math.hypot(m[0] - ent.p[0], m[1] - ent.p[1]) : 0; if (!best || d < best.d) best = { o, d }; } }
   if (best) best.o.main = true;
+  const nF = autoFurnish(L, { replace: true });
   commit();
-  toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查門窗類型與房間名稱。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check the door/window types and room names.`));
+  toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間，並自動配置 ${nF} 件家具（Ctrl+Z 可復原）。請檢查門窗類型與房間名稱。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}, and placed ${plural(nF, 'piece')} of furniture (Ctrl+Z undoes). Check door/window types and room names.`));
 });
 $('#dxf-opacity').addEventListener('input', e => { underlay.dxfOpacity = +e.target.value; render(); });
 $('#dxf-remove').addEventListener('click', () => { underlay.dxf = null; $('#ul-dxf').hidden = true; render(); });
