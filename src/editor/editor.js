@@ -5,6 +5,7 @@ import { polygonArea, bbox, toPing, wallFrame, pointInPolygon, itemFootprint } f
 import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
+import { extractPlanLines, wallsFromImage } from './raster.js';
 import { isEn, t, unitLabel, translateDom, langSwitch } from '../i18n.js';
 
 // ---------------------------------------------------------------- language
@@ -18,7 +19,8 @@ translateDom({
   '透天 2 樓': 'Townhouse · 2 floors',
   'DXF 範例：2房公寓': 'DXF sample: 2-bed apartment',
   '匯入 DXF': 'Import DXF',
-  '匯入平面圖照片': 'Import plan photo',
+  '匯入平面圖圖片／PDF': 'Import plan image / PDF',
+  '先校正比例再辨識，門寬與房間大小才會準確。': 'Set the scale before detecting so door widths and room sizes come out right.',
   '開啟 JSON': 'Open JSON',
   '下載 JSON': 'Download JSON',
   '在 3D 中查看': 'View in 3D',
@@ -566,7 +568,8 @@ function askScale(a, b) {
     underlay.mpp *= k;
     underlay.x = a[0] + (underlay.x - a[0]) * k;
     underlay.z = a[1] + (underlay.z - a[1]) * k;
-    box.hidden = true; draft = null; setTool('wall'); fitView(); toast(t(`底圖比例已設定：${m2(real)}`, `Underlay scale set: ${m2(real)}`));
+    box.hidden = true; draft = null; setTool('wall'); fitView();
+    toast(underlay.lines && underlay.lines.faces.length ? t(`底圖比例已設定：${m2(real)}。按「自動辨識牆體」產生牆與房間。`, `Underlay scale set: ${m2(real)}. Press “Detect walls” to build walls and rooms.`) : t(`底圖比例已設定：${m2(real)}`, `Underlay scale set: ${m2(real)}`));
   };
 }
 // "360" -> 3.60 m (cm), "3.6" -> 3.6 m, "3600mm" -> 3.6 m
@@ -807,12 +810,50 @@ function fromBuiltIn(d) {
   return out;
 }
 $('#file-dxf').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; importDXF(await f.arrayBuffer(), f.name); e.target.value = ''; });
-$('#file-img').addEventListener('change', e => {
+$('#file-img').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
-  const img = new Image();
-  img.onload = () => { underlay.imgEl = img; underlay.mpp = 12 / img.width; underlay.x = 0; underlay.z = 0; $('#ul-img').hidden = false; fitView(); setTool('scale'); toast(t('底圖已載入：點兩個已知距離的點設定比例（例如一道標有尺寸的牆）', 'Underlay loaded. Click two points a known distance apart to set the scale (e.g. a dimensioned wall).')); };
-  img.src = URL.createObjectURL(f);
   e.target.value = '';
+  let src;
+  try { src = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name) ? await pdfToImage(f) : URL.createObjectURL(f); }
+  catch (err) { console.error(err); toast(t('無法讀取這個 PDF', 'Could not read this PDF')); return; }
+  const img = new Image();
+  img.onload = () => {
+    underlay.imgEl = img; underlay.x = 0; underlay.z = 0;
+    // find the walls once; the drawn wall thickness also gives a first guess at the scale (exterior wall ≈ 25 cm)
+    try {
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0);
+      underlay.lines = extractPlanLines(g.getImageData(0, 0, c.width, c.height));
+    } catch (err) { console.error(err); underlay.lines = null; }
+    underlay.mpp = underlay.lines && underlay.lines.tPx ? 0.25 / underlay.lines.tPx : 12 / img.width;
+    $('#ul-img').hidden = false; fitView(); setTool('scale');
+    toast(t('底圖已載入，比例已依牆厚估算。點兩個已知距離的點校正比例（例如一道標有尺寸的牆），再按「自動辨識牆體」。', 'Plan loaded; scale estimated from the wall thickness. Click two points a known distance apart to correct it (e.g. a dimensioned wall), then press “Detect walls”.'));
+  };
+  img.src = src;
+});
+// First page of a PDF → PNG data URL, rendered at ~2400 px on the long side
+async function pdfToImage(file) {
+  const pdfjs = await import('../../vendor/pdfjs/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('../../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const page = await pdf.getPage(1), v0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: 2400 / Math.max(v0.width, v0.height) });
+  const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  await page.render({ canvasContext: g, viewport: vp }).promise;
+  return c.toDataURL('image/png');
+}
+$('#img-detect').addEventListener('click', () => {
+  if (!underlay.imgEl || !underlay.lines || !underlay.lines.faces.length) { toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
+  const L = level();
+  if (L.walls.length && !window.confirm(t('取代目前樓層的牆體？', 'Replace the walls on this floor?'))) return;
+  const { walls } = wallsFromImage(underlay.lines, { mpp: underlay.mpp, ox: underlay.x, oz: underlay.z });
+  if (!walls.length) { toast(t('這張圖找不到牆線，請手動描繪', 'No walls found in this image. Trace them by hand.')); return; }
+  sel = null;
+  L.walls = walls.map((w, i) => ({ id: `i${i}`, ...w }));
+  L.rooms = [];
+  detectRooms(L);
+  commit();
+  toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查缺口、門窗與房間名稱；未封閉的空間用「牆」補上。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check gaps, doors/windows and room names; close open spaces with the Wall tool.`));
 });
 $('#ul-opacity').addEventListener('input', e => { underlay.opacity = +e.target.value; render(); });
 $('#ul-remove').addEventListener('click', () => { underlay.imgEl = null; $('#ul-img').hidden = true; render(); });
