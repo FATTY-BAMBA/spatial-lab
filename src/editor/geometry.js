@@ -113,6 +113,8 @@ export function detectRooms(level) {
   // gaps between back-to-back walls and pipe chases are not rooms: drop faces under ~30 cm effective width (2·area / perimeter)
   const perim = q => q.reduce((s, p, i) => { const n = q[(i + 1) % q.length]; return s + Math.hypot(n[0] - p[0], n[1] - p[1]); }, 0);
   const polys = faces.filter(q => { const A = polygonArea(q); return A >= 0.25 && 2 * A / perim(q) >= 0.26; });
+  // spaces whose walls don't fully close (a living room open to the carport, an archway, a missing wall end) are rooms too
+  for (const q of openAreas(level.walls, polys)) polys.push(q);
   const prev = level.rooms || [];
   const used = new Set();
   const rooms = polys.map((poly, i) => {
@@ -148,6 +150,137 @@ export function detectRooms(level) {
   }
   level.outline = outer;
   return level;
+}
+
+// ---------------------------------------------------------------- open areas
+// Grid over the floor; walls thickened by R seal gaps up to 2R; whatever the outside can't reach through that and no
+// closed room covers is an open area — grown back to the real wall faces and traced into a polygon.
+const openCache = new Map();
+export function openAreas(walls, roomPolys, R = 1.3) {
+  // edits re-detect rooms on every floor: only redo the grid when this floor's walls or closed rooms changed
+  const key = R + '|' + (walls || []).map(w => `${w.a[0]},${w.a[1]},${w.b[0]},${w.b[1]},${w.t || 0},${w.kind || ''}`).join(';') + '|' + roomPolys.map(P => P.length + ':' + P[0]).join(';');
+  if (openCache.has(key)) return openCache.get(key).map(P => P.map(p => p.slice()));
+  const res = openAreasRaw(walls, roomPolys, R);
+  openCache.set(key, res); if (openCache.size > 24) openCache.delete(openCache.keys().next().value);
+  return res.map(P => P.map(p => p.slice()));
+}
+function openAreasRaw(walls, roomPolys, R) {
+  const real = (walls || []).filter(w => Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) > 0.05);
+  if (real.length < 3) return [];
+  // the building's extent closes spaces left fully open on one side (an undetected glass front): virtual walls on the
+  // bounding box; a pocket only counts when real walls make most of its edge
+  const rx = real.flatMap(w => [w.a[0], w.b[0]]), rz = real.flatMap(w => [w.a[1], w.b[1]]);
+  const bx0 = Math.min(...rx), bx1 = Math.max(...rx), bz0 = Math.min(...rz), bz1 = Math.max(...rz);
+  const frame = [[[bx0, bz0], [bx1, bz0]], [[bx1, bz0], [bx1, bz1]], [[bx1, bz1], [bx0, bz1]], [[bx0, bz1], [bx0, bz0]]].map(([a, b]) => ({ a, b, kind: 'zone', virtual: true }));
+  const ws = real.concat(frame);
+  const xs = ws.flatMap(w => [w.a[0], w.b[0]]), zs = ws.flatMap(w => [w.a[1], w.b[1]]);
+  const x0 = Math.min(...xs) - R - 0.6, z0 = Math.min(...zs) - R - 0.6, x1 = Math.max(...xs) + R + 0.6, z1 = Math.max(...zs) + R + 0.6;
+  const cs = Math.max(0.1, Math.sqrt(((x1 - x0) * (z1 - z0)) / 250000)), nx = Math.ceil((x1 - x0) / cs), nz = Math.ceil((z1 - z0) / cs), N = nx * nz;
+  const idx = (i, j) => j * nx + i, cx = i => x0 + (i + 0.5) * cs, cz = j => z0 + (j + 0.5) * cs;
+  // walls
+  const wall = new Uint8Array(N); // 1 real wall, 2 virtual frame
+  for (const w of ws) {
+    const half = (w.kind === 'zone' ? 0.04 : (w.t || 0.12) / 2) + cs * 0.5;
+    const i0 = Math.max(0, Math.floor((Math.min(w.a[0], w.b[0]) - half - x0) / cs)), i1 = Math.min(nx - 1, Math.ceil((Math.max(w.a[0], w.b[0]) + half - x0) / cs));
+    const j0 = Math.max(0, Math.floor((Math.min(w.a[1], w.b[1]) - half - z0) / cs)), j1 = Math.min(nz - 1, Math.ceil((Math.max(w.a[1], w.b[1]) + half - z0) / cs));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (projClamp([cx(i), cz(j)], w.a, w.b) <= half && wall[idx(i, j)] !== 1) wall[idx(i, j)] = w.virtual ? 2 : 1;
+  }
+  // distance to the nearest wall (chamfer 3-4), in cells
+  const D = new Float32Array(N).fill(1e9);
+  for (let k = 0; k < N; k++) if (wall[k]) D[k] = 0;
+  const relax = (k, k2, c) => { if (D[k2] + c < D[k]) D[k] = D[k2] + c; };
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = idx(i, j); if (i > 0) relax(k, k - 1, 1); if (j > 0) { relax(k, k - nx, 1); if (i > 0) relax(k, k - nx - 1, 1.414); if (i < nx - 1) relax(k, k - nx + 1, 1.414); } }
+  for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = idx(i, j); if (i < nx - 1) relax(k, k + 1, 1); if (j < nz - 1) { relax(k, k + nx, 1); if (i < nx - 1) relax(k, k + nx + 1, 1.414); if (i > 0) relax(k, k + nx - 1, 1.414); } }
+  const Rc = R / cs;
+  // outside: flood from the border through cells farther than R from any wall
+  const out = new Uint8Array(N), q = new Int32Array(N); let h = 0, t = 0;
+  const push = k => { if (!out[k] && D[k] > Rc) { out[k] = 1; q[t++] = k; } };
+  for (let i = 0; i < nx; i++) { push(idx(i, 0)); push(idx(i, nz - 1)); }
+  for (let j = 0; j < nz; j++) { push(idx(0, j)); push(idx(nx - 1, j)); }
+  while (h < t) { const k = q[h++], i = k % nx, j = (k / nx) | 0; if (i > 0) push(k - 1); if (i < nx - 1) push(k + 1); if (j > 0) push(k - nx); if (j < nz - 1) push(k + nx); }
+  // cells already in a closed room
+  const inRoom = new Uint8Array(N);
+  for (const P of roomPolys) {
+    const b = bbox(P), i0 = Math.max(0, Math.floor((b.x0 - x0) / cs)), i1 = Math.min(nx - 1, Math.ceil((b.x1 - x0) / cs)), j0 = Math.max(0, Math.floor((b.z0 - z0) / cs)), j1 = Math.min(nz - 1, Math.ceil((b.z1 - z0) / cs));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (pointInPolygon([cx(i), cz(j)], P)) inRoom[idx(i, j)] = 1;
+  }
+  // pockets: connected cores (cells farther than R from every wall, not outside, not in a room) …
+  const lab = new Int32Array(N); let id = 0; h = 0; t = 0;
+  const isCore = k => !wall[k] && !inRoom[k] && !out[k] && D[k] > Rc;
+  const nb = (k, f) => { const i = k % nx, j = (k / nx) | 0; if (i > 0) f(k - 1); if (i < nx - 1) f(k + 1); if (j > 0) f(k - nx); if (j < nz - 1) f(k + nx); };
+  for (let s0 = 0; s0 < N; s0++) {
+    if (lab[s0] || !isCore(s0)) continue;
+    id++; let hh = 0, tt = 0; const qq = [s0]; lab[s0] = id;
+    while (hh < qq.length) nb(qq[hh++], k2 => { if (!lab[k2] && isCore(k2)) { lab[k2] = id; qq.push(k2); } });
+  }
+  if (!id) return [];
+  // … then every free cell joins its nearest pocket (all pockets grow together), out to the wall faces
+  const depth = new Float32Array(N);
+  for (let k = 0; k < N; k++) if (lab[k]) q[t++] = k;
+  const limit = 2 * Rc + 3;
+  while (h < t) {
+    const k = q[h++];
+    nb(k, k2 => { if (lab[k2] || wall[k2] || inRoom[k2] || out[k2] || depth[k] + 1 > limit) return; lab[k2] = lab[k]; depth[k2] = depth[k] + 1; q[t++] = k2; });
+  }
+  // per pocket: size, core size, and how much of its edge is real wall (not the virtual frame, not open space)
+  const st = Array.from({ length: id + 1 }, () => ({ n: 0, core: 0, edge: 0, real: 0 }));
+  for (let k = 0; k < N; k++) {
+    const L = lab[k]; if (!L) continue;
+    const S = st[L]; S.n++; if (D[k] > Rc) S.core++;
+    nb(k, k2 => { if (lab[k2] === L || inRoom[k2]) return; S.edge++; if (wall[k2] === 1) S.real++; });
+  }
+  const res = [];
+  for (let L = 1; L <= id; L++) {
+    const S = st[L];
+    if (S.n * cs * cs < 4 || S.core * cs * cs < 0.6 || S.real < 0.6 * S.edge) continue;
+    // trim slivers that slipped out through gaps in a facade (opening: erode then grow back, 50 cm; a cut-off blob is dropped by the tracer, which keeps the main outline)
+    const r = Math.max(1, Math.round(0.5 / cs)), M = new Uint8Array(N);
+    for (let k = 0; k < N; k++) if (lab[k] === L) M[k] = 1;
+    const E = boxFilter(M, nx, nz, r, true), O = boxFilter(E, nx, nz, r, false);
+    for (let k = 0; k < N; k++) if (lab[k] === L && !O[k]) lab[k] = 0;
+    const poly = traceCells(lab, L, nx, nz, x0, z0, cs);
+    if (poly && poly.length >= 4 && polygonArea(poly) >= 4) res.push(poly);
+  }
+  return res;
+}
+// square min (erode) / max (dilate) filter of a 0/1 grid, radius r cells, via running sums along rows then columns
+function boxFilter(M, nx, nz, r, erode) {
+  const tmp = new Uint16Array(nx * nz), outM = new Uint8Array(nx * nz), w = 2 * r + 1;
+  for (let j = 0; j < nz; j++) { let sum = 0; const o = j * nx; for (let i = -r; i < nx; i++) { const add = i + r < nx ? M[o + i + r] : 0, sub = i - r - 1 >= 0 ? M[o + i - r - 1] : 0; sum += add - sub; if (i >= 0) tmp[o + i] = sum; } }
+  for (let i = 0; i < nx; i++) { let sum = 0; for (let j = -r; j < nz; j++) { const add = j + r < nz ? tmp[(j + r) * nx + i] : 0, sub = j - r - 1 >= 0 ? tmp[(j - r - 1) * nx + i] : 0; sum += add - sub; if (j >= 0) outM[j * nx + i] = erode ? (sum >= w * w ? 1 : 0) : (sum > 0 ? 1 : 0); } }
+  return outM;
+}
+// outline of the cells labelled id: walk the grid edges between inside and outside cells, keep the longest loop, simplify
+function traceCells(lab, id, nx, nz, x0, z0, cs) {
+  const at = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && lab[j * nx + i] === id;
+  const next = new Map(); const key = (i, j) => i * 100003 + j;
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    if (!at(i, j)) continue;
+    // directed boundary edges, inside on the left (counter-clockwise around the cell set)
+    if (!at(i, j - 1)) next.set(key(i + 1, j), [i, j]);       // top edge: (i+1,j) → (i,j)
+    if (!at(i - 1, j)) next.set(key(i, j), [i, j + 1]);       // left edge: (i,j) → (i,j+1)
+    if (!at(i, j + 1)) next.set(key(i, j + 1), [i + 1, j + 1]); // bottom edge
+    if (!at(i + 1, j)) next.set(key(i + 1, j + 1), [i + 1, j]); // right edge
+  }
+  let best = null;
+  const seen = new Set();
+  for (const [k0] of next) {
+    if (seen.has(k0)) continue;
+    const loop = []; let k = k0, guard = 0;
+    while (!seen.has(k) && next.has(k) && guard++ < 200000) { seen.add(k); const p = next.get(k); loop.push(p); k = key(p[0], p[1]); }
+    if (!best || loop.length > best.length) best = loop;
+  }
+  if (!best || best.length < 4) return null;
+  const pts = best.map(([i, j]) => [x0 + i * cs, z0 + j * cs]);
+  const simp = dp(pts.concat([pts[0]]), Math.max(0.12, cs * 1.2)).slice(0, -1);
+  return simp.map(p => [+p[0].toFixed(3), +p[1].toFixed(3)]);
+}
+function dp(pts, eps) { // Douglas–Peucker
+  if (pts.length < 3) return pts;
+  let k = -1, m = 0; const a = pts[0], b = pts[pts.length - 1];
+  for (let i = 1; i < pts.length - 1; i++) { const d = projClamp(pts[i], a, b); if (d > m) { m = d; k = i; } }
+  if (m <= eps) return [a, b];
+  return dp(pts.slice(0, k + 1), eps).slice(0, -1).concat(dp(pts.slice(k), eps));
 }
 
 // Point well inside a polygon (grid search for the largest clearance)
