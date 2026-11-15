@@ -142,6 +142,12 @@ let undo = [], redo = [];
 function blank() {
   return { project: { name: '新專案', nameEn: 'New project', type: 'apartment', floor: 9 }, levels: [newLevel(0)], stairs: [] };
 }
+// a new project takes its name from the first uploaded file ("寅成NO3-A3.jpg" → "寅成NO3-A3")
+function nameFromFile(fname) {
+  if (doc.project.name && doc.project.name !== '新專案') return;
+  const n = String(fname || '').replace(/\.[a-z0-9]+$/i, '').replace(/[_]+/g, ' ').trim().slice(0, 60);
+  if (n && !/^(image|img|scan|screenshot|未命名|untitled)[\s\d-]*$/i.test(n)) { doc.project.name = n; doc.project.nameEn = n; }
+}
 function newLevel(i, below) {
   const id = `${i + 1}F`;
   const L = { id, name: ['一樓', '二樓', '三樓', '四樓', '五樓'][i] || `${i + 1}樓`, nameEn: ['Ground floor', 'Second floor', 'Third floor', 'Fourth floor', 'Fifth floor'][i] || `Floor ${i + 1}`, elevation: below ? below.elevation + below.height : 0, height: 3.0, walls: [], rooms: [], furniture: [] };
@@ -922,10 +928,11 @@ function fromBuiltIn(d) {
   }
   return out;
 }
-$('#file-dxf').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; importDXF(await f.arrayBuffer(), f.name); e.target.value = ''; });
+$('#file-dxf').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; nameFromFile(f.name); importDXF(await f.arrayBuffer(), f.name); e.target.value = ''; });
 $('#file-img').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   e.target.value = '';
+  nameFromFile(f.name);
   let src;
   try { src = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name) ? await pdfToImage(f) : URL.createObjectURL(f); }
   catch (err) { console.error(err); toast(t('無法讀取這個 PDF', 'Could not read this PDF')); return; }

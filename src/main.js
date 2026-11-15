@@ -34,7 +34,7 @@ async function boot() {
   document.querySelector('.bar .actions')?.prepend(langSwitch());
   if (isEn) document.title = 'PrimeStride Spatial Lab: from floor plan to a signable proposal';
   const params = new URLSearchParams(location.search);
-  let customPlan = null, sharedView = false;
+  let customPlan = null, sharedView = false, cloudName = '';
   if (params.get('p') === 'custom') { try { customPlan = JSON.parse(localStorage.getItem('spatial.custom') || 'null'); } catch {} }
   // saved projects: ?id= (the owner, signed in) or ?share= (anyone with the link, read-only)
   const cloudId = params.get('id'), shareTok = params.get('share');
@@ -44,7 +44,7 @@ async function boot() {
       const row = shareTok ? await C.sharedProject(shareTok) : await C.loadProject(cloudId);
       if (row) {
         const [{ completePlan }, base] = await Promise.all([import('./editor/geometry.js'), loadPlan('data/apartment.json')]);
-        customPlan = completePlan(row.doc, base); sharedView = !!shareTok;
+        customPlan = completePlan(row.doc, base); sharedView = !!shareTok; cloudName = row.name || '';
       }
     } catch (e) { console.warn('cloud plan', e); }
     if (!customPlan) { const note = document.createElement('div'); note.className = 'cloud-miss'; note.textContent = shareTok ? t('這個分享連結已失效或不存在。', 'This share link has expired or does not exist.') : t('找不到這個專案，請先登入。', 'Project not found — please sign in.'); document.body.appendChild(note); setTimeout(() => note.remove(), 6000); }
@@ -54,6 +54,18 @@ async function boot() {
   const editLink = document.getElementById('edit-link');
   if (editLink) editLink.href = cloudId && customPlan ? `/editor?id=${encodeURIComponent(cloudId)}` : `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
   if (sharedView) { document.body.classList.add('shared-view'); if (editLink) editLink.hidden = true; }
+  // a saved project (owner or client link): the opening screen is about this house, not our product pitch
+  if (customPlan && (cloudId || shareTok)) {
+    document.body.classList.add('project-view');
+    const h1 = document.querySelector('.hero-copy h1'), lede = document.querySelector('.hero-copy > p'), cue = document.querySelector('.scroll-cue span');
+    if (h1) h1.textContent = cloudName || t('你的 3D 提案', 'Your 3D proposal');
+    if (lede) lede.textContent = sharedView
+      ? t('設計師為你準備的 3D 提案。往下捲動，看平面圖長成空間；或直接走進去，換風格、看即時報價。', 'A 3D proposal prepared by your designer. Scroll to watch the plan become a space, or walk straight in, switch styles and see the live quote.')
+      : t('客戶打開分享連結時會看到這個畫面。先走一遍，確認房間、家具與報價。', 'This is what your client sees from the share link. Walk it once to check rooms, furniture and the quote.');
+    if (cue) cue.textContent = t('往下捲動，看這個家從平面圖長出來', 'Scroll to watch this home rise from the plan');
+    const start = document.getElementById('hero-start'); if (start) { start.classList.replace('btn-ghost', 'btn-brass'); }
+    if (cloudName) document.title = `${cloudName} · PrimeStride Spatial Lab`;
+  }
   // account link: 登入 → 我的專案 once signed in (checked lazily so the page never waits on it)
   const acct = document.getElementById('acct-link');
   if (acct) {
