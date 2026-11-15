@@ -104,6 +104,7 @@ aside { grid-area: side; border-left: 1px solid var(--hair); background: var(--p
 .ul input[type=range] { width: 100%; accent-color: var(--brass); }
 .layer { display: grid; grid-template-columns: auto 1fr auto auto; gap: 6px; align-items: center; font-size: 12px; }
 .layer em { font-style: normal; color: var(--text-3); }
+.layer input.wl { accent-color: #c4432f; }
 #dxf-layers { max-height: 160px; overflow: auto; display: flex; flex-direction: column; gap: 3px; }
 .ul .row { display: flex; gap: 6px; }
 .ul .row button { flex: 1; border: 1px solid var(--hair-2); background: none; padding: 6px; border-radius: 8px; font-size: 12.5px; color: var(--text); }
@@ -130,7 +131,7 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
     <a class="brand" href="index.html" aria-label="回到 Spatial Lab"><svg width="24" height="24" viewBox="0 0 26 26" fill="none" stroke="#c9a26a" stroke-width="1.6" aria-hidden="true"><path d="M8 24H2V2h22v22H14"/><path d="M8 24v-6a6 6 0 0 1 6 6" stroke-width="1.2"/><path d="M15 2v9h9" stroke-width="1.2"/></svg><b>PrimeStride</b><span>平面編輯器</span></a>
     <button type="button" class="hbtn" id="btn-new">新專案</button>
     <select class="hbtn" id="btn-sample" aria-label="開啟範例"><option value="">開啟範例</option><option value="apartment">大樓 3 房 2 廳</option><option value="house">透天 2 樓</option><option value="dxf">DXF 範例：2房公寓</option></select>
-    <label class="hbtn">匯入 DXF<input type="file" id="file-dxf" accept=".dxf"></label>
+    <label class="hbtn">匯入 DXF<input type="file" id="file-dxf" accept=".dxf,.dwg"></label>
     <label class="hbtn">匯入平面圖照片<input type="file" id="file-img" accept="image/*"></label>
     <label class="hbtn">開啟 JSON<input type="file" id="file-json" accept=".json,application/json"></label>
     <button type="button" class="hbtn" id="btn-download">下載 JSON</button>
@@ -160,7 +161,7 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
   <aside>
     <section class="panel" id="props"></section>
     <section class="ul" id="ul-img" hidden><h3>平面圖底圖</h3><input type="range" id="ul-opacity" min="0.1" max="1" step="0.05" value="0.55" aria-label="底圖透明度"><div class="row"><button type="button" onclick="document.querySelector('[data-tool=scale]').click()">重新設定比例</button><button type="button" id="ul-remove">移除底圖</button></div></section>
-    <section class="ul" id="ul-dxf" hidden><h3>DXF 底圖 <small id="dxf-name"></small></h3><div id="dxf-layers"></div><input type="range" id="dxf-opacity" min="0.1" max="1" step="0.05" value="0.7" aria-label="DXF 透明度"><div class="row"><button type="button" class="go" id="dxf-detect">自動辨識牆體</button><button type="button" id="dxf-remove">移除</button></div><small>圓點：顯示圖層；單選：牆線圖層。描牆時會吸附 DXF 端點。</small></section>
+    <section class="ul" id="ul-dxf" hidden><h3>DXF 底圖 <small id="dxf-name"></small></h3><div id="dxf-layers"></div><input type="range" id="dxf-opacity" min="0.1" max="1" step="0.05" value="0.7" aria-label="DXF 透明度"><div class="row"><button type="button" class="go" id="dxf-detect">自動辨識牆體</button><button type="button" id="dxf-remove">移除</button></div><small>左框：顯示圖層；右框：牆線圖層（可多選）。描牆時會吸附 DXF 端點。</small></section>
   </aside>
   <footer><span id="coords">x 0.00  z 0.00 m</span><span id="snapinfo"></span><span class="spacer"></span><span id="stat"></span><span>滾輪縮放 · 空白鍵/右鍵拖曳平移 · Ctrl+Z 復原</span></footer>
 </div>

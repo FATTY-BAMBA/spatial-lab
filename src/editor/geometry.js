@@ -34,9 +34,18 @@ export function wallGraph(walls) {
     }
   }
   const verts = new Map(), adj = new Map();
-  const vid = p => { const k = key(p[0], p[1]); if (!verts.has(k)) { verts.set(k, p); adj.set(k, new Set()); } return k; };
+  // match vertices by distance, not by grid cell: a 4 mm grid splits points that straddle a cell edge
+  // (7.05 / 0.004 = 1762.5), which left T-junctions unconnected
+  const vid = p => {
+    const cx = Math.round(p[0] / EPS), cz = Math.round(p[1] / EPS);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const k = `${cx + dx}|${cz + dz}`, q = verts.get(k);
+      if (q && Math.hypot(q[0] - p[0], q[1] - p[1]) <= EPS * 1.5) return k;
+    }
+    const k = `${cx}|${cz}`; verts.set(k, p); adj.set(k, new Set()); return k;
+  };
   for (const S of segs) {
-    const ts = [...new Set(S.ts.map(t => Math.min(1, Math.max(0, t)).toFixed(5)))].map(Number).sort((x, y) => x - y);
+    const ts = [...new Set(S.ts.map(t => Math.min(1, Math.max(0, t)).toFixed(9)))].map(Number).sort((x, y) => x - y);
     for (let k = 0; k < ts.length - 1; k++) {
       const p = [S.a[0] + (S.b[0] - S.a[0]) * ts[k], S.a[1] + (S.b[1] - S.a[1]) * ts[k]];
       const q = [S.a[0] + (S.b[0] - S.a[0]) * ts[k + 1], S.a[1] + (S.b[1] - S.a[1]) * ts[k + 1]];
@@ -98,7 +107,10 @@ function simplify(p) {
 // Re-detect rooms, inheriting names/finishes from previous rooms that overlap.
 const DEFAULT_NAMES = [['客廳', 'Living'], ['臥室', 'Bedroom'], ['房間', 'Room']];
 export function detectRooms(level) {
-  const { rooms: polys, outer } = findFaces(level.walls);
+  const { rooms: faces, outer } = findFaces(level.walls);
+  // gaps between back-to-back walls and pipe chases are not rooms: drop faces under ~30 cm effective width (2·area / perimeter)
+  const perim = q => q.reduce((s, p, i) => { const n = q[(i + 1) % q.length]; return s + Math.hypot(n[0] - p[0], n[1] - p[1]); }, 0);
+  const polys = faces.filter(q => { const A = polygonArea(q); return A >= 0.25 && 2 * A / perim(q) >= 0.26; });
   const prev = level.rooms || [];
   const used = new Set();
   const rooms = polys.map((poly, i) => {
