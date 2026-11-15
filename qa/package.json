@@ -9,7 +9,8 @@
     "regress": "node regress.mjs",
     "baseline": "node regress.mjs --write-baseline",
     "e2e": "node e2e.mjs",
-    "all": "npm run unit && npm run regress && npm run e2e"
+    "all": "npm run unit && npm run regress && npm run e2e",
+    "serve": "node -e \"import('./lib/serve.mjs').then(m => m.serve(+process.env.PORT || 8080)).then(s => console.log('site on', s.url))\""
   },
   "dependencies": {
     "jpeg-js": "^0.4.4",

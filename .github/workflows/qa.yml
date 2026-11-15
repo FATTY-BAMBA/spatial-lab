@@ -1,0 +1,45 @@
+name: qa
+# The gate every change passes before it reaches main (and the live site):
+# unit tests → import regression against qa/baseline.json → browser e2e. The report is uploaded as an artifact.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: qa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Private fixtures (skipped when FIXTURES_TOKEN is not set)
+        env:
+          FIXTURES_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
+        run: if [ -n "$FIXTURES_TOKEN" ]; then npm run fixtures; else echo "no FIXTURES_TOKEN — builtin fixtures only"; fi
+      - name: Unit tests
+        run: npm run unit
+      - name: Import regression
+        run: npm run regress
+      - name: Browser e2e
+        run: npm run e2e
+      - name: Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa/reports/
+          retention-days: 14

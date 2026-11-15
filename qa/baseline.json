@@ -1,6 +1,6 @@
 {
  "_doc": "Accepted results of qa/regress.mjs. Update only with `npm run baseline` after the validator approved an improvement.",
- "updated": "2026-11-15T21:29:21.434Z",
+ "updated": "2026-11-15T21:31:46.175Z",
  "results": {
   "dxf-sample-2br": {
    "floors": 1,
@@ -42,13 +42,17 @@
    "openRooms": 1,
    "roomArea": 242.3,
    "furnishedRooms": 10,
-   "furniture": 51,
-   "drawn": 0,
-   "decor": 25,
-   "issues": 29,
-   "ms": 705,
-   "msGeometry": 556,
-   "ai": null
+   "furniture": 56,
+   "drawn": 56,
+   "decor": 17,
+   "issues": 22,
+   "ms": 671,
+   "msGeometry": 665,
+   "ai": {
+    "items": 54,
+    "placed": 56,
+    "passes": 3
+   }
   },
   "591-yunyue-C": {
    "floors": 1,
