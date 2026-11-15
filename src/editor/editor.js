@@ -998,6 +998,27 @@ async function aiNameRooms({ quiet = false } = {}) {
     if (r.status === 401) { if (!quiet) toast(t('請重新登入後再試', 'Please sign in again')); return false; }
     if (r.status === 503 || r.status === 404) { aiState = 'off'; if (!quiet) toast(t('AI 命名尚未啟用（伺服器未設定金鑰），已使用規則命名。', 'AI naming is not enabled on the server yet; rule-based names are used.')); return false; }
     out = await r.json(); if (!r.ok) throw new Error(out.error || r.status);
+    // second look: the drawing has furniture but some furnishable rooms came back empty → ask about just those rooms
+    if ((out.items || []).length >= 3) {
+      const hit = new Set(out.items.map(it => it.n));
+      const typeOf = new Map(out.rooms.map(x => [x.n, x.type]));
+      // big open rooms whose items sit at one end only (the dining set found, the living set missed)
+      const lopsided = m => {
+        if (polygonArea(m.r.polygon) < 25) return false;
+        const sh = m.L.imgShift || [0, 0], pts = out.items.filter(it => it.n === m.n).map(it => toPlanPx([(it.box[0] + it.box[2]) / 2, (it.box[1] + it.box[3]) / 2], sh, S));
+        const b = bbox(m.r.polygon), long = b.x1 - b.x0 > b.z1 - b.z0 ? 0 : 1, lo = long ? b.z0 : b.x0, hi = long ? b.z1 : b.x1;
+        const vs = pts.map(p => p[long]); return !vs.length || (Math.max(...vs) - Math.min(...vs)) < 0.5 * (hi - lo);
+      };
+      const empty = marks.filter(m => /客|餐|廚|臥|書|和|浴/.test(typeOf.get(m.n) || '') && ((!hit.has(m.n) && polygonArea(m.r.polygon) >= 4.5) || lopsided(m))).map(m => m.n);
+      if (empty.length) {
+        if (!quiet) toast(t('AI 再看一次部分房間的家具…', 'AI is taking a second look at some rooms…'));
+        const r2 = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length, size: [c.width, c.height], focus: empty }) });
+        if (r2.ok) { // keep what the second look adds; drop near-duplicates of items already found
+          const o2 = await r2.json(), same = (a, b) => a.kind === b.kind && Math.abs((a.box[0] + a.box[2]) - (b.box[0] + b.box[2])) < 30 && Math.abs((a.box[1] + a.box[3]) - (b.box[1] + b.box[3])) < 30;
+          out.items = out.items.concat((o2.items || []).filter(it => empty.includes(it.n) && !out.items.some(x => same(x, it))));
+        }
+      }
+    }
   } catch (e) { console.warn('vision', e); if (!quiet) toast(t('AI 命名失敗，請稍後再試', 'AI naming failed; try again later')); return false; }
   // apply names (second and later bedrooms on a floor become 次臥, 次臥 2…)
   const seen = new Map();
@@ -1010,6 +1031,7 @@ async function aiNameRooms({ quiet = false } = {}) {
     r.outdoor = /陽台|庭院/.test(name); if (r.outdoor) r.finish = 'balcony';
     r.circulation = /走道|樓梯|玄關/.test(name);
     r.hasStairs = !!x.stairs;
+    if (x.floor && !r.wet && !r.outdoor) r.floor = x.floor === 'tile' ? 'stone' : x.floor; // drawn floor finish (wet rooms keep their tile)
   }
   // a printed room size fixes the scale for the whole plan
   if (out.scale) {

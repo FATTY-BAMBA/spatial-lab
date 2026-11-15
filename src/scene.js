@@ -118,6 +118,7 @@ export async function createWorld(plan, renderer, opts = {}) {
   const M = {
     tile: std({ map: tileSet.map, bumpMap: tileSet.bumpMap, bumpScale: 1.2, roughness: 0.25 }),
     balcony: std({ map: balSet.map, bumpMap: balSet.bumpMap, bumpScale: 1.5, roughness: 0.8 }),
+    stoneFloor: (() => { const st = texSet('marble'); return std({ color: '#ebe6dd', map: st.map, bumpMap: st.bumpMap, bumpScale: 0.8, roughness: 0.28 }); })(), // rooms drawn with large stone tiles
     fabric: std({ color: '#cfc7b8', map: tex('fabric'), roughness: 0.95 }),
     linen: std({ color: '#f1eee7', map: tex('fabric'), roughness: 0.9 }),
     duvet: std({ color: '#e9e4da', map: tex('fabric'), roughness: 0.95 }),
@@ -205,7 +206,7 @@ export async function createWorld(plan, renderer, opts = {}) {
     const ceilY = H - 0.15;
 
     for (const r of L.rooms) {
-      const mat = r.finish === 'tile' ? M.tile : r.finish === 'balcony' ? M.balcony : finishMats.floor;
+      const mat = r.finish === 'tile' ? M.tile : r.finish === 'balcony' || r.floor === 'outdoor' ? M.balcony : r.floor === 'stone' ? M.stoneFloor : finishMats.floor;
       const holes = (L.voids || []).map(v => v.polygon).filter(vp => { const c = vp.reduce((a, q) => [a[0] + q[0] / vp.length, a[1] + q[1] / vp.length], [0, 0]); return pointInPolygon(c, r.polygon) && !vp.every(q => r.polygon.some(rp => Math.hypot(rp[0] - q[0], rp[1] - q[1]) < 0.01)); });
       const m = new THREE.Mesh(floorGeo(r.polygon, holes), mat);
       m.position.y = 0.002; m.receiveShadow = true; m.userData.room = r.id; m.userData.level = L.id;
