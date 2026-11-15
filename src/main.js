@@ -735,6 +735,7 @@ async function boot() {
     if (!r.ok) {
       const msg = r.status === 503 ? t('AI 效果圖尚未啟用（伺服器未設定 Gemini 金鑰）。', 'AI renders are not enabled yet (no Gemini key on the server).')
         : r.status === 401 ? t('請重新登入後再試', 'Please sign in again')
+        : r.status === 429 && /free.?tier/i.test(out.detail || '') ? t('Gemini 金鑰目前是免費方案，不能產生圖片：請在 Google AI Studio 為這個金鑰的專案開啟付費（Billing）。', 'The Gemini key is on the free tier, which cannot make images: turn on billing for its project in Google AI Studio.')
         : r.status === 429 ? t('AI 服務忙碌或已達上限，請稍後再試。', 'The AI service is busy or at its limit; try again shortly.')
         : t('生成失敗：', 'Render failed: ') + (out.detail || out.error || r.status);
       throw new Error(msg);
