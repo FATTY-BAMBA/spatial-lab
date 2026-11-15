@@ -21,8 +21,8 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
   const dayBtn = root.querySelector('.ai-tod'), dl = root.querySelector('.ai-dl'), walkBtn = root.querySelector('.ai-walk');
   const playBtn = root.querySelector('.ai-play'), vid = root.querySelector('.ai-vid');
   let shot = manifest.shots[0] || null, style = 'original', dusk = false, split = 0.5, anim = 0, busy = false;
-  const genBtn = root.querySelector('.ai-gen'), delBtn = root.querySelector('.ai-del'), status = root.querySelector('.ai-status');
-  genBtn.hidden = !canGen; delBtn.hidden = !canGen;
+  const genBtn = root.querySelector('.ai-gen'), setBtn = root.querySelector('.ai-set'), delBtn = root.querySelector('.ai-del'), status = root.querySelector('.ai-status');
+  genBtn.hidden = !canGen; delBtn.hidden = !canGen; setBtn.hidden = !(canGen && cloud.generateSet);
   root.querySelector('.ai-film').hidden = !!cloud;
 
   const rendersOf = (s, st) => (s.renders || {})[st];
@@ -118,6 +118,30 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
     } finally { busy = false; root.classList.remove('generating'); genBtn.disabled = false; }
   }
   genBtn.addEventListener('click', () => { close(); setTimeout(generate, 60); });
+  // ✦ proposal set: the main rooms from photographer angles, rendered together; each wipes in as it lands
+  async function generateSet() {
+    if (busy || !canGen || !cloud.generateSet) return;
+    busy = true; root.classList.add('generating'); genBtn.disabled = setBtn.disabled = true;
+    const say = m => { status.textContent = m; status.hidden = !m; };
+    root.hidden = false; document.body.classList.add('ai-on'); root.classList.remove('empty');
+    say(t('擷取主要空間的視角…', 'Capturing the main rooms…'));
+    let jobs = [];
+    try {
+      jobs = await cloud.generateSet((i, frame, room) => { imgA.src = frame; imgB.removeAttribute('src'); setSplit(1); root.querySelector('.ai-room').textContent = room ? room.name : ''; });
+      if (!jobs.length) { say(t('找不到可以拍的房間', 'No rooms to shoot')); setTimeout(() => say(''), 5000); return; }
+      let done = 0, failed = 0, first = null;
+      say(t(`AI 正在生成 ${jobs.length} 張效果圖，約 30–50 秒…`, `AI is rendering ${jobs.length} views, about 30–50 s…`));
+      await Promise.all(jobs.map(j => j.then(rec => {
+        const sh = shotOf(rec); manifest.shots.unshift(sh); done++; first = first || sh; renderThumbs();
+        say(t(`已完成 ${done} / ${jobs.length}`, `${done} of ${jobs.length} done`));
+      }).catch(e => { failed++; console.warn('render', e); say(e && e.message ? e.message : t('部分效果圖失敗', 'Some renders failed')); })));
+      root.classList.remove('generating'); say(failed ? t(`${done} 張完成，${failed} 張失敗`, `${done} done, ${failed} failed`) : '');
+      if (failed) setTimeout(() => say(''), 6000);
+      if (first) open(first.id); else if (!shot) load(false);
+    } catch (e) { console.warn('render set', e); say(e && e.message ? e.message : t('生成失敗，請稍後再試', 'Render failed; try again later')); setTimeout(() => say(''), 7000); }
+    finally { busy = false; root.classList.remove('generating'); genBtn.disabled = setBtn.disabled = false; }
+  }
+  setBtn.addEventListener('click', generateSet);
   delBtn.addEventListener('click', async () => {
     if (!shot || busy || !window.confirm(t('刪除這張效果圖？', 'Delete this render?'))) return;
     const id = shot.id; manifest.shots = manifest.shots.filter(s => s.id !== id); shot = manifest.shots[0] || null;
@@ -144,6 +168,6 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
   root.querySelector('.ai-close').addEventListener('click', close);
   dayBtn.addEventListener('click', () => { dusk = !dusk; load(); });
   walkBtn.addEventListener('click', () => { close(); onWalk && onWalk(shot); });
-  btn.addEventListener('click', () => { if (canGen && !manifest.shots.length) generate(); else open(); });
+  btn.addEventListener('click', () => open());
   return { open, close, generate, manifest: cloud ? null : manifest };
 }

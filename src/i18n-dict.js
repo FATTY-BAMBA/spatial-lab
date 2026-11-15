@@ -93,6 +93,8 @@ export const INDEX_EN = {
   '或': 'or',
   '登入，上傳你的平面圖 →': 'Sign in and upload your plan →',
   '✦ 產生目前視角': '✦ Render this view',
+  '✦ 一鍵產生提案圖': '✦ One-click proposal renders',
+  '按「✦ 一鍵產生提案圖」，自動拍下客廳、餐廳與主臥並生成實景效果圖；或在「探索」中走到想要的角度，按「✦ 產生目前視角」。牆、門窗與家具位置維持不變。': 'Press “✦ One-click proposal renders” to shoot the living room, dining room and master bedroom and render them photoreal, or walk to any angle in Explore and press “✦ Render this view”. Walls, openings and furniture stay exactly where they are.',
   '還沒有 AI 效果圖': 'No AI renders yet',
   '在「探索」中走到想呈現的角度，按「✦ 產生目前視角」。牆、門窗與家具位置會維持不變。': 'In Explore, walk to the angle you want to show and press “✦ Render this view”. Walls, openings and furniture stay exactly where they are.',
   '走進這個空間': 'Walk into this space',

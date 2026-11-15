@@ -663,6 +663,7 @@ async function boot() {
     renders: cloudRow.renders || [],
     canGenerate: !!cloudId && !sharedView,
     generate: onFrame => renderCurrentView(onFrame),
+    generateSet: onFrame => renderSet(onFrame),
     remove: async id => {
       const list = (await Cloud.getRenders(cloudId)).filter(r => r.id !== id);
       await Cloud.setRenders(cloudId, list);
@@ -700,33 +701,28 @@ async function boot() {
     film.addEventListener('click', e => { if (e.target === film) close(); });
     addEventListener('keydown', e => { if (e.key === 'Escape' && !film.hidden) close(); });
   }
-  // ✦ AI render of the designer's current view: draw this exact frame at 16:9, send it to /api/render, keep the
-  // returned photo (re-saved as JPEG + thumbnail) on the project
-  async function renderCurrentView(onFrame) {
-    if (mode !== 'explore' || explore.mode !== 'walk') {
-      if (mode !== 'explore') setMode('explore');
-      toast(t('先在「探索」的「走動」中走到想呈現的角度，再按 AI 效果圖。', 'In Explore → Walk, stand where you want the picture, then press AI renders.'));
-      return null;
-    }
-    const token = await Cloud.accessToken();
-    if (!token) { toast(t('請先登入', 'Please sign in first')); return null; }
+  // ✦ AI renders. A frame of the 3D at 16:9 in the current style goes to /api/render, which makes it photoreal while
+  // keeping camera, walls and furniture; the photo comes back, is re-saved as JPEG + thumbnail and listed on the project.
+  async function captureFrame(pose) { // pose: { pos:[x,y,z], look:[x,y,z], fov } or null for the current camera
     for (let i = 0; i < 50 && texturesPending(); i++) await new Promise(r => setTimeout(r, 100));
-    const W = 1600, H = 900, keepReal = world.state.real, keepAspect = camera.aspect;
-    let frame;
+    const W = 1600, H = 900, keepReal = world.state.real, keepInside = world.state.interior, keepAspect = camera.aspect;
+    const keepCam = { p: camera.position.clone(), q: camera.quaternion.clone(), fov: camera.fov };
     try {
       world.setReal(1); renderer.setPixelRatio(1); renderer.setSize(W, H, false);
       if (composer) { composer.setPixelRatio(1); composer.setSize(W, H); }
+      if (pose) { camera.position.set(...pose.pos); camera.lookAt(...pose.look); camera.fov = pose.fov || 62; world.setInterior(true); }
       camera.aspect = W / H; camera.updateProjectionMatrix();
       composer ? composer.render() : renderer.render(world.scene, camera);
-      frame = renderer.domElement.toDataURL('image/jpeg', 0.9);
+      return renderer.domElement.toDataURL('image/jpeg', 0.9);
     } finally {
-      renderer.setPixelRatio(pixelRatio); world.setReal(keepReal); camera.aspect = keepAspect; resize();
+      renderer.setPixelRatio(pixelRatio); world.setReal(keepReal); world.setInterior(keepInside);
+      camera.position.copy(keepCam.p); camera.quaternion.copy(keepCam.q); camera.fov = keepCam.fov; camera.aspect = keepAspect; resize();
     }
-    onFrame && onFrame(frame);
-    const room = explore.currentRoom(), lvl = plan.levels.find(L => L.id === explore.currentLevel()) || plan.levels[0];
+  }
+  async function submitRender({ frame, room, pose }) {
+    const token = await Cloud.accessToken();
+    if (!token) throw new Error(t('請先登入', 'Please sign in first'));
     const st = styles.find(x => x.id === styleId);
-    const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-    const pose = { pos: camera.position.toArray().map(v => +v.toFixed(3)), yaw: +Math.atan2(-dir.x, -dir.z).toFixed(4), elev: lvl.elevation || 0, fov: camera.fov, level: lvl.id };
     const r = await fetch('/api/render', {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ image: frame, project: cloudId, room: room ? room.name : '', style: st ? `${st.name}${st.nameEn ? ' / ' + st.nameEn : ''}` : '', styleDesc: st ? st.tagline || '' : '', outdoor: !!(room && room.outdoor) }),
@@ -752,8 +748,65 @@ async function boot() {
       if (!/\.jpg$/.test(out.path)) Cloud.removeImages([out.path]);
     } catch (e) { console.warn('render resize', e); files.push(out.path); }
     const rec = { id: out.id, room: room ? room.name : '', roomEn: room ? room.nameEn || '' : '', style: st ? st.id : 'custom', before: out.before, after, thumb, pose, files, model: out.model, at: new Date().toISOString() };
-    const list = await Cloud.getRenders(cloudId); list.push(rec); await Cloud.setRenders(cloudId, list); cloudRow.renders = list;
+    // several renders can finish together: append under a simple queue so none is lost
+    saveQ = saveQ.then(async () => { const list = await Cloud.getRenders(cloudId); list.push(rec); await Cloud.setRenders(cloudId, list); cloudRow.renders = list; });
+    await saveQ;
     return rec;
+  }
+  let saveQ = Promise.resolve();
+  const poseOf = (pos, look, lvl) => { const dx = look[0] - pos[0], dz = look[2] - pos[2]; return { pos: pos.map(v => +v.toFixed(3)), yaw: +Math.atan2(-dx, -dz).toFixed(4), elev: lvl.elevation || 0, fov: camera.fov, level: lvl.id, look: look.map(v => +v.toFixed(3)) }; };
+  async function renderCurrentView(onFrame) {
+    if (mode !== 'explore' || explore.mode !== 'walk') {
+      if (mode !== 'explore') setMode('explore');
+      toast(t('先在「探索」的「走動」中走到想呈現的角度，再按 AI 效果圖。', 'In Explore → Walk, stand where you want the picture, then press AI renders.'));
+      return null;
+    }
+    if (!(await Cloud.accessToken())) { toast(t('請先登入', 'Please sign in first')); return null; }
+    const frame = await captureFrame(null);
+    onFrame && onFrame(frame);
+    const room = explore.currentRoom(), lvl = plan.levels.find(L => L.id === explore.currentLevel()) || plan.levels[0];
+    const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+    const pos = camera.position.toArray(), look = [pos[0] + dir.x * 3, pos[1] + dir.y * 3, pos[2] + dir.z * 3];
+    return submitRender({ frame, room, pose: poseOf(pos, look, lvl) });
+  }
+  // the proposal set: main living space, a separate dining room, the master bedroom — each from a photographer's corner
+  function heroRooms() {
+    const all = plan.levels.flatMap(L => L.rooms.filter(r => !r.outdoor && !r.wet && !r.circulation).map(r => ({ r, L })));
+    const area = x => polygonArea(x.r.polygon), big = list => list.sort((a, b) => area(b) - area(a))[0];
+    const by = re => all.filter(x => re.test(`${x.r.name} ${x.r.nameEn || ''}`));
+    const picks = [big(by(/客|起居|living/i)) || big(by(/餐|dining/i)), big(by(/^餐廳|dining$/i)), big(by(/主臥|master/i)) || big(by(/臥|bed/i))];
+    return picks.filter((x, i) => x && picks.findIndex(y => y && y.r === x.r) === i);
+  }
+  function photoPose({ r, L }) {
+    const items = (L.furniture || []).filter(f => pointInPolygon([f.x, f.z], r.polygon));
+    const hero = items.find(f => f.kind === 'sofa' || /Sofa/.test(f.model || '')) || items.find(f => f.kind === 'bed') || items.find(f => f.kind === 'table' || f.kind === 'roundtable');
+    const b = bbox(r.polygon), tgt = hero ? [hero.x, hero.z] : [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2];
+    const fp = items.filter(f => f.kind !== 'rug' && f.kind !== 'curtain' && f.kind !== 'art').map(f => { const q = Math.abs(Math.round((f.rot || 0) / 90)) % 2, hw = (q ? f.d : f.w) / 2 + 0.25, hd = (q ? f.w : f.d) / 2 + 0.25; return [f.x - hw, f.x + hw, f.z - hd, f.z + hd]; });
+    const edge = q => { let m = Infinity; const P = r.polygon; for (let i = 0; i < P.length; i++) { const a = P[i], c = P[(i + 1) % P.length], dx = c[0] - a[0], dz = c[1] - a[1], l2 = dx * dx + dz * dz || 1, u = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dz) / l2)); m = Math.min(m, Math.hypot(q[0] - a[0] - u * dx, q[1] - a[1] - u * dz)); } return m; };
+    // a clear view: the sight line to the hero piece (and lines 0.5 m either side) crosses no wall
+    const walls = (L.walls || []).filter(w => w.kind !== 'zone');
+    const cross = (p1, p2, a, c) => { const d = (x1, y1, x2, y2, x3, y3) => (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1); const d1 = d(a[0], a[1], c[0], c[1], p1[0], p1[1]), d2 = d(a[0], a[1], c[0], c[1], p2[0], p2[1]), d3 = d(p1[0], p1[1], p2[0], p2[1], a[0], a[1]), d4 = d(p1[0], p1[1], p2[0], p2[1], c[0], c[1]); return d1 * d2 < 0 && d3 * d4 < 0; };
+    const clear = q => { const dx = tgt[0] - q[0], dz = tgt[1] - q[1], l = Math.hypot(dx, dz) || 1, n = [-dz / l, dx / l]; return [-0.5, 0, 0.5].every(o => { const p1 = [q[0] + n[0] * o, q[1] + n[1] * o], p2 = [tgt[0] + n[0] * o * 0.4, tgt[1] + n[1] * o * 0.4]; return !walls.some(w => cross(p1, p2, w.a, w.b)); }); };
+    let best = null;
+    for (let x = b.x0 + 0.25; x < b.x1; x += 0.25) for (let z = b.z0 + 0.25; z < b.z1; z += 0.25) {
+      const q = [x, z]; if (!pointInPolygon(q, r.polygon) || edge(q) < 0.45 || fp.some(k => x > k[0] && x < k[1] && z > k[2] && z < k[3]) || !clear(q)) continue;
+      const d = Math.hypot(x - tgt[0], z - tgt[1]); if (d > 7.5) continue; // far enough for a wide shot, not across a whole 透天 floor
+      if (!best || d > best.d) best = { q, d };
+    }
+    const q = best ? best.q : r.spot ? r.spot.pos : [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2], y0 = L.elevation || 0;
+    return { pos: [q[0], y0 + 1.42, q[1]], look: [tgt[0], y0 + 0.85, tgt[1]], fov: 60, room: r, L };
+  }
+  // capture each hero view, then render them all at once; onFrame(i, frame, room) as each frame is ready
+  async function renderSet(onFrame) {
+    if (!(await Cloud.accessToken())) { toast(t('請先登入', 'Please sign in first')); return []; }
+    if (mode !== 'explore') setMode('explore');
+    const jobs = [];
+    for (const [i, h] of heroRooms().entries()) {
+      const p = photoPose(h), frame = await captureFrame(p);
+      onFrame && onFrame(i, frame, h.r);
+      jobs.push(submitRender({ frame, room: h.r, pose: poseOf(p.pos, p.look, h.L) }));
+    }
+    return jobs;
   }
   // a real-time 3D still of a style, for schemes that have no AI render yet (any plan, any style)
   const snaps = {};

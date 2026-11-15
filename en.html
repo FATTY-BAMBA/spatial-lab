@@ -417,8 +417,11 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 .ai-actions .ai-walk:hover { background: var(--brass-hi); color: var(--on-brass); }
 .ai-actions .sep { width: 1px; height: 22px; background: var(--hair-2); }
 body.ai-on { overflow: hidden; }
-.ai-actions .ai-gen { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
-.ai-actions .ai-gen:hover { background: var(--brass-hi); color: var(--on-brass); }
+.ai-actions .ai-set { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
+.ai-actions .ai-set:hover { background: var(--brass-hi); color: var(--on-brass); }
+.ai-actions .ai-set:disabled { opacity: .55; cursor: progress; }
+.ai-actions .ai-gen { background: rgba(237, 229, 215, .06); color: var(--text); font-weight: 500; } .ai-actions .ai-gen.x { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
+.ai-actions .ai-gen:hover { color: var(--text); border-color: var(--text-2); }
 .ai-actions .ai-gen:disabled { opacity: .55; cursor: progress; }
 .ai-actions .ai-gen ~ .ai-walk, .ai-actions .ai-walk:has(+ .ai-gen:not([hidden])) { background: rgba(237, 229, 215, .06); border-color: var(--hair-2); color: var(--text); font-weight: 500; }
 .ai-status { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 3; background: rgba(15, 13, 10, .82); color: var(--text); border: 1px solid var(--hair-2); padding: 9px 16px; border-radius: 999px; font-size: 13.5px; white-space: nowrap; pointer-events: none; }
@@ -747,12 +750,12 @@ body.shared-view #acct-link { display: none !important; }
       <div class="ai-handle" tabindex="0" role="slider" aria-label="Drag to compare" aria-valuemin="0" aria-valuemax="100"></div>
       <span class="ai-note">Walls, openings, furniture positions and sizes are locked to the plan data</span>
       <div class="ai-status" hidden aria-live="polite"></div>
-      <div class="ai-empty"><b>No AI renders yet</b><span>In Explore, walk to the angle you want to show and press “✦ Render this view”. Walls, openings and furniture stay exactly where they are.</span></div>
+      <div class="ai-empty"><b>No AI renders yet</b><span>Press “✦ One-click proposal renders” to shoot the living room, dining room and master bedroom and render them photoreal, or walk to any angle in Explore and press “✦ Render this view”. Walls, openings and furniture stay exactly where they are.</span></div>
     </div>
   </div>
   <div class="ai-bottom">
     <div class="ai-thumbs" aria-label="Rooms"></div>
-    <div class="ai-actions"><div class="ai-styles" aria-label="Styles"></div><span class="sep"></span><button type="button" class="ai-play" hidden>▶ 3D → photoreal</button><button type="button" class="ai-tod" aria-pressed="false" hidden>Day ☀</button><a class="ai-dl" href="#" download>Download full size</a><button type="button" class="ai-del" hidden>Delete</button><button type="button" class="ai-walk">Walk into this space</button><button type="button" class="ai-gen" hidden>✦ Render this view</button></div>
+    <div class="ai-actions"><div class="ai-styles" aria-label="Styles"></div><span class="sep"></span><button type="button" class="ai-play" hidden>▶ 3D → photoreal</button><button type="button" class="ai-tod" aria-pressed="false" hidden>Day ☀</button><a class="ai-dl" href="#" download>Download full size</a><button type="button" class="ai-del" hidden>Delete</button><button type="button" class="ai-walk">Walk into this space</button><button type="button" class="ai-gen" hidden>✦ Render this view</button><button type="button" class="ai-set" hidden>✦ One-click proposal renders</button></div>
   </div>
 </section>
 

@@ -417,8 +417,11 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 .ai-actions .ai-walk:hover { background: var(--brass-hi); color: var(--on-brass); }
 .ai-actions .sep { width: 1px; height: 22px; background: var(--hair-2); }
 body.ai-on { overflow: hidden; }
-.ai-actions .ai-gen { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
-.ai-actions .ai-gen:hover { background: var(--brass-hi); color: var(--on-brass); }
+.ai-actions .ai-set { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
+.ai-actions .ai-set:hover { background: var(--brass-hi); color: var(--on-brass); }
+.ai-actions .ai-set:disabled { opacity: .55; cursor: progress; }
+.ai-actions .ai-gen { background: rgba(237, 229, 215, .06); color: var(--text); font-weight: 500; } .ai-actions .ai-gen.x { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
+.ai-actions .ai-gen:hover { color: var(--text); border-color: var(--text-2); }
 .ai-actions .ai-gen:disabled { opacity: .55; cursor: progress; }
 .ai-actions .ai-gen ~ .ai-walk, .ai-actions .ai-walk:has(+ .ai-gen:not([hidden])) { background: rgba(237, 229, 215, .06); border-color: var(--hair-2); color: var(--text); font-weight: 500; }
 .ai-status { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 3; background: rgba(15, 13, 10, .82); color: var(--text); border: 1px solid var(--hair-2); padding: 9px 16px; border-radius: 999px; font-size: 13.5px; white-space: nowrap; pointer-events: none; }
@@ -747,12 +750,12 @@ body.shared-view #acct-link { display: none !important; }
       <div class="ai-handle" tabindex="0" role="slider" aria-label="拖曳比較" aria-valuemin="0" aria-valuemax="100"></div>
       <span class="ai-note">牆體、開口、家具位置與尺寸皆鎖定自平面資料</span>
       <div class="ai-status" hidden aria-live="polite"></div>
-      <div class="ai-empty"><b>還沒有 AI 效果圖</b><span>在「探索」中走到想呈現的角度，按「✦ 產生目前視角」。牆、門窗與家具位置會維持不變。</span></div>
+      <div class="ai-empty"><b>還沒有 AI 效果圖</b><span>按「✦ 一鍵產生提案圖」，自動拍下客廳、餐廳與主臥並生成實景效果圖；或在「探索」中走到想要的角度，按「✦ 產生目前視角」。牆、門窗與家具位置維持不變。</span></div>
     </div>
   </div>
   <div class="ai-bottom">
     <div class="ai-thumbs" aria-label="空間"></div>
-    <div class="ai-actions"><div class="ai-styles" aria-label="風格"></div><span class="sep"></span><button type="button" class="ai-play" hidden>▶ 3D → 實景</button><button type="button" class="ai-tod" aria-pressed="false" hidden>白天 ☀</button><a class="ai-dl" href="#" download>下載高解析</a><button type="button" class="ai-del" hidden>刪除</button><button type="button" class="ai-walk">走進這個空間</button><button type="button" class="ai-gen" hidden>✦ 產生目前視角</button></div>
+    <div class="ai-actions"><div class="ai-styles" aria-label="風格"></div><span class="sep"></span><button type="button" class="ai-play" hidden>▶ 3D → 實景</button><button type="button" class="ai-tod" aria-pressed="false" hidden>白天 ☀</button><a class="ai-dl" href="#" download>下載高解析</a><button type="button" class="ai-del" hidden>刪除</button><button type="button" class="ai-walk">走進這個空間</button><button type="button" class="ai-gen" hidden>✦ 產生目前視角</button><button type="button" class="ai-set" hidden>✦ 一鍵產生提案圖</button></div>
   </div>
 </section>
 
