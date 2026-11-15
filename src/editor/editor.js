@@ -4,6 +4,7 @@
 import { polygonArea, bbox, toPing, wallFrame, pointInPolygon, itemFootprint } from '../plan.js';
 import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
+import { stairLocal, stairBox } from '../plan.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
 import { findIssues, applyFix, fixAll } from './issues.js';
@@ -173,10 +174,11 @@ function syncVoids() {
   for (const L of doc.levels) L.voids = [];
   for (const st of doc.stairs) {
     const up = doc.levels.find(L => L.id === st.to); if (!up) continue;
-    const z0 = Math.min(st.zStart, st.zEnd), z1 = Math.max(st.zStart, st.zEnd);
-    const x0 = st.x0 - 0.05, x1 = st.x1 + 0.1;
-    const railEnd = st.zEnd > st.zStart ? z1 - 0.85 : z0 + 0.85;
-    up.voids.push({ id: st.id, polygon: [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], railFrom: [x1, st.zEnd > st.zStart ? z0 : z1], railTo: [x1, railEnd] });
+    // in the stair's own terms (across a, along v), then mapped back to plan x/z
+    const l = stairLocal(st), xr = st.axis === 'x', W = (a, v) => (xr ? [v, a] : [a, v]);
+    const v0 = Math.min(l.s0, l.s1), v1 = Math.max(l.s0, l.s1), a0 = l.a0 - 0.05, a1 = l.a1 + 0.1;
+    const railEnd = l.s1 > l.s0 ? v1 - 0.85 : v0 + 0.85;
+    up.voids.push({ id: st.id, polygon: [W(a0, v0), W(a1, v0), W(a1, v1), W(a0, v1)], railFrom: W(a1, l.s1 > l.s0 ? v0 : v1), railTo: W(a1, railEnd) });
   }
 }
 
@@ -254,7 +256,7 @@ function nearestWall(p, maxD) {
 function pick(p) {
   const L = level(), tol = (8 * dpr) / view.s;
   for (let i = L.furniture.length - 1; i >= 0; i--) { const f = L.furniture[i]; const b = itemFootprint(f); if (p[0] >= b.x0 && p[0] <= b.x1 && p[1] >= b.z0 && p[1] <= b.z1) return { type: 'item', item: f }; }
-  for (const st of doc.stairs) if (st.from === L.id) { const z0 = Math.min(st.zStart, st.zEnd), z1 = Math.max(st.zStart, st.zEnd); if (p[0] >= st.x0 && p[0] <= st.x1 && p[1] >= z0 && p[1] <= z1) return { type: 'stair', stair: st }; }
+  for (const st of doc.stairs) if (st.from === L.id) { const b = stairBox(st); if (p[0] >= b.x0 && p[0] <= b.x1 && p[1] >= b.z0 && p[1] <= b.z1) return { type: 'stair', stair: st }; }
   const nw = nearestWall(p, Math.max(tol, 0.15));
   if (nw) {
     const o = (nw.w.openings || []).find(o => nw.t >= o.offset - 0.05 && nw.t <= o.offset + o.width + 0.05);
@@ -341,7 +343,7 @@ function render() {
       const mid = toScreen((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); tag(mid[0], mid[1] - 16 * dpr, `${Math.round(o.width * 100)} cm`);
     }
     if (sel.type === 'item') { const b = itemFootprint(sel.item); const [x, y] = toScreen(b.x0, b.z0); ctx.fillRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s); ctx.strokeRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s); }
-    if (sel.type === 'stair') { const st = sel.stair; const [x, y] = toScreen(st.x0, Math.min(st.zStart, st.zEnd)); ctx.strokeRect(x, y, (st.x1 - st.x0) * view.s, Math.abs(st.zEnd - st.zStart) * view.s); }
+    if (sel.type === 'stair') { const b = stairBox(sel.stair); const [x, y] = toScreen(b.x0, b.z0); ctx.strokeRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s); }
   }
   // plan-check markers: open ends red, tiny rooms amber; the focused one gets its fix previewed
   if (tool === 'select') for (const i of issues) {
@@ -566,7 +568,11 @@ function placeItem(p) {
 }
 function addStair(a, b) {
   if (lv === doc.levels.length - 1) doc.levels.push(newLevel(lv + 1, level()));
-  const st = { id: `S${doc.stairs.length + 1}`, from: level().id, to: doc.levels[lv + 1].id, x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]), zStart: a[1], zEnd: b[1], risers: Math.max(14, Math.round(level().height / 0.175)), name: '直跑樓梯', nameEn: 'Straight stair' };
+  const base = { id: `S${doc.stairs.length + 1}`, from: level().id, to: doc.levels[lv + 1].id, risers: Math.max(14, Math.round(level().height / 0.175)), name: '直跑樓梯', nameEn: 'Straight stair' };
+  // the drag runs from the bottom step to the top: its longer direction is the run
+  const st = Math.abs(b[0] - a[0]) > Math.abs(b[1] - a[1])
+    ? { ...base, axis: 'x', z0: Math.min(a[1], b[1]), z1: Math.max(a[1], b[1]), xStart: a[0], xEnd: b[0] }
+    : { ...base, x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]), zStart: a[1], zEnd: b[1] };
   doc.stairs.push(st);
   buildLevelTabs();
   sel = { type: 'stair', stair: st };
@@ -746,7 +752,7 @@ function refreshPanel() {
     const st = sel.stair;
     h(t('樓梯', 'Stairs'), `${st.from} → ${st.to}`);
     host.append(field(t('踏階數', 'Risers'), st.risers, v => { st.risers = Math.max(8, Math.round(v)); }, { type: 'number' }));
-    btn(t('反轉方向', 'Reverse direction'), () => { [st.zStart, st.zEnd] = [st.zEnd, st.zStart]; commit(); });
+    btn(t('反轉方向', 'Reverse direction'), () => { if (st.axis === 'x') [st.xStart, st.xEnd] = [st.xEnd, st.xStart]; else [st.zStart, st.zEnd] = [st.zEnd, st.zStart]; commit(); });
     btn(t('刪除樓梯', 'Delete stairs'), deleteSel, 'danger');
   } else {
     const P = doc.project;
@@ -787,7 +793,7 @@ function refreshPanel() {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'go';
     b.textContent = level().furniture.some(f => f.auto) ? t('重新自動配置家具', 'Re-furnish automatically') : t('自動配置家具', 'Furnish automatically');
     b.title = t('依房間類型與大小擺放家具，保留門與走道淨空；你手動放的家具不會被移動。', 'Places furniture by room type and size, keeping doors and walkways clear. Pieces you placed yourself stay put.');
-    b.addEventListener('click', () => { let n = 0; for (const L2 of doc.levels) n += autoFurnish(L2, { replace: true }); commit(); toast(t(`已配置 ${n} 件家具（Ctrl+Z 復原）。改房間名稱後再按一次，家具會跟著換。`, `Placed ${plural(n, 'piece')} (Ctrl+Z undoes). Rename rooms and press again to refurnish.`)); });
+    b.addEventListener('click', () => { let n = 0; for (const L2 of doc.levels) n += autoFurnish(L2, { replace: true, stairs: doc.stairs }); commit(); toast(t(`已配置 ${n} 件家具（Ctrl+Z 復原）。改房間名稱後再按一次，家具會跟著換。`, `Placed ${plural(n, 'piece')} (Ctrl+Z undoes). Rename rooms and press again to refurnish.`)); });
     row.appendChild(b);
     if (underlay.imgEl && aiState !== 'off') {
       const ai = document.createElement('button'); ai.type = 'button'; ai.className = 'ghost';
@@ -958,10 +964,13 @@ async function aiNameRooms({ quiet = false } = {}) {
     if (!sr) continue;
     const xs = sr.polygon.map(p => p[0]), zs = sr.polygon.map(p => p[1]);
     const x0 = Math.min(...xs) + 0.1, x1 = Math.max(...xs) - 0.1, z0 = Math.min(...zs) + 0.1, z1 = Math.max(...zs) - 0.1;
-    const w = Math.min(1.1, x1 - x0 > 2.4 ? (x1 - x0) / 2 : x1 - x0);
-    doc.stairs.push({ id: `S${doc.stairs.length + 1}`, from: L.id, to: doc.levels[i + 1].id, x0: +x0.toFixed(3), x1: +(x0 + w).toFixed(3), zStart: +z1.toFixed(3), zEnd: +z0.toFixed(3), risers: Math.max(14, Math.round(L.height / 0.175)), name: '直跑樓梯', nameEn: 'Straight stair', auto: true });
+    // the run follows the room's long side; the flight takes about half the width when the room is wide
+    const base = { id: `S${doc.stairs.length + 1}`, from: L.id, to: doc.levels[i + 1].id, risers: Math.max(14, Math.round(L.height / 0.175)), name: '直跑樓梯', nameEn: 'Straight stair', auto: true };
+    const r3 = v => +v.toFixed(3);
+    if (x1 - x0 > z1 - z0) { const w = Math.min(1.1, z1 - z0 > 2.4 ? (z1 - z0) / 2 : z1 - z0); doc.stairs.push({ ...base, axis: 'x', z0: r3(z0), z1: r3(z0 + w), xStart: r3(x0), xEnd: r3(x1) }); }
+    else { const w = Math.min(1.1, x1 - x0 > 2.4 ? (x1 - x0) / 2 : x1 - x0); doc.stairs.push({ ...base, x0: r3(x0), x1: r3(x0 + w), zStart: r3(z1), zEnd: r3(z0) }); }
   }
-  for (const L of doc.levels) autoFurnish(L, { replace: true });
+  for (const L of doc.levels) autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
   toast(t(`AI 已命名 ${out.rooms.length} 個房間${out.scale ? '、依圖面尺寸校正比例' : ''}，家具已依房間類型重新配置。`, `AI named ${plural(out.rooms.length, 'room')}${out.scale ? ' and set the scale from a printed size' : ''}; furniture was rearranged to match.`));
   return true;
@@ -976,7 +985,10 @@ function rescalePlan(f) {
     for (const x of L.furniture) { const q = P([x.x, x.z]); x.x = q[0]; x.z = q[1]; }
     if (L.imgShift) L.imgShift = L.imgShift.map(v => v); // picture pixels: unchanged
   }
-  for (const st of doc.stairs) { const a = P([st.x0, st.zStart]), b = P([st.x1, st.zEnd]); st.x0 = a[0]; st.zStart = a[1]; st.x1 = b[0]; st.zEnd = b[1]; }
+  for (const st of doc.stairs) {
+    if (st.axis === 'x') { const a = P([st.xStart, st.z0]), b = P([st.xEnd, st.z1]); st.xStart = a[0]; st.z0 = a[1]; st.xEnd = b[0]; st.z1 = b[1]; }
+    else { const a = P([st.x0, st.zStart]), b = P([st.x1, st.zEnd]); st.x0 = a[0]; st.zStart = a[1]; st.x1 = b[0]; st.zEnd = b[1]; }
+  }
   underlay.mpp *= f;
   for (const L of doc.levels) detectRooms(L);
 }
@@ -994,7 +1006,7 @@ $('#img-detect').addEventListener('click', () => {
     let nF = 0;
     doc.project.type = 'townhouse'; // several floors in one picture = a 透天
     doc.stairs = []; // the floors are new, so are their stairs
-    for (const L of doc.levels) { L.rooms = []; detectRooms(L); nF += autoFurnish(L); }
+    for (const L of doc.levels) { L.rooms = []; detectRooms(L); nF += autoFurnish(L, { stairs: doc.stairs }); }
     lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
     toast(t(`偵測到 ${floors.length} 個樓層（左到右為 1F→${floors.length}F），房間：${counts}。各樓層已對齊到 1F 位置；請逐層檢查缺口與門窗。`, `Found ${floors.length} floors (left to right = 1F→${floors.length}F). Rooms: ${counts}. Floors are aligned onto 1F; check each floor for gaps and openings.`));
@@ -1007,7 +1019,7 @@ $('#img-detect').addEventListener('click', () => {
   L.rooms = [];
   doc.stairs = doc.stairs.filter(st => st.from !== L.id || !st.auto);
   detectRooms(L);
-  autoFurnish(L, { replace: true });
+  autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
   toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間。請檢查缺口、門窗與房間名稱；未封閉的空間用「牆」補上。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}. Check gaps, doors/windows and room names; close open spaces with the Wall tool.`));
   aiNameRooms({ quiet: true });
@@ -1076,7 +1088,7 @@ $('#dxf-detect').addEventListener('click', () => {
   let best = null;
   for (const w of L.walls) { if (!w.ext) continue; const { ux, uz } = wallFrame(w); for (const o of w.openings) if (o.type === 'door') { const m = [w.a[0] + ux * (o.offset + o.width / 2), w.a[1] + uz * (o.offset + o.width / 2)]; const d = ent ? Math.hypot(m[0] - ent.p[0], m[1] - ent.p[1]) : 0; if (!best || d < best.d) best = { o, d }; } }
   if (best) best.o.main = true;
-  const nF = autoFurnish(L, { replace: true });
+  const nF = autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
   toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間，並自動配置 ${nF} 件家具（Ctrl+Z 可復原）。請檢查門窗類型與房間名稱。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}, and placed ${plural(nF, 'piece')} of furniture (Ctrl+Z undoes). Check door/window types and room names.`));
 });

@@ -97,21 +97,24 @@ export function drawLevel(plan, level, opts = {}) {
   lay('A-FLOR-STRS');
   for (const st of plan.stairs) {
     if (st.from !== level.id && st.to !== level.id) continue;
-    const n = st.risers - 1, run = (st.zEnd - st.zStart) / n;
+    // local terms: across a0..a1, along s0 → s1; P maps them to the canvas for either stair axis
+    const xr = st.axis === 'x', a0 = xr ? st.z0 : st.x0, a1 = xr ? st.z1 : st.x1, s0 = xr ? st.xStart : st.zStart, s1 = xr ? st.xEnd : st.zEnd;
+    const P = (a, v) => (xr ? [X(v), Z(a)] : [X(a), Z(v)]);
+    const n = st.risers - 1, run = (s1 - s0) / n, sg = Math.sign(s1 - s0) || 1;
     ctx.strokeStyle = T.ink; ctx.lineWidth = Math.max(1, s / 80);
-    ctx.strokeRect(X(st.x0), Z(st.zStart), px(st.x1 - st.x0), px(st.zEnd - st.zStart));
+    const c0 = P(a0, s0), c1 = P(a1, s1);
+    ctx.strokeRect(Math.min(c0[0], c1[0]), Math.min(c0[1], c1[1]), Math.abs(c1[0] - c0[0]), Math.abs(c1[1] - c0[1]));
     ctx.beginPath();
-    for (let i = 1; i < n; i++) { const z = st.zStart + i * run; ctx.moveTo(X(st.x0), Z(z)); ctx.lineTo(X(st.x1), Z(z)); }
+    for (let i = 1; i < n; i++) { const v = s0 + i * run; ctx.moveTo(...P(a0, v)); ctx.lineTo(...P(a1, v)); }
     ctx.stroke();
-    const cx = (st.x0 + st.x1) / 2;
-    const up = st.from === level.id;
+    const ca = (a0 + a1) / 2, up = st.from === level.id;
     ctx.lineWidth = Math.max(1.5, s / 60);
-    ctx.beginPath(); ctx.moveTo(X(cx), Z(st.zStart + 0.25)); ctx.lineTo(X(cx), Z(st.zEnd - 0.3)); ctx.stroke();
-    const tip = up ? st.zEnd - 0.2 : st.zStart + 0.2, dir = up ? -1 : 1;
-    ctx.beginPath(); ctx.moveTo(X(cx), Z(tip)); ctx.lineTo(X(cx - 0.12), Z(tip + dir * 0.22)); ctx.lineTo(X(cx + 0.12), Z(tip + dir * 0.22)); ctx.closePath();
+    ctx.beginPath(); ctx.moveTo(...P(ca, s0 + sg * 0.25)); ctx.lineTo(...P(ca, s1 - sg * 0.3)); ctx.stroke();
+    const tip = up ? s1 - sg * 0.2 : s0 + sg * 0.2, dir = up ? -sg : sg;
+    ctx.beginPath(); ctx.moveTo(...P(ca, tip)); ctx.lineTo(...P(ca - 0.12, tip + dir * 0.22)); ctx.lineTo(...P(ca + 0.12, tip + dir * 0.22)); ctx.closePath();
     ctx.fillStyle = T.ink; ctx.fill();
-    if (!up) { ctx.beginPath(); ctx.arc(X(cx), Z(st.zEnd - 0.3), px(0.05), 0, Math.PI * 2); ctx.fill(); }
-    ctx.save(); ctx.translate(X(cx), Z(st.zStart + 0.75)); ctx.fillStyle = T.ink;
+    if (!up) { ctx.beginPath(); ctx.arc(...P(ca, s1 - sg * 0.3), px(0.05), 0, Math.PI * 2); ctx.fill(); }
+    ctx.save(); ctx.translate(...P(ca, s0 + sg * 0.75)); ctx.fillStyle = T.ink;
     ctx.font = `600 ${px(0.16)}px ${MONO}`; ctx.textAlign = 'center';
     ctx.fillText(up ? tr('UP 上', 'UP') : tr('DN 下', 'DN'), 0, 0); ctx.restore();
   }

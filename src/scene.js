@@ -691,8 +691,11 @@ function buildCity(ground, tower, M) {
   return g;
 }
 
-function buildStair(st, rise, treadMat, M, addEdges) {
+function buildStair(st0, rise, treadMat, M, addEdges) {
   const g = new THREE.Group();
+  // x-run stairs are built as a z-run in local coordinates; rotating 90° and mirroring x maps (x, z) → (z, x)
+  const st = st0.axis === 'x' ? { ...st0, x0: st0.z0, x1: st0.z1, zStart: st0.xStart, zEnd: st0.xEnd } : st0;
+  if (st0.axis === 'x') { g.rotation.y = Math.PI / 2; g.scale.x = -1; }
   const n = st.risers - 1, r = rise / st.risers, run = (st.zEnd - st.zStart) / n;
   const w = st.x1 - st.x0, cx = (st.x0 + st.x1) / 2;
   for (let i = 0; i < n; i++) {

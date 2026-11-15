@@ -1,7 +1,7 @@
 // Explore mode: first-person walk with wall/furniture collision and real stair climbing,
 // plus an orbit "overview" camera for level cutaways.
 import * as THREE from 'three';
-import { collisionSegments, itemFootprint, isBlocking, pointInPolygon, stairHeightAt } from './plan.js';
+import { collisionSegments, itemFootprint, isBlocking, pointInPolygon, stairHeightAt, stairBox } from './plan.js';
 
 const EYE = 1.6, RADIUS = 0.24, STEP = 0.5;
 
@@ -25,8 +25,9 @@ export function createExplore(plan, camera, dom) {
 
   function floorAt(x, z, y) {
     if (!multi) return levels[0].elevation;
-    if (stair && x >= stair.x0 && x <= stair.x1 && z >= Math.min(stair.zStart, stair.zEnd) && z <= Math.max(stair.zStart, stair.zEnd)) {
-      const h = stairHeightAt(stair, z, rise);
+    const sb = stair && stairBox(stair);
+    if (stair && x >= sb.x0 && x <= sb.x1 && z >= sb.z0 && z <= sb.z1) {
+      const h = stairHeightAt(stair, z, rise, x);
       return Math.abs(h - y) <= STEP ? h : null;
     }
     const cands = [levels[0].elevation];

@@ -3,7 +3,7 @@
 // every piece is placed back-to-wall on a 5 cm occupancy grid, keeping door swings, openings and the clearance
 // in front of each piece free, and keeping tall pieces out of windows.
 // Item orientation follows the plan format: an item's back faces (−sin r, −cos r), so rot 0 sits against a wall on its −z side.
-import { pointInPolygon, polygonArea, wallFrame } from '../plan.js';
+import { pointInPolygon, polygonArea, wallFrame, stairBox } from '../plan.js';
 
 const G = 0.05; // grid (m)
 const FREE = 0, HARD = 1, SOFT = 2, KEEP = 3; // SOFT = someone's clearance, KEEP = door swing / opening (no furniture)
@@ -328,7 +328,7 @@ function furnishStudy(R, out) {
 // --------------------------------------------------------------------------- entry point
 // Furnish every room on a level that has no furniture yet (or all rooms with { replace: true }, which first
 // removes earlier auto-placed pieces but keeps anything the user placed by hand). Returns the number of items added.
-export function autoFurnish(level, { replace = false } = {}) {
+export function autoFurnish(level, { replace = false, stairs = [] } = {}) {
   if (replace) level.furniture = (level.furniture || []).filter(f => !f.auto);
   level.furniture = level.furniture || [];
   let added = 0;
@@ -338,6 +338,8 @@ export function autoFurnish(level, { replace = false } = {}) {
     if (!replace && level.furniture.some(f => pointInPolygon([f.x, f.z], room.polygon))) continue;
     const R = roomGrid(level, room);
     for (const f of level.furniture) boxMark(R, rotBox(f), HARD);
+    // stair flights (going up from here or arriving from below) plus a landing in front stay clear
+    for (const st of stairs) if (st.from === level.id || st.to === level.id) { const b = stairBox(st); boxMark(R, { x0: b.x0 - 0.6, x1: b.x1 + 0.6, z0: b.z0 - 0.6, z1: b.z1 + 0.6 }, KEEP); boxMark(R, b, HARD); }
     const out = [];
     try {
       if (type === 'bedroom' || type === 'master') furnishBedroom(R, out, type === 'master');

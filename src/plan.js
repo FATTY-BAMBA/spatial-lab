@@ -164,7 +164,17 @@ export function buildQuote(plan, chosen) {
   return { lines, total, finishTotal, allowance: total - finishTotal, tax, grand: total + tax, q, basis };
 }
 
-export function stairHeightAt(stair, z, rise) {
-  const t = (z - stair.zStart) / (stair.zEnd - stair.zStart);
+// Stairs run along z (default: x0..x1 across, zStart → zEnd) or along x (axis 'x': z0..z1 across, xStart → xEnd).
+// stairLocal gives both in the same terms: across a0..a1, along s0 → s1 (bottom step → top step).
+export function stairLocal(st) {
+  return st.axis === 'x' ? { a0: st.z0, a1: st.z1, s0: st.xStart, s1: st.xEnd } : { a0: st.x0, a1: st.x1, s0: st.zStart, s1: st.zEnd };
+}
+export function stairBox(st) {
+  const l = stairLocal(st), lo = Math.min(l.s0, l.s1), hi = Math.max(l.s0, l.s1);
+  return st.axis === 'x' ? { x0: lo, x1: hi, z0: l.a0, z1: l.a1 } : { x0: l.a0, x1: l.a1, z0: lo, z1: hi };
+}
+export function stairHeightAt(stair, z, rise, x) {
+  const l = stairLocal(stair), along = stair.axis === 'x' ? x : z;
+  const t = (along - l.s0) / (l.s1 - l.s0);
   return Math.min(1, Math.max(0, t)) * rise;
 }
