@@ -10,7 +10,7 @@ const WORK = 1600; // working size (long side, px): small scans are upsampled so
 // Bilinear resample of RGBA pixels to luminance at the working size
 function toWorkLum(img) {
   const s = WORK / Math.max(img.width, img.height), W = Math.round(img.width * s), H = Math.round(img.height * s);
-  const lum = new Uint8Array(W * H), src = img.data, sw = img.width, sh = img.height;
+  const lum = new Uint8Array(W * H), chroma = new Uint8Array(W * H), src = img.data, sw = img.width, sh = img.height;
   const L = i => { const r = src[i], g = src[i + 1], b = src[i + 2], a = src[i + 3] / 255; return 255 - a * (255 - (0.299 * r + 0.587 * g + 0.114 * b)); };
   for (let y = 0; y < H; y++) {
     const fy = Math.min(sh - 1, Math.max(0, (y + 0.5) / s - 0.5)), y0 = Math.floor(fy), y1 = Math.min(sh - 1, y0 + 1), ty = fy - y0;
@@ -18,9 +18,10 @@ function toWorkLum(img) {
       const fx = Math.min(sw - 1, Math.max(0, (x + 0.5) / s - 0.5)), x0 = Math.floor(fx), x1 = Math.min(sw - 1, x0 + 1), tx = fx - x0;
       const v = (L((y0 * sw + x0) * 4) * (1 - tx) + L((y0 * sw + x1) * 4) * tx) * (1 - ty) + (L((y1 * sw + x0) * 4) * (1 - tx) + L((y1 * sw + x1) * 4) * tx) * ty;
       lum[y * W + x] = v;
+      const j = (Math.round(fy) * sw + Math.round(fx)) * 4; chroma[y * W + x] = Math.max(src[j], src[j + 1], src[j + 2]) - Math.min(src[j], src[j + 1], src[j + 2]);
     }
   }
-  return { lum, W, H, s };
+  return { lum, chroma, W, H, s };
 }
 
 function otsu(lum) {
@@ -88,7 +89,7 @@ function bars(mask, W, H, L, horizontal) {
 // Find walls in a plan picture. img = { width, height, data: RGBA } (an ImageData).
 // Returns pixel-space geometry (in the ORIGINAL image's pixels) so the caller can apply any scale later.
 export function extractPlanLines(img) {
-  const { lum, W, H, s } = toWorkLum(img);
+  const { lum, chroma, W, H, s } = toWorkLum(img);
   // Wall ink = the darkest strong peak of the histogram; cut just above it so grey furniture, paving and
   // rendered cars (common in Taiwan 格局圖) stay out. Never below 60 (anti-aliased edges), never above 140.
   const hist0 = new Float64Array(256); for (const v of lum) hist0[v]++;
@@ -115,12 +116,28 @@ export function extractPlanLines(img) {
   const wall = new Uint8Array(W * H), thin = new Uint8Array(W * H);
   for (let i = 0; i < dark.length; i++) if (dark[i]) { if (Math.min(hr[i], vr[i]) >= k) wall[i] = 1; else if (Math.min(hr[i], vr[i]) <= Math.max(2, k / 2.5)) thin[i] = 1; }
   const L = Math.max(k * 4, Math.round(tPx * 2.5)); // shortest wall piece: longer than a letter
+  const debug = globalThis.__RASTER_DEBUG ? [] : null;
+  // median brightness and colour of a bar's core (the middle half of its thickness)
+  const coreStats = (b, horizontal) => {
+    const ls = [], cs = [];
+    for (let c = b.c0; c < b.c1; c += 2) for (const f of [-0.25, 0, 0.25]) {
+      const r = Math.round(b.m + f * b.t), i = horizontal ? r * W + c : c * W + r;
+      if (r >= 0 && r < (horizontal ? H : W)) { ls.push(lum[i]); cs.push(chroma[i]); }
+    }
+    ls.sort((x, y) => x - y); cs.sort((x, y) => x - y);
+    return { lum: ls[ls.length >> 1] ?? 255, chroma: cs[cs.length >> 1] ?? 0 };
+  };
   const faces = [], thinLines = [], boxes = []; // boxes[i] = work-px bounds of the wall behind faces[2i], faces[2i+1]
   const back = v => v / s; // work px → original px
   const taken = new Uint8Array(W * H); // wall pixels already explained by straight bars
   for (const horizontal of [true, false]) {
     for (const b of bars(wall, W, H, L, horizontal)) {
       if (b.t < k || b.t > tPx * 3.5) continue;
+      const st = coreStats(b, horizontal);
+      if (debug) debug.push({ horizontal, c0: b.c0 / s, c1: b.c1 / s, m: b.m / s, t: b.t / s, ...st });
+      // rendered objects (cars, dark sofas) have edges as thick and dark as walls, but their "ink" is lighter
+      // or tinted; wall ink is the image's darkest, colourless tone
+      if (busy && (st.lum > pk + 12 || st.chroma > 38)) continue;
       for (let c = Math.max(0, b.c0 - 2); c < Math.min(horizontal ? W : H, b.c1 + 2); c++) for (let r = Math.floor(b.m - b.t / 2 - 2); r <= Math.ceil(b.m + b.t / 2 + 2); r++) { const i = horizontal ? r * W + c : c * W + r; if (r >= 0 && r < (horizontal ? H : W)) taken[i] = 1; }
       for (const side of [-1, 1]) {
         const m = b.m + side * b.t / 2;
@@ -164,7 +181,7 @@ export function extractPlanLines(img) {
       if (side > 0) boxes.push([Math.min(A[0], B[0]), Math.min(A[1], B[1]), Math.max(A[0], B[0]), Math.max(A[1], B[1])]);
     }
   }
-  return { faces, thin: thinLines, tPx: tPx / s, floors: splitFloors(faces, thinLines, boxes, tPx, s, W, H) };
+  return { debug, faces, thin: thinLines, tPx: tPx / s, floors: splitFloors(faces, thinLines, boxes, tPx, s, W, H) };
 }
 
 // Taiwan 透天 plans put 1F, 2F, 3F side by side in one picture. Wall groups more than ~2 m apart are separate
