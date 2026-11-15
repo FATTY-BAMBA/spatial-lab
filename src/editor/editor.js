@@ -6,6 +6,7 @@ import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
+import { findIssues, applyFix, fixAll } from './issues.js';
 import { isEn, t, unitLabel, translateDom, langSwitch } from '../i18n.js';
 
 // ---------------------------------------------------------------- language
@@ -265,6 +266,11 @@ function pick(p) {
 }
 
 // ---------------------------------------------------------------- rendering
+let issues = [], focusIssue = null;
+function zoomTo(p) {
+  view.s = Math.max(view.s, Math.min(cv.width, cv.height) / 7);
+  view.x0 = p[0] - cv.width / view.s / 2; view.z0 = p[1] - cv.height / view.s / 2;
+}
 function render() {
   if (!doc) return;
   const W = cv.width, H = cv.height;
@@ -282,7 +288,9 @@ function render() {
   // underlays
   if (underlay.imgEl) {
     ctx.globalAlpha = underlay.opacity;
-    const [sx, sy] = toScreen(underlay.x, underlay.z);
+    // multi-floor pictures: each floor was moved onto 1F's spot, so slide the picture to show this floor's drawing
+    const sh = level().imgShift || [0, 0];
+    const [sx, sy] = toScreen(underlay.x + sh[0] * underlay.mpp, underlay.z + sh[1] * underlay.mpp);
     ctx.drawImage(underlay.imgEl, sx, sy, underlay.imgEl.width * underlay.mpp * view.s, underlay.imgEl.height * underlay.mpp * view.s);
     ctx.globalAlpha = 1;
   }
@@ -333,6 +341,17 @@ function render() {
     }
     if (sel.type === 'item') { const b = itemFootprint(sel.item); const [x, y] = toScreen(b.x0, b.z0); ctx.fillRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s); ctx.strokeRect(x, y, (b.x1 - b.x0) * view.s, (b.z1 - b.z0) * view.s); }
     if (sel.type === 'stair') { const st = sel.stair; const [x, y] = toScreen(st.x0, Math.min(st.zStart, st.zEnd)); ctx.strokeRect(x, y, (st.x1 - st.x0) * view.s, Math.abs(st.zEnd - st.zStart) * view.s); }
+  }
+  // plan-check markers: open ends red, tiny rooms amber; the focused one gets its fix previewed
+  if (tool === 'select') for (const i of issues) {
+    if (i.kind === 'name') continue;
+    const [x, y] = toScreen(...i.p), on = i === focusIssue;
+    ctx.strokeStyle = i.kind === 'small' ? '#d9a441' : '#e0563f'; ctx.lineWidth = (on ? 2.5 : 1.5) * dpr;
+    ctx.beginPath(); ctx.arc(x, y, (on ? 11 : 6) * dpr, 0, 7); ctx.stroke();
+    if (on && i.fix && i.fix.type !== 'delete') {
+      const to = i.fix.type === 'join' ? i.fix.F.p : i.fix.to;
+      ctx.setLineDash([6 * dpr, 4 * dpr]); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(...toScreen(...to)); ctx.stroke(); ctx.setLineDash([]);
+    }
   }
   // tool previews
   if (tool === 'wall' || tool === 'zone') {
@@ -741,6 +760,27 @@ function refreshPanel() {
       field(t(`${level().id} 樓高`, `${level().id} height`), Math.round(level().height * 100), v => { const L = level(); L.height = v / 100; let e = 0; for (const x of doc.levels) { x.elevation = e; e += x.height; } }, { type: 'number', unit: 'cm' }),
     );
   }
+  // plan check: open wall ends, strays, slivers, default names
+  issues = findIssues(level());
+  if (!sel && issues.length) {
+    const box = document.createElement('div'); box.className = 'issues';
+    const fixable = issues.filter(i => i.fix).length;
+    const label = { gap: t('牆端未接上', 'Open wall end'), stray: t('零碎線段', 'Stray piece'), small: t('過小的房間', 'Tiny room'), name: t('房間待命名', 'Room needs a name') };
+    const detail = i => i.kind === 'gap' ? (i.fix ? (i.fix.type === 'join' ? t(`與另一端相距 ${m2(i.fix.d)}`, `${m2(i.fix.d)} from another end`) : t(`延伸 ${m2(i.fix.d)} 接到前方的牆`, `extend ${m2(i.fix.d)} to the wall ahead`)) : t('附近沒有可接的牆，請手動補畫', 'nothing close to join; draw it by hand'))
+      : i.kind === 'stray' ? m2(i.len) : i.kind === 'small' ? `${i.area.toFixed(2)} m²` : `${roomName(i.room)} · ${i.area.toFixed(1)} m²`;
+    box.innerHTML = `<div class="ih"><h3>${t('檢查', 'Check')} <em>${issues.length}</em></h3>${fixable ? `<button type="button" class="go" id="fix-all">${t(`全部補上（${fixable}）`, `Fix all (${fixable})`)}</button>` : ''}</div>`;
+    const ul = document.createElement('ul');
+    issues.slice(0, 40).forEach((i, k) => {
+      const li = document.createElement('li'); li.className = `k-${i.kind}`;
+      li.innerHTML = `<span class="dot"></span><span class="tx"><b>${label[i.kind]}</b><small>${detail(i)}</small></span>`;
+      if (i.fix) { const b = document.createElement('button'); b.type = 'button'; b.textContent = i.fix.type === 'delete' ? t('刪除', 'Delete') : t('補上', 'Fix'); b.addEventListener('click', e => { e.stopPropagation(); if (applyFix(level(), i)) { focusIssue = null; commit(); } }); li.appendChild(b); }
+      li.addEventListener('click', () => { focusIssue = i; zoomTo(i.p); if (i.room) { sel = { type: 'room', room: i.room }; refreshPanel(); } render(); });
+      ul.appendChild(li);
+    });
+    box.appendChild(ul); host.appendChild(box);
+    const fa = box.querySelector('#fix-all');
+    if (fa) fa.addEventListener('click', () => { const n = fixAll(level(), detectRooms); focusIssue = null; commit(); toast(t(`已補上 ${n} 處；剩下的請手動檢查`, `Fixed ${n}; check the rest by hand`)); });
+  }
   // room schedule
   const L = level();
   const rooms = L.rooms;
@@ -850,10 +890,10 @@ $('#img-detect').addEventListener('click', () => {
   if (floors.length > 1) {
     // 透天 plans: one picture, several floors side by side (left → right = 1F, 2F, 3F…)
     if (doc.levels.some(L => L.walls.length) && !window.confirm(t(`圖中偵測到 ${floors.length} 個樓層，要取代目前所有樓層嗎？`, `Found ${floors.length} floors in this picture. Replace all current floors?`))) return;
-    doc.levels = floors.map((ws, i) => { const L = newLevel(i); L.walls = ws.map((w, j) => ({ id: `i${i}_${j}`, ...w })); return L; });
+    doc.levels = floors.map((ws, i) => { const L = newLevel(i); L.walls = ws.map((w, j) => ({ id: `i${i}_${j}`, ...w })); L.imgShift = (underlay.lines.floors[i].shift || [0, 0]).map(v => +v.toFixed(1)); return L; });
     for (let i = 1; i < doc.levels.length; i++) doc.levels[i].elevation = doc.levels[i - 1].elevation + doc.levels[i - 1].height;
     for (const L of doc.levels) { L.rooms = []; detectRooms(L); }
-    lv = 0; commit();
+    lv = 0; buildLevelTabs(); commit();
     const counts = doc.levels.map(L => `${L.id} ${L.rooms.length}`).join('、');
     toast(t(`偵測到 ${floors.length} 個樓層（左到右為 1F→${floors.length}F），房間：${counts}。各樓層已對齊到 1F 位置；請逐層檢查缺口與門窗。`, `Found ${floors.length} floors (left to right = 1F→${floors.length}F). Rooms: ${counts}. Floors are aligned onto 1F; check each floor for gaps and openings.`));
     return;
