@@ -1,7 +1,7 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "functions": { "api/render.js": { "maxDuration": 60 } },
+  "functions": { "api/render.js": { "maxDuration": 60 }, "api/vision.js": { "maxDuration": 60 } },
   "redirects": [
     { "source": "/index", "destination": "/", "permanent": true }
   ],

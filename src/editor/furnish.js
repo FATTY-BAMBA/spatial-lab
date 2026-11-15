@@ -328,13 +328,15 @@ function furnishStudy(R, out) {
 // --------------------------------------------------------------------------- entry point
 // Furnish every room on a level that has no furniture yet (or all rooms with { replace: true }, which first
 // removes earlier auto-placed pieces but keeps anything the user placed by hand). Returns the number of items added.
-export function autoFurnish(level, { replace = false, stairs = [] } = {}) {
-  if (replace) level.furniture = (level.furniture || []).filter(f => !f.auto);
+export function autoFurnish(level, { replace = false, stairs = [], skipDrawn = false } = {}) {
+  // pieces read from the drawing (drawn) survive a re-run; rooms that have them keep the drawing's layout
+  if (replace) level.furniture = (level.furniture || []).filter(f => !f.auto || f.drawn);
   level.furniture = level.furniture || [];
   let added = 0;
   for (const room of level.rooms || []) {
     const type = roomType(room);
     if (type === 'none') continue;
+    if (level.furniture.some(f => f.drawn && pointInPolygon([f.x, f.z], room.polygon))) continue;
     if (!replace && level.furniture.some(f => pointInPolygon([f.x, f.z], room.polygon))) continue;
     const R = roomGrid(level, room);
     for (const f of level.furniture) boxMark(R, rotBox(f), HARD);
@@ -347,7 +349,7 @@ export function autoFurnish(level, { replace = false, stairs = [] } = {}) {
       else if (type === 'livingdining') { furnishLiving(R, out); furnishDining(R, out); }
       else if (type === 'dining') furnishDining(R, out);
       else if (type === 'kitchen') furnishKitchen(R, out);
-      else if (type === 'kitchendining') { furnishKitchen(R, out); furnishDining(R, out); }
+      else if (type === 'kitchendining') { furnishKitchen(R, out); furnishDining(R, out); if (polygonArea(room.polygon) >= 32) furnishLiving(R, out); }
       else if (type === 'bath') furnishBath(R, out);
       else if (type === 'study') furnishStudy(R, out);
       else if (type === 'entry') { const p = place(R, CAT.entry, { clear: 0.8, where: 'corner' }); if (p) out.push(item(CAT.entry, p.S, p.u)); }

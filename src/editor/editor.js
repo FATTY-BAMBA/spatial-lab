@@ -6,6 +6,7 @@ import { drawLevel } from '../drawing.js';
 import { detectRooms, completePlan, labelPoint } from './geometry.js';
 import { stairLocal, stairBox } from '../plan.js';
 import * as Cloud from '../cloud.js';
+import { placeDrawn, insideWalls } from './drawn.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
 import { findIssues, applyFix, fixAll } from './issues.js';
@@ -968,10 +969,12 @@ async function pdfToImage(file) {
 // ---------------------------------------------------------------- AI room naming (image imports)
 // Draws a numbered marker in every detected room on the plan picture and asks /api/vision what each room is.
 // Applies names, wet/outdoor flags, a printed dimension as the true scale, stairs between floors, then refurnishes.
+// picture px (in the image sent to the AI, scale S) → plan metres on a floor with picture shift sh
+const toPlanPx = ([px, py], sh, S) => [underlay.x + (px / S + sh[0]) * underlay.mpp, underlay.z + (py / S + sh[1]) * underlay.mpp];
 let aiState = 'unknown'; // 'off' once the server says no key is configured
 async function aiNameRooms({ quiet = false } = {}) {
   if (!underlay.imgEl || aiState === 'off') { if (!quiet) toast(t('AI 命名需要先匯入平面圖圖片', 'AI naming needs an imported plan picture')); return false; }
-  const img = underlay.imgEl, S = Math.min(1, 1568 / Math.max(img.width, img.height));
+  const img = underlay.imgEl, S = Math.min(1, 1568 / Math.max(img.width, img.height), Math.sqrt(1.15e6 / (img.width * img.height))); // ≤1.15 MP: the model then sees our exact pixels
   const c = document.createElement('canvas'); c.width = Math.round(img.width * S); c.height = Math.round(img.height * S);
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
   const marks = [], R0 = Math.max(10, Math.round(c.width / 85));
@@ -991,7 +994,7 @@ async function aiNameRooms({ quiet = false } = {}) {
   try {
     const token = await Cloud.accessToken();
     if (!token) { if (!quiet) toast(t('登入後即可使用 AI 辨識房間名稱', 'Sign in to name rooms with AI')); else toast(t('已依規則命名房間；登入後可用 AI 辨識房間名稱。', 'Rooms got rule-based names; sign in to name them with AI.')); return false; }
-    const r = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length }) });
+    const r = await fetch('/api/vision', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85), count: marks.length, floors: doc.levels.length, size: [c.width, c.height] }) });
     if (r.status === 401) { if (!quiet) toast(t('請重新登入後再試', 'Please sign in again')); return false; }
     if (r.status === 503 || r.status === 404) { aiState = 'off'; if (!quiet) toast(t('AI 命名尚未啟用（伺服器未設定金鑰），已使用規則命名。', 'AI naming is not enabled on the server yet; rule-based names are used.')); return false; }
     out = await r.json(); if (!r.ok) throw new Error(out.error || r.status);
@@ -1035,9 +1038,28 @@ async function aiNameRooms({ quiet = false } = {}) {
   }
   for (const L of doc.levels) detectRooms(L);
   tidyExteriorOpenings();
-  for (const L of doc.levels) autoFurnish(L, { replace: true, stairs: doc.stairs });
+  // the drawing's own furniture layout: each item goes on the floor of the room it was drawn in (rooms keep their
+  // position through detectRooms, so the marker's floor is the item's floor); rooms with nothing drawn get the generic layout
+  let nDrawn = 0;
+  const byLevel = new Map();
+  for (const it of out.items || []) {
+    // by position first (several floors side by side in one picture: only the right floor's shift lands it in a room), then by the room number
+    const c = [(it.box[0] + it.box[2]) / 2, (it.box[1] + it.box[3]) / 2], m = marks[it.n - 1];
+    const at = Lv => toPlanPx(c, Lv.imgShift || [0, 0], S);
+    const L = doc.levels.find(Lv => Lv.rooms.some(r => pointInPolygon(at(Lv), r.polygon))) || doc.levels.find(Lv => insideWalls(Lv, at(Lv))) || (m ? m.L : null);
+    if (!L) continue;
+    if (!byLevel.has(L)) byLevel.set(L, []); byLevel.get(L).push(it);
+  }
+  for (const L of doc.levels) {
+    L.furniture = (L.furniture || []).filter(f => !f.auto);
+    const items = byLevel.get(L);
+    if (items) { const sh = L.imgShift || [0, 0]; const placed = placeDrawn(L, items, q => toPlanPx(q, sh, S), doc.stairs); L.furniture.push(...placed); nDrawn += placed.length; }
+    autoFurnish(L, { replace: false, stairs: doc.stairs, skipDrawn: true });
+  }
   commit();
-  toast(t(`AI 已命名 ${out.rooms.length} 個房間${out.scale ? '、依圖面尺寸校正比例' : ''}，家具已依房間類型重新配置。`, `AI named ${plural(out.rooms.length, 'room')}${out.scale ? ' and set the scale from a printed size' : ''}; furniture was rearranged to match.`));
+  toast(nDrawn
+    ? t(`AI 已命名 ${out.rooms.length} 個房間，並依圖面擺放 ${nDrawn} 件家具${out.scale ? '；比例已依圖面尺寸校正' : ''}。`, `AI named ${plural(out.rooms.length, 'room')} and placed ${nDrawn} pieces as drawn${out.scale ? '; scale set from a printed size' : ''}.`)
+    : t(`AI 已命名 ${out.rooms.length} 個房間${out.scale ? '、依圖面尺寸校正比例' : ''}，家具已依房間類型重新配置。`, `AI named ${plural(out.rooms.length, 'room')}${out.scale ? ' and set the scale from a printed size' : ''}; furniture was rearranged to match.`));
   return true;
 }
 // Picture imports: gaps in outside walls are windows, except the entrance (one door on the ground floor, by the
