@@ -939,7 +939,10 @@ $('#file-img').addEventListener('change', async e => {
       underlay.lines = extractPlanLines(g.getImageData(0, 0, c.width, c.height));
     } catch (err) { console.error(err); underlay.lines = null; }
     underlay.mpp = underlay.lines && underlay.lines.tPx ? 0.18 / underlay.lines.tPx : 12 / img.width;
-    $('#ul-img').hidden = false; fitView(); setTool('scale');
+    $('#ul-img').hidden = false; fitView();
+    // empty project: go straight to walls, rooms, furniture and AI names (scale from wall thickness; a printed size corrects it)
+    if (underlay.lines && underlay.lines.faces.length && !doc.levels.some(L => L.walls.length)) { setTool('select'); $('#img-detect').click(); return; }
+    setTool('scale');
     toast(t('底圖已載入，比例已依牆厚估算。點兩個已知距離的點校正比例（例如一道標有尺寸的牆），再按「自動辨識牆體」。', 'Plan loaded; scale estimated from the wall thickness. Click two points a known distance apart to correct it (e.g. a dimensioned wall), then press “Detect walls”.'));
   };
   img.src = src;
