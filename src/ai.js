@@ -3,18 +3,27 @@
 import { t, localizeData } from './i18n.js';
 const $ = s => document.querySelector(s);
 
-export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWalk }) {
+// cloud (saved projects): { renders, canGenerate, generate(onFrame) → render | null, remove(id) }
+// A saved render is { id, room, roomEn, style, before, after, thumb, pose }; each one is a shot.
+const shotOf = r => ({ id: r.id, name: r.room || t('空間', 'Space'), nameEn: r.roomEn || '', pose: r.pose, renders: { [r.style || 'original']: { before: r.before, after: r.after, thumb: r.thumb || r.after } } });
+
+export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWalk, cloud = null }) {
   let manifest = null;
-  try { manifest = localizeData(await (await fetch(`assets/ai/${projectKey}.json`, { cache: 'no-cache' })).json()); } catch { manifest = null; }
+  if (cloud) manifest = { project: projectKey, shots: (cloud.renders || []).map(shotOf).reverse() };
+  else try { manifest = localizeData(await (await fetch(`assets/ai/${projectKey}.json`, { cache: 'no-cache' })).json()); } catch { manifest = null; }
   const btn = $('#ai-open');
-  if (!manifest || !manifest.shots || !manifest.shots.length) { btn.hidden = true; return { open() {} }; }
+  const canGen = !!(cloud && cloud.canGenerate);
+  if (!canGen && (!manifest || !manifest.shots || !manifest.shots.length)) { btn.hidden = true; return { open() {} }; }
   btn.hidden = false;
 
   const root = $('#ai'), stage = root.querySelector('.ai-stage'), imgA = root.querySelector('.ai-a'), imgB = root.querySelector('.ai-b');
   const handle = root.querySelector('.ai-handle'), thumbs = root.querySelector('.ai-thumbs'), chips = root.querySelector('.ai-styles');
   const dayBtn = root.querySelector('.ai-tod'), dl = root.querySelector('.ai-dl'), walkBtn = root.querySelector('.ai-walk');
   const playBtn = root.querySelector('.ai-play'), vid = root.querySelector('.ai-vid');
-  let shot = manifest.shots[0], style = 'original', dusk = false, split = 0.5, anim = 0;
+  let shot = manifest.shots[0] || null, style = 'original', dusk = false, split = 0.5, anim = 0, busy = false;
+  const genBtn = root.querySelector('.ai-gen'), delBtn = root.querySelector('.ai-del'), status = root.querySelector('.ai-status');
+  genBtn.hidden = !canGen; delBtn.hidden = !canGen;
+  root.querySelector('.ai-film').hidden = !!cloud;
 
   const rendersOf = (s, st) => (s.renders || {})[st];
   const stylesFor = s => Object.keys(s.renders || {});
@@ -38,7 +47,10 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
     setSplit(1); anim = requestAnimationFrame(step);
   }
   function load(animate = true) {
-    const r = rendersOf(shot, style) || rendersOf(shot, 'original');
+    const empty = !shot; root.classList.toggle('empty', empty);
+    if (empty) { imgA.removeAttribute('src'); imgB.removeAttribute('src'); renderThumbs(); chips.innerHTML = ''; root.querySelector('.ai-room').textContent = ''; root.querySelector('.ai-room-en').textContent = ''; root.querySelector('.ai-style-now').textContent = ''; dl.hidden = true; delBtn.hidden = true; walkBtn.hidden = true; return; }
+    dl.hidden = false; delBtn.hidden = !canGen; walkBtn.hidden = false;
+    const r = rendersOf(shot, style) || rendersOf(shot, 'original') || Object.values(shot.renders)[0];
     const after = dusk && r.dusk ? r.dusk : r.after;
     root.classList.add('loading');
     let n = 0; const done = () => { if (++n === 2) { root.classList.remove('loading'); if (animate) sweep(); } };
@@ -68,20 +80,50 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
     for (const s of manifest.shots) {
       const r = rendersOf(s, 'original') || Object.values(s.renders)[0];
       const b = document.createElement('button'); b.type = 'button'; b.dataset.shot = s.id;
-      b.innerHTML = `<img alt="" loading="lazy" src="${r.thumb || r.after}"><span>${s.name}</span>`;
-      b.addEventListener('click', () => { shot = s; if (!rendersOf(s, style)) style = 'original'; dusk = dusk && !!rendersOf(s, style).dusk; load(); });
+      b.innerHTML = `<img alt="" loading="lazy" src="${r.thumb || r.after}"><span></span>`;
+      b.querySelector('span').textContent = cloud ? `${s.name} · ${styleName(Object.keys(s.renders)[0])}` : s.name;
+      b.addEventListener('click', () => { if (busy) return; shot = s; style = rendersOf(s, style) ? style : Object.keys(s.renders)[0]; dusk = dusk && !!rendersOf(s, style).dusk; load(); });
       thumbs.appendChild(b);
     }
   }
   function open(shotId) {
     if (shotId) shot = manifest.shots.find(s => s.id === shotId) || shot;
     const cur = currentStyle();
-    style = cur && rendersOf(shot, cur) ? cur : 'original';
+    if (shot) style = cur && rendersOf(shot, cur) ? cur : rendersOf(shot, 'original') ? 'original' : Object.keys(shot.renders)[0];
     renderThumbs();
     root.hidden = false; document.body.classList.add('ai-on');
     load();
     root.querySelector('.ai-close').focus({ preventScroll: true });
   }
+  // a new render from the designer's current 3D view: the frame shows at once, the AI picture wipes in when ready
+  async function generate() {
+    if (busy || !canGen) return;
+    busy = true; root.classList.add('generating'); genBtn.disabled = true;
+    const say = m => { status.textContent = m; status.hidden = !m; };
+    say(t('擷取目前視角…', 'Capturing this view…'));
+    try {
+      const rec = await cloud.generate(frame => {
+        root.hidden = false; document.body.classList.add('ai-on'); root.classList.remove('empty');
+        imgA.src = frame; imgB.removeAttribute('src'); setSplit(1);
+        say(t('AI 正在生成效果圖，約 20–40 秒…', 'AI is rendering this view, about 20–40 s…'));
+      });
+      if (!rec) { say(''); if (!shot) close(); return; }
+      const s = shotOf(rec); manifest.shots.unshift(s); shot = s; style = Object.keys(s.renders)[0]; dusk = false;
+      say(''); open(s.id);
+    } catch (e) {
+      console.warn('render', e);
+      say(e && e.message ? e.message : t('生成失敗，請稍後再試', 'Render failed; try again later'));
+      setTimeout(() => say(''), 7000);
+      if (shot) load(false);
+    } finally { busy = false; root.classList.remove('generating'); genBtn.disabled = false; }
+  }
+  genBtn.addEventListener('click', () => { close(); setTimeout(generate, 60); });
+  delBtn.addEventListener('click', async () => {
+    if (!shot || busy || !window.confirm(t('刪除這張效果圖？', 'Delete this render?'))) return;
+    const id = shot.id; manifest.shots = manifest.shots.filter(s => s.id !== id); shot = manifest.shots[0] || null;
+    renderThumbs(); load(false);
+    try { await cloud.remove(id); } catch (e) { console.warn(e); }
+  });
   function close() { cancelAnimationFrame(anim); stopVideo(); root.hidden = true; document.body.classList.remove('ai-on'); btn.focus({ preventScroll: true }); }
 
   function stopVideo() { vid.pause(); vid.hidden = true; root.classList.remove('playing'); }
@@ -102,6 +144,6 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
   root.querySelector('.ai-close').addEventListener('click', close);
   dayBtn.addEventListener('click', () => { dusk = !dusk; load(); });
   walkBtn.addEventListener('click', () => { close(); onWalk && onWalk(shot); });
-  btn.addEventListener('click', () => open());
-  return { open, close, manifest };
+  btn.addEventListener('click', () => { if (canGen && !manifest.shots.length) generate(); else open(); });
+  return { open, close, generate, manifest: cloud ? null : manifest };
 }

@@ -19,6 +19,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 const PROJECTS = { apartment: 'data/apartment.json', townhouse: 'data/house.json' };
 
 const $ = s => document.querySelector(s);
+function toast(msg, ms = 5000) { const n = document.createElement('div'); n.className = 'cloud-miss'; n.setAttribute('role', 'status'); n.textContent = msg; document.body.appendChild(n); setTimeout(() => n.remove(), ms); }
 const fmt = n => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -34,14 +35,14 @@ async function boot() {
   document.querySelector('.bar .actions')?.prepend(langSwitch());
   if (isEn) document.title = 'PrimeStride Spatial Lab: from floor plan to a signable proposal';
   const params = new URLSearchParams(location.search);
-  let customPlan = null, sharedView = false, cloudName = '';
+  let customPlan = null, sharedView = false, cloudName = '', cloudRow = null, Cloud = null;
   if (params.get('p') === 'custom') { try { customPlan = JSON.parse(localStorage.getItem('spatial.custom') || 'null'); } catch {} }
   // saved projects: ?id= (the owner, signed in) or ?share= (anyone with the link, read-only)
   const cloudId = params.get('id'), shareTok = params.get('share');
   if (!customPlan && (cloudId || shareTok)) {
     try {
-      const C = await import('./cloud.js');
-      const row = shareTok ? await C.sharedProject(shareTok) : await C.loadProject(cloudId);
+      const C = Cloud = await import('./cloud.js');
+      const row = cloudRow = shareTok ? await C.sharedProject(shareTok) : await C.loadProject(cloudId);
       if (row) {
         const [{ completePlan }, base] = await Promise.all([import('./editor/geometry.js'), loadPlan('data/apartment.json')]);
         customPlan = completePlan(row.doc, base); sharedView = !!shareTok; cloudName = row.name || '';
@@ -418,6 +419,13 @@ async function boot() {
     lenis = new window.Lenis({ lerp: 0.085, smoothWheel: true });
   }
 
+  // the main living space of a plan: the largest living / dining room on the lowest floor, else the largest room
+  function mainRoom() {
+    const all = Object.values(roomsById).filter(r => r.spot && !r.outdoor);
+    const L0 = plan.levels[0] && plan.levels[0].id, on0 = all.filter(r => r.level === L0), pool = on0.length ? on0 : all;
+    const area = r => polygonArea(r.polygon), big = a => a.sort((x, y) => area(y) - area(x))[0];
+    return big(pool.filter(r => /客|餐|起居|living|dining|lounge/i.test(`${r.name} ${r.nameEn || ''} ${r.type || ''}`))) || big(pool) || null;
+  }
   function setMode(m) {
     if (m === mode) return;
     const prev = mode;
@@ -441,8 +449,8 @@ async function boot() {
       applyCutaway();
       realTarget = sketchMode ? 0 : 1;
       if (prev === 'story') {
-        const stop = story.stopAt(beatNow);
-        const room = stop ? roomsById[stop.room] : roomsById.living || Object.values(roomsById)[0];
+        const stop = beatNow > 0.5 ? story.stopAt(beatNow) : null; // at the very top: start in the main living space
+        const room = stop ? roomsById[stop.room] : roomsById.living || mainRoom() || Object.values(roomsById)[0];
         explore.goToRoom(room, room.level, 0.001);
       }
       setView(explore.mode);
@@ -650,10 +658,28 @@ async function boot() {
   requestAnimationFrame(frame);
   document.body.classList.add('ready');
   if (!document.body.classList.contains('no-hero-media') && mode === 'story' && window.scrollY < 40) setTimeout(() => heroVid.play().catch(() => {}), 500);
+  // saved projects: renders come from the project; the owner can make new ones from the current view
+  const cloudAI = customPlan && cloudRow && Cloud ? {
+    renders: cloudRow.renders || [],
+    canGenerate: !!cloudId && !sharedView,
+    generate: onFrame => renderCurrentView(onFrame),
+    remove: async id => {
+      const list = (await Cloud.getRenders(cloudId)).filter(r => r.id !== id);
+      await Cloud.setRenders(cloudId, list);
+      const gone = (cloudRow.renders || []).find(r => r.id === id);
+      cloudRow.renders = list;
+      if (gone && gone.files) Cloud.removeImages(gone.files);
+    },
+  } : null;
   const ai = await setupAI({
-    projectKey, styles: () => styles, currentStyle: () => styleId,
+    projectKey, styles: () => styles, currentStyle: () => styleId, cloud: cloudAI,
     onStyle: id => selectStyle(id, false),
     onWalk: m => {
+      if (m.pose) { // a saved render: stand where it was taken
+        if (mode !== 'explore') setMode('explore');
+        const p = m.pose; setTimeout(() => explore.walkTo(p.pos[0], p.pos[2], p.elev || 0, p.yaw || 0), 60);
+        return;
+      }
       const shot = (plan.shots || []).find(x => x.id === m.id);
       if (mode !== 'explore') setMode('explore');
       if (!shot) return;
@@ -673,6 +699,60 @@ async function boot() {
     film.querySelector('.film-close').addEventListener('click', close);
     film.addEventListener('click', e => { if (e.target === film) close(); });
     addEventListener('keydown', e => { if (e.key === 'Escape' && !film.hidden) close(); });
+  }
+  // ✦ AI render of the designer's current view: draw this exact frame at 16:9, send it to /api/render, keep the
+  // returned photo (re-saved as JPEG + thumbnail) on the project
+  async function renderCurrentView(onFrame) {
+    if (mode !== 'explore' || explore.mode !== 'walk') {
+      if (mode !== 'explore') setMode('explore');
+      toast(t('先在「探索」的「走動」中走到想呈現的角度，再按 AI 效果圖。', 'In Explore → Walk, stand where you want the picture, then press AI renders.'));
+      return null;
+    }
+    const token = await Cloud.accessToken();
+    if (!token) { toast(t('請先登入', 'Please sign in first')); return null; }
+    for (let i = 0; i < 50 && texturesPending(); i++) await new Promise(r => setTimeout(r, 100));
+    const W = 1600, H = 900, keepReal = world.state.real, keepAspect = camera.aspect;
+    let frame;
+    try {
+      world.setReal(1); renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+      if (composer) { composer.setPixelRatio(1); composer.setSize(W, H); }
+      camera.aspect = W / H; camera.updateProjectionMatrix();
+      composer ? composer.render() : renderer.render(world.scene, camera);
+      frame = renderer.domElement.toDataURL('image/jpeg', 0.9);
+    } finally {
+      renderer.setPixelRatio(pixelRatio); world.setReal(keepReal); camera.aspect = keepAspect; resize();
+    }
+    onFrame && onFrame(frame);
+    const room = explore.currentRoom(), lvl = plan.levels.find(L => L.id === explore.currentLevel()) || plan.levels[0];
+    const st = styles.find(x => x.id === styleId);
+    const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+    const pose = { pos: camera.position.toArray().map(v => +v.toFixed(3)), yaw: +Math.atan2(-dir.x, -dir.z).toFixed(4), elev: lvl.elevation || 0, fov: camera.fov, level: lvl.id };
+    const r = await fetch('/api/render', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ image: frame, project: cloudId, room: room ? room.name : '', style: st ? `${st.name}${st.nameEn ? ' / ' + st.nameEn : ''}` : '', styleDesc: st ? st.tagline || '' : '', outdoor: !!(room && room.outdoor) }),
+    });
+    const out = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = r.status === 503 ? t('AI 效果圖尚未啟用（伺服器未設定 Gemini 金鑰）。', 'AI renders are not enabled yet (no Gemini key on the server).')
+        : r.status === 401 ? t('請重新登入後再試', 'Please sign in again')
+        : r.status === 429 ? t('AI 服務忙碌或已達上限，請稍後再試。', 'The AI service is busy or at its limit; try again shortly.')
+        : t('生成失敗：', 'Render failed: ') + (out.detail || out.error || r.status);
+      throw new Error(msg);
+    }
+    // smaller files for viewing: JPEG full size + 480 px thumbnail, uploaded to the same folder; the PNG is removed
+    const dirPath = out.path.replace(/\/[^/]+$/, ''), files = [`${dirPath}/${out.id}-3d.jpg`];
+    let after = out.after, thumb = out.after;
+    try {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = out.after; });
+      const draw = (w, q) => new Promise(res => { const c = document.createElement('canvas'); c.width = w; c.height = Math.round(w * img.height / img.width); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); c.toBlob(res, 'image/jpeg', q); });
+      after = await Cloud.putImage(`${dirPath}/${out.id}.jpg`, await draw(Math.min(2560, img.width), 0.9)); files.push(`${dirPath}/${out.id}.jpg`);
+      thumb = await Cloud.putImage(`${dirPath}/${out.id}.thumb.jpg`, await draw(480, 0.82)); files.push(`${dirPath}/${out.id}.thumb.jpg`);
+      if (!/\.jpg$/.test(out.path)) Cloud.removeImages([out.path]);
+    } catch (e) { console.warn('render resize', e); files.push(out.path); }
+    const rec = { id: out.id, room: room ? room.name : '', roomEn: room ? room.nameEn || '' : '', style: st ? st.id : 'custom', before: out.before, after, thumb, pose, files, model: out.model, at: new Date().toISOString() };
+    const list = await Cloud.getRenders(cloudId); list.push(rec); await Cloud.setRenders(cloudId, list); cloudRow.renders = list;
+    return rec;
   }
   // a real-time 3D still of a style, for schemes that have no AI render yet (any plan, any style)
   const snaps = {};

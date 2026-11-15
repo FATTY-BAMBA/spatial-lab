@@ -41,7 +41,7 @@ export async function listProjects() {
 }
 export async function loadProject(id) {
   const sb = await client();
-  const { data, error } = await sb.from('spatial_projects').select('id,name,doc,share_token,updated_at').eq('id', id).single();
+  const { data, error } = await sb.from('spatial_projects').select('id,name,doc,renders,share_token,updated_at').eq('id', id).single();
   if (error) throw error; return data;
 }
 // Insert (no id) or update; returns the id
@@ -65,5 +65,20 @@ export async function sharedProject(token) {
   const sb = await client();
   const { data, error } = await sb.rpc('spatial_shared', { token });
   if (error) throw error; return data && data[0] ? data[0] : null;
+}
+// AI renders: images live in Storage under <user id>/<project id>/, the list lives on the project row
+const BUCKET = 'spatial-renders';
+export const publicUrl = path => `${SB_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+export async function putImage(path, blob) {
+  const sb = await client();
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
+  if (error) throw error; return publicUrl(path);
+}
+export async function removeImages(paths) { const sb = await client(); await sb.storage.from(BUCKET).remove(paths).catch(() => {}); }
+export async function setRenders(id, renders) {
+  const sb = await client(); const { error } = await sb.from('spatial_projects').update({ renders }).eq('id', id); if (error) throw error;
+}
+export async function getRenders(id) {
+  const sb = await client(); const { data, error } = await sb.from('spatial_projects').select('renders').eq('id', id).single(); if (error) throw error; return data.renders || [];
 }
 export const shareUrl = token => `${location.origin}/?share=${encodeURIComponent(token)}`;

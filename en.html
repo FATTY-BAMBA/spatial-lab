@@ -417,6 +417,21 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 .ai-actions .ai-walk:hover { background: var(--brass-hi); color: var(--on-brass); }
 .ai-actions .sep { width: 1px; height: 22px; background: var(--hair-2); }
 body.ai-on { overflow: hidden; }
+.ai-actions .ai-gen { background: var(--brass); border-color: var(--brass); color: var(--on-brass); font-weight: 700; }
+.ai-actions .ai-gen:hover { background: var(--brass-hi); color: var(--on-brass); }
+.ai-actions .ai-gen:disabled { opacity: .55; cursor: progress; }
+.ai-actions .ai-gen ~ .ai-walk, .ai-actions .ai-walk:has(+ .ai-gen:not([hidden])) { background: rgba(237, 229, 215, .06); border-color: var(--hair-2); color: var(--text); font-weight: 500; }
+.ai-status { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 3; background: rgba(15, 13, 10, .82); color: var(--text); border: 1px solid var(--hair-2); padding: 9px 16px; border-radius: 999px; font-size: 13.5px; white-space: nowrap; pointer-events: none; }
+#ai.generating .ai-stage::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgba(227, 198, 144, .22) 50%, transparent 70%); background-size: 250% 100%; animation: aiscan 1.8s linear infinite; }
+@keyframes aiscan { from { background-position: 125% 0; } to { background-position: -125% 0; } }
+#ai.generating .ai-handle, #ai.generating .ai-tag.r, #ai.empty .ai-handle, #ai.empty .ai-tag, #ai.empty .ai-note { display: none; }
+.ai-empty { display: none; }
+#ai.empty .ai-empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; text-align: center; padding: 24px; color: var(--text-2); font-size: 14px; line-height: 1.7; }
+#ai.empty .ai-empty b { color: var(--text); font-size: 17px; }
+#ai.generating .ai-empty, #ai.generating .ai-note, #ai.generating .ai-dl, #ai.generating .ai-del, #ai.generating .ai-walk, #ai.generating .ai-styles, #ai.generating .sep { display: none !important; }
+body.project-view .ai-film { display: none; }
+body.ai-on .ai-dl[hidden], .ai-actions [hidden] { display: none; }
+
 
 /* ---------- proposal ---------- */
 #proposal { position: fixed; inset: 0; z-index: 58; background: var(--night); overflow-y: auto; padding: calc(var(--top) + 18px) var(--gutter-r) calc(var(--bottom) + 32px) var(--gutter-l); }
@@ -576,6 +591,11 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
 .act-book:hover { background: rgba(201, 162, 90, 0.12); color: var(--text); }
 .hero-book { margin: 16px 0 0; font-size: 14.5px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .hero-book a { color: var(--brass-hi); font-weight: 700; text-decoration: none; border-bottom: 1px solid currentColor; }
+.hero-book .or { color: var(--text-3); }
+body.project-view .hero-cta [data-film], body.project-view .hero-book, body.project-view .projects, body.project-view .hero-tag, body.project-view .act-book, body.project-view #cap-outro [data-film], body.project-view #cap-outro [data-book] { display: none !important; }
+body.shared-view #acct-link { display: none !important; }
+.cloud-miss { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 50; background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 14px; }
+.act-acct { color: var(--text); }
 .pp-bar .pp-book { color: var(--brass-hi); font-weight: 700; text-decoration: none; padding: 11px 6px; white-space: nowrap; align-self: center; }
 .pp-bar .pp-book:hover { color: var(--text); }
 @media (max-width: 860px) { .act-book { display: none; } }
@@ -597,6 +617,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
     <a id="edit-link" class="act" href="editor.html" title="Edit plan"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 14h12M3 10.5 10.5 3l2.5 2.5L5.5 13H3z"/></svg><span class="lbl">Edit plan</span></a>
     <button type="button" id="ai-open" class="act" title="AI renders" hidden><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M7 1.5 8.4 6 13 7.5 8.4 9 7 13.5 5.6 9 1 7.5 5.6 6z"/><path d="M13 1.5v3M11.5 3h3"/></svg><span class="lbl">AI renders</span></button>
     <button type="button" id="export-open" class="act" title="Export" aria-haspopup="dialog" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 10V2M5 5l3-3 3 3M2.5 9v4.5h11V9"/></svg><span class="lbl">Export</span></button>
+    <a id="acct-link" class="act act-acct" href="/projects"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.8-2.8 3-4.2 5.5-4.2s4.7 1.4 5.5 4.2"/></svg><span class="lbl">Sign in</span></a>
     <a class="act act-book" href="https://primestrideai.com/en/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>Book a demo</a>
     <button type="button" id="proposal-top" class="act primary"><span class="lbl">Proposal</span></button>
   </div>
@@ -623,7 +644,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
       <a class="btn btn-brass" href="assets/ai/video/spatial-lab-en.mp4" data-film><span class="play">▶</span>Watch the 41-second film</a>
       <button type="button" class="btn btn-ghost" id="hero-start">Start the tour</button>
     </div>
-    <p class="hero-book"><span>Want to see it on your own projects?</span><a href="https://primestrideai.com/en/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>Book a 15-min demo →</a></p>
+    <p class="hero-book"><span>Want to see it on your own projects?</span><a href="https://primestrideai.com/en/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>Book a 15-min demo →</a><span class="or">or</span><a href="/projects" class="hero-try">Sign in and upload your plan →</a></p>
     <div class="projects" aria-label="Sample projects"><span>Sample projects</span><a href="?p=apartment" data-project-link="apartment">3-bed apartment</a><a href="?p=townhouse" data-project-link="townhouse">2-storey townhouse</a><a href="?p=custom" data-project-link="custom" id="custom-link" hidden>My plan</a><a href="editor.html" class="draw-own">+ Draw my own plan</a></div>
   </div>
   <span class="hero-tag">AI render, generated from this project's 3D geometry</span>
@@ -725,11 +746,13 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
       <span class="ai-tag l">Live 3D</span><span class="ai-tag r">AI renders</span>
       <div class="ai-handle" tabindex="0" role="slider" aria-label="Drag to compare" aria-valuemin="0" aria-valuemax="100"></div>
       <span class="ai-note">Walls, openings, furniture positions and sizes are locked to the plan data</span>
+      <div class="ai-status" hidden aria-live="polite"></div>
+      <div class="ai-empty"><b>No AI renders yet</b><span>In Explore, walk to the angle you want to show and press “✦ Render this view”. Walls, openings and furniture stay exactly where they are.</span></div>
     </div>
   </div>
   <div class="ai-bottom">
     <div class="ai-thumbs" aria-label="Rooms"></div>
-    <div class="ai-actions"><div class="ai-styles" aria-label="Styles"></div><span class="sep"></span><button type="button" class="ai-play" hidden>▶ 3D → photoreal</button><button type="button" class="ai-tod" aria-pressed="false" hidden>Day ☀</button><a class="ai-dl" href="#" download>Download full size</a><button type="button" class="ai-walk">Walk into this space</button></div>
+    <div class="ai-actions"><div class="ai-styles" aria-label="Styles"></div><span class="sep"></span><button type="button" class="ai-play" hidden>▶ 3D → photoreal</button><button type="button" class="ai-tod" aria-pressed="false" hidden>Day ☀</button><a class="ai-dl" href="#" download>Download full size</a><button type="button" class="ai-del" hidden>Delete</button><button type="button" class="ai-walk">Walk into this space</button><button type="button" class="ai-gen" hidden>✦ Render this view</button></div>
   </div>
 </section>
 
