@@ -937,6 +937,7 @@ async function aiNameRooms({ quiet = false } = {}) {
     r.wet = /浴/.test(name); if (r.wet) r.finish = 'tile';
     r.outdoor = /陽台|庭院/.test(name); if (r.outdoor) r.finish = 'balcony';
     r.circulation = /走道|樓梯|玄關/.test(name);
+    r.hasStairs = !!x.stairs;
   }
   // a printed room size fixes the scale for the whole plan
   if (out.scale) {
@@ -947,10 +948,14 @@ async function aiNameRooms({ quiet = false } = {}) {
       if (Math.abs(f1 - f2) / f < 0.15 && Math.abs(f - 1) > 0.03) rescalePlan(f);
     }
   }
-  // stairs: one straight run inside each floor's 樓梯 room, up to the floor above
+  // stairs: one straight run per floor, up to the floor above. Prefer this floor's 樓梯 room; when the stairs sit
+  // inside an open room (1F living/dining), use the footprint of the stair room above (floors are aligned).
+  const stairRoom = L => L && (L.rooms.find(r => r.name === '樓梯') || null);
   for (let i = 0; i < doc.levels.length - 1; i++) {
     const L = doc.levels[i]; if (doc.stairs.some(st => st.from === L.id)) continue;
-    const sr = L.rooms.find(r => r.name === '樓梯'); if (!sr) continue;
+    let sr = stairRoom(L);
+    if (!sr && L.rooms.some(r => r.hasStairs)) sr = stairRoom(doc.levels[i + 1]) || (i > 0 ? stairRoom(doc.levels[i - 1]) : null);
+    if (!sr) continue;
     const xs = sr.polygon.map(p => p[0]), zs = sr.polygon.map(p => p[1]);
     const x0 = Math.min(...xs) + 0.1, x1 = Math.max(...xs) - 0.1, z0 = Math.min(...zs) + 0.1, z1 = Math.max(...zs) - 0.1;
     const w = Math.min(1.1, x1 - x0 > 2.4 ? (x1 - x0) / 2 : x1 - x0);
