@@ -1,5 +1,5 @@
 {
- "_doc": "Test plans for the regression gate. Files live in the PRIVATE repo FATTY-BAMBA/spatial-lab-fixtures (npm run fixtures → qa/.fixtures). Client plans: add them there under client/, give them neutral ids (client-01…), never commit them to this public repo.",
+ "_doc": "Test plans for the regression gate. Files live in the PRIVATE repo FATTY-BAMBA/spatial-lab-fixtures (npm run fixtures → qa/.fixtures). Client plans: add them there under client/, give them neutral ids (client-01…), never commit them to this public repo. DWG fixtures: kind \"dwg\" (converted with src/editor/dwg.js, then the DXF path); \"pair\" names the same drawing as DXF — the regression fails when walls, rooms or room area differ by more than 10%.",
  "fixtures": [
   {
    "id": "dxf-sample-2br",
@@ -327,6 +327,180 @@
     "dxf"
    ],
    "note": "public DXF sample"
+  },
+  {
+   "id": "dxf-libredwg-example-2000",
+   "file": "dwg/lib_example_2000.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf",
+    "dwg",
+    "dwg-pair"
+   ],
+   "note": "LibreDWG test-data example, AutoCAD R2000 DXF (twin of the DWGs below)"
+  },
+  {
+   "id": "dxf-libredwg-example-2018",
+   "file": "dwg/lib_example_2018.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf",
+    "dwg",
+    "dwg-pair"
+   ],
+   "note": "LibreDWG test-data example, AutoCAD R2018 DXF"
+  },
+  {
+   "id": "dwg-libredwg-example-2000",
+   "file": "dwg/lib_example_2000.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "LibreDWG test-data example, DWG R2000",
+   "pair": "dxf-libredwg-example-2000"
+  },
+  {
+   "id": "dwg-libredwg-example-2004",
+   "file": "dwg/lib_example_2004.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "LibreDWG test-data example, DWG R2004",
+   "pair": "dxf-libredwg-example-2000"
+  },
+  {
+   "id": "dwg-libredwg-example-2007",
+   "file": "dwg/lib_example_2007.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "LibreDWG test-data example, DWG R2007",
+   "pair": "dxf-libredwg-example-2000"
+  },
+  {
+   "id": "dwg-libredwg-example-2010",
+   "file": "dwg/lib_example_2010.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "LibreDWG test-data example, DWG R2010",
+   "pair": "dxf-libredwg-example-2018"
+  },
+  {
+   "id": "dwg-libredwg-example-2013",
+   "file": "dwg/lib_example_2013.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "LibreDWG test-data example, DWG R2013",
+   "pair": "dxf-libredwg-example-2018"
+  },
+  {
+   "id": "dwg-libredwg-example-2018",
+   "file": "dwg/lib_example_2018.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "LibreDWG test-data example, DWG R2018",
+   "pair": "dxf-libredwg-example-2018"
+  },
+  {
+   "id": "dxf-acadsharp-sample-ac1015",
+   "file": "dwg/acs_sample_AC1015_ascii.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf",
+    "dwg",
+    "dwg-pair"
+   ],
+   "note": "ACadSharp sample, ASCII DXF AC1015 (twin of the DWGs below)"
+  },
+  {
+   "id": "dxf-acadsharp-sample-ac1032",
+   "file": "dwg/acs_sample_AC1032_ascii.dxf",
+   "kind": "dxf",
+   "tags": [
+    "dxf",
+    "dwg",
+    "dwg-pair"
+   ],
+   "note": "ACadSharp sample, ASCII DXF AC1032"
+  },
+  {
+   "id": "dwg-acadsharp-sample-ac1015",
+   "file": "dwg/acs_sample_AC1015.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "ACadSharp sample, DWG AC1015",
+   "pair": "dxf-acadsharp-sample-ac1015"
+  },
+  {
+   "id": "dwg-acadsharp-sample-ac1018",
+   "file": "dwg/acs_sample_AC1018.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "ACadSharp sample, DWG AC1018",
+   "pair": "dxf-acadsharp-sample-ac1015"
+  },
+  {
+   "id": "dwg-acadsharp-sample-ac1021",
+   "file": "dwg/acs_sample_AC1021.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "ACadSharp sample, DWG AC1021",
+   "pair": "dxf-acadsharp-sample-ac1015"
+  },
+  {
+   "id": "dwg-acadsharp-sample-ac1024",
+   "file": "dwg/acs_sample_AC1024.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "ACadSharp sample, DWG AC1024",
+   "pair": "dxf-acadsharp-sample-ac1032"
+  },
+  {
+   "id": "dwg-acadsharp-sample-ac1027",
+   "file": "dwg/acs_sample_AC1027.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "ACadSharp sample, DWG AC1027",
+   "pair": "dxf-acadsharp-sample-ac1032"
+  },
+  {
+   "id": "dwg-acadsharp-sample-ac1032",
+   "file": "dwg/acs_sample_AC1032.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg"
+   ],
+   "note": "ACadSharp sample, DWG AC1032",
+   "pair": "dxf-acadsharp-sample-ac1032"
+  },
+  {
+   "id": "dwg-cjk-r2018",
+   "file": "dwg/cjk_33.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg",
+    "cjk"
+   ],
+   "note": "synthetic R2018 DWG: layer A-牆面, text 主臥室 (one line)"
   }
  ]
 }
