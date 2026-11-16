@@ -114,3 +114,14 @@ test('a room far too big to be an interior (wrong units) is left unfurnished, qu
   assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0} ms`);
   assert.equal(L.furniture.filter(f => !f.dress).length, 0);
 });
+
+test('a 72 m × 80 m hall (mall plan size) furnishes in well under 2 s', () => {
+  // was 18–25 s: the furnishing grid tested every cell against every wall, and the dining search scanned each box
+  const W = 72, H = 80, L = level([[0, 0, W, 0], [W, 0, W, H], [W, H, 0, H], [0, H, 0, 0], [30, 0, 30, 25], [0, 50, 20, 50]].map(([a, b, c, d], i) => ({ id: `w${i}`, a: [a, b], b: [c, d], t: 0.2, openings: [] })));
+  L.rooms = [{ id: 'r1', name: '客廳', polygon: [[0, 0], [W, 0], [W, H], [0, H]] }];
+  const t0 = Date.now();
+  F.autoFurnish(L, { replace: true });
+  assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0} ms`);
+  const kinds = L.furniture.filter(f => !f.dress).map(f => f.kind);
+  assert.ok(kinds.includes('table') && kinds.length >= 5, kinds.join(','));
+});
