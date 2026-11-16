@@ -78,25 +78,42 @@ export async function runCAD(buf, { dwg = false, plan = true, stairs = [], level
 }
 
 // ---- browser: runCAD in a module Worker (cad-worker.js) so the page keeps painting; stages arrive through onStage.
-// Falls back to this thread when module workers are unavailable. Rejects with a DwgError (code), or 'timeout'.
+// · the Worker gets a copy of the file, so the page still has the bytes if the Worker never starts;
+// · the Worker fails before it says anything (script missing, no module workers: Safari < 15, Firefox < 114)
+//   → the same import runs here, once;
+// · the Worker dies after it started (out of memory, a crash) or a message can't be read → reject at once with
+//   code 'crashed' (running the same drawing on the page would only freeze it);
+// · nothing for `timeout` ms → 'timeout'.
+// Rejects with a DwgError (code). opts.workerUrl is for tests.
 export const CAD_TIMEOUT_MS = 180000;
-export function runCADJob(buf, { timeout = CAD_TIMEOUT_MS, onStage = () => {}, ...opts } = {}) {
-  if (typeof Worker === 'undefined') return runCAD(buf, { ...opts, onStage });
+export function runCADJob(buf, { timeout = CAD_TIMEOUT_MS, onStage = () => {}, workerUrl = new URL('./cad-worker.js', import.meta.url), ...opts } = {}) {
+  const W = globalThis.Worker;
+  if (typeof W === 'undefined') return runCAD(buf, { ...opts, onStage });
   return new Promise((resolve, reject) => {
-    let w, done = false, answered = false;
-    const end = (fn, v) => { if (done) return; done = true; clearTimeout(timer); try { w && w.terminate(); } catch {} fn(v); };
-    const here = () => { if (done) return; done = true; clearTimeout(timer); try { w && w.terminate(); } catch {} runCAD(buf, { ...opts, onStage }).then(resolve, reject); };
+    let w, done = false, started = false;
+    const stop = () => { done = true; clearTimeout(timer); try { w && w.terminate(); } catch {} };
+    const end = (fn, v) => { if (done) return; stop(); fn(v); };
+    const here = () => { if (done) return; stop(); runCAD(buf, { ...opts, onStage }).then(resolve, reject); };
+    const crashed = why => end(reject, new DwgError('crashed', `The CAD worker stopped: ${why}`));
     const timer = setTimeout(() => end(reject, new DwgError('timeout', `The drawing took longer than ${Math.round(timeout / 1000)} s`)), timeout);
-    try { w = new Worker(new URL('./cad-worker.js', import.meta.url), { type: 'module' }); } catch { here(); return; }
+    try { w = new W(workerUrl, { type: 'module' }); } catch { here(); return; }
     w.onmessage = e => {
-      answered = true;
+      if (done) return;
+      started = true;
       const m = e.data || {};
       if (m.stage) { try { onStage(m.stage, m.info); } catch (err) { console.error(err); } return; }
       if (m.ok) end(resolve, m.result);
       else end(reject, new DwgError(m.code || 'failed', m.message || 'CAD import failed', { version: m.version, bytes: m.bytes }));
     };
-    // the worker script could not load (no module workers): do it here
-    w.onerror = e => { if (answered) return; if (e && e.preventDefault) e.preventDefault(); here(); };
-    w.postMessage({ buf, opts }, [buf]);
+    w.onerror = e => {
+      if (e && e.preventDefault) e.preventDefault();
+      if (done) return;
+      const why = (e && e.message) || 'error';
+      if (!started) { console.warn(`CAD worker unavailable (${why}): importing on the page`); here(); }
+      else crashed(why);
+    };
+    w.onmessageerror = () => crashed('unreadable message');
+    const copy = buf.slice(0);
+    w.postMessage({ buf: copy, opts }, [copy]);
   });
 }

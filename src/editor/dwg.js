@@ -1,10 +1,9 @@
 // AutoCAD DWG → ASCII DXF text, so the existing DXF import (decodeDXF → parseDXF → wallsFromDXF) takes it from there.
-// The converter is acad-ts (MIT, vendor/acad-ts), loaded only when a .dwg arrives. In the editor it runs in a module
-// Worker (dwg-worker.js) so the page keeps responding; the drawing never leaves the browser.
+// The converter is acad-ts (MIT, vendor/acad-ts), loaded only when a .dwg arrives. The editor runs it inside the CAD
+// import Worker (cadimport.js → cad-worker.js); the drawing never leaves the browser.
 // convertDWG() is pure (no DOM, no Worker) so qa/ runs the same code under Node.
 export const ACAD_TS = '../../vendor/acad-ts/acad-ts-3.7.0.min.js';
 export const DWG_MAX_BYTES = 50 * 1024 * 1024;
-export const DWG_TIMEOUT_MS = 120000;
 
 // AutoCAD file-format codes acad-ts reads (AC1009 = R11/12 … AC1032 = 2018, which AutoCAD 2018–2025 still saves)
 export const DWG_VERSIONS = { AC1009: 'R12', AC1012: 'R13', AC1014: 'R14', AC1015: '2000', AC1018: '2004', AC1021: '2007', AC1024: '2010', AC1027: '2013', AC1032: '2018' };
@@ -60,31 +59,3 @@ function wrap(err, version) {
   return new DwgError('failed', `DWG could not be read: ${msg}`, { version });
 }
 const now = () => (globalThis.performance ? performance.now() : Date.now());
-
-// ---- browser: convert in a module Worker (falls back to this thread when module workers are unavailable)
-// Resolves to { dxf, version, year, ms: { read, write, total }, warnings, thread: 'worker' | 'main' }.
-export function dwgToDXFInfo(arrayBuffer, { timeout = DWG_TIMEOUT_MS, maxBytes = DWG_MAX_BYTES } = {}) {
-  const t0 = now();
-  try { checkDWG(arrayBuffer, { maxBytes }); } catch (err) { return Promise.reject(err); }
-  const onMain = async () => { const r = convertDWG(await loadAcad(), arrayBuffer, { maxBytes }); return { ...r, ms: { ...r.ms, total: Math.round(now() - t0) }, thread: 'main' }; };
-  if (typeof Worker === 'undefined') return onMain();
-  return new Promise((resolve, reject) => {
-    let w, done = false, answered = false;
-    const end = (fn, v) => { if (done) return; done = true; clearTimeout(timer); try { w && w.terminate(); } catch {} fn(v); };
-    const timer = setTimeout(() => end(reject, new DwgError('timeout', `DWG conversion took longer than ${Math.round(timeout / 1000)} s`)), timeout);
-    try { w = new Worker(new URL('./dwg-worker.js', import.meta.url), { type: 'module' }); }
-    catch { clearTimeout(timer); done = true; onMain().then(resolve, reject); return; }
-    w.onmessage = e => {
-      answered = true;
-      const m = e.data || {};
-      if (m.ok) end(resolve, { ...m.result, ms: { ...m.result.ms, total: Math.round(now() - t0) }, thread: 'worker' });
-      else end(reject, new DwgError(m.code || 'failed', m.message || 'DWG conversion failed', { version: m.version }));
-    };
-    // the worker script itself failed to load (old browser without module workers): convert here instead
-    w.onerror = e => { if (answered || done) return; e.preventDefault && e.preventDefault(); done = true; clearTimeout(timer); try { w.terminate(); } catch {} onMain().then(resolve, reject); };
-    // the buffer is handed over, not copied (a 50 MB drawing stays 50 MB)
-    w.postMessage({ buf: arrayBuffer, maxBytes }, [arrayBuffer]);
-  });
-}
-// DWG bytes → DXF text
-export function dwgToDXF(arrayBuffer, opts) { return dwgToDXFInfo(arrayBuffer, opts).then(r => r.dxf); }

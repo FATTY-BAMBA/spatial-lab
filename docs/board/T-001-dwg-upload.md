@@ -146,3 +146,26 @@ The steps tick in order: 轉檔 2.0 s → 讀取 2.6 s → 牆 4.7 s → 房間 
 - No real client DWG yet. The Chinese DWG has no DXF twin. Big5 in R2004 DWGs is unverified.
 
 **Merged** to main as `e57ddab` (2026-11-16); unit 37/38 on main without fixtures (1 skipped: DWG fixtures not synced). Live check: orchestrator.
+
+## T-001b follow-ups (2026-11-16, import-engineer, branch `agent/T-001b-worker-fallback`)
+
+- **Worker fallback fixed** (`runCADJob`, `src/editor/cadimport.js`). The Worker now gets a copy of the file, so when it can't load (404, Safari < 15, Firefox < 114) the import on the page reads the real bytes. Before, a valid DWG showed「這不是 AutoCAD 的 DWG 檔」and a valid DXF「DXF 讀取失敗」.
+- **Worker crash.**
+  - If the Worker errors **before** its first message, the import runs once on the page.
+  - An `error` or `messageerror` **after** it started (out of memory, crash) ends the import at once with code `crashed` and a zh/en message (「瀏覽器處理這張圖時中斷了…」). It used to wait 180 s.
+  - A crash does not fall back to the page: the same drawing would most likely freeze the page too.
+- **Dead code removed:** `dwgToDXF`, `dwgToDXFInfo` and `src/editor/dwg-worker.js`. Their unit tests now cover `runCADJob` with a stand-in Worker whose `postMessage` really detaches the buffer: load failure → page fallback on an intact file; crash after one progress message → `crashed` in under 1 s with no rerun; answer, error and timeout paths. Both of the first two fail on the old code.
+- **e2e:**
+  - `cad-worker.js` routed to 404: a valid DWG (38 walls, 6 rooms) and the sample DXF (9 walls, 6 rooms) still import.
+  - A Worker that posts 轉檔 and then throws: the error card shows in 0.2 s.
+- **Gate** (`QA_FIXTURES=… npm --prefix qa run all`):
+  - Unit: 40/40 pass.
+  - Regress: 51 fixtures, 0 regressions, all baseline metrics unchanged.
+  - E2E: 11/11 pass.
+
+### T-001b validation (2026-11-16, validator): **ship**
+- Diff reviewed. The Worker now gets `buf.slice(0)`, so the page keeps the bytes for its fallback. A load error before the first message falls back to the page once; an error or messageerror after that gives `crashed` at once. Not retrying on the page after a crash is the right call: the same drawing would freeze or crash the tab. The cost is a second copy of the file while it imports (≤ 50 MB more).
+- Gate (`QA_FIXTURES=…`): unit 40/40, regress 51 fixtures with 0 regressions, e2e 11/11. Crash card in 0.2 s; perf steps' longest frame 67 ms (d10) and 133 ms (big_40k).
+- My `fallback-t001.mjs` (`cad-worker.js` → 404 or a syntax error): d05 DXF 6 walls / 3 rooms; lib_example_2018 DWG 38 walls / 6 rooms in both cases, same as with the Worker. Round 2 showed a "damaged file" error here.
+- The new unit tests fail on the old code (buffer-intact and no-rerun asserts). No references to the removed code are left outside docs. Baseline unchanged.
+- Remaining (not blocking): a real out-of-memory kill may not fire `error` in every browser; that case still ends at the 180 s timeout.
