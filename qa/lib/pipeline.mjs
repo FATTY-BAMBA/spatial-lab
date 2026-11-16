@@ -67,7 +67,11 @@ function replayAI(doc, rec) {
   let items = a.items || [];
   if (b) items = D.mergeItems(items, b.items || []);
   if (focus) { const same = (p, q) => p.kind === q.kind && Math.abs((p.box[0] + p.box[2]) - (q.box[0] + q.box[2])) < 30 && Math.abs((p.box[1] + p.box[3]) - (q.box[1] + q.box[3])) < 30; items = items.concat((focus.items || []).filter(it => (!focus.focus || focus.focus.includes(it.n)) && !items.some(x => same(x, it)))); }
-  for (const x of a.rooms || []) { const m = marks[x.n - 1]; if (m) Object.assign(m.r, { name: x.name, nameEn: x.nameEn, hasStairs: !!x.stairs, ...(x.floor && !m.r.wet ? { floor: x.floor === 'tile' ? 'stone' : x.floor } : {}) }); }
+  for (const x of a.rooms || []) {
+    const m = marks[x.n - 1]; if (!m) continue;
+    Object.assign(m.r, { name: x.name, nameEn: x.nameEn, hasStairs: !!x.stairs }, G.roomFlagsFromName(x.name, m.r.finish)); // as the editor's aiNameRooms
+    if (x.floor && !m.r.wet && !m.r.outdoor) m.r.floor = x.floor === 'tile' ? 'stone' : x.floor;
+  }
   const toPlan = (p, sh) => [(p[0] / S + sh[0]) * mpp, (p[1] / S + sh[1]) * mpp];
   const byL = new Map();
   for (const it of items) {

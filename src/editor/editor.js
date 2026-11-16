@@ -3,7 +3,7 @@
 // trace over a photo/scan or a DXF, then open the result in 3D.
 import { polygonArea, bbox, toPing, wallFrame, pointInPolygon, itemFootprint } from '../plan.js';
 import { drawLevel } from '../drawing.js';
-import { detectRooms, completePlan, labelPoint } from './geometry.js';
+import { detectRooms, completePlan, labelPoint, roomFlagsFromName } from './geometry.js';
 import { stairLocal, stairBox } from '../plan.js';
 import * as Cloud from '../cloud.js';
 import { placeDrawn, insideWalls, mergeItems } from './drawn.js';
@@ -1143,7 +1143,7 @@ async function aiNameRooms({ quiet = false } = {}) {
     if (name === '臥室') { const k = (seen.get(m.L) || 0) + 1; seen.set(m.L, k); name = k === 1 ? '次臥' : `次臥 ${k}`; en = k === 1 ? 'Bedroom' : `Bedroom ${k}`; }
     r.name = name; r.nameEn = en;
     r.wet = /浴/.test(name); if (r.wet) r.finish = 'tile';
-    r.outdoor = /陽台|庭院/.test(name); if (r.outdoor) r.finish = 'balcony';
+    Object.assign(r, roomFlagsFromName(name, r.finish)); // outdoor ↔ balcony finish, both ways
     r.circulation = /走道|樓梯|玄關/.test(name);
     r.hasStairs = !!x.stairs;
     if (x.floor && !r.wet && !r.outdoor) r.floor = x.floor === 'tile' ? 'stone' : x.floor; // drawn floor finish (wet rooms keep their tile)
@@ -1311,7 +1311,7 @@ $('#dxf-detect').addEventListener('click', () => {
     // open plans carry several labels (玄關 + 客廳 + 餐廳): the main living space names the room
     const rank = t => { const i = ROOMRANK.findIndex(re => re.test(t.text)); return i < 0 ? 99 : i; };
     const t = inside.filter(t => ROOMWORD.test(t.text)).sort((a, b) => rank(a) - rank(b))[0] || inside.find(t => /[一-鿿가-힣]/.test(t.text));
-    if (t) { r.name = t.text.replace(/\s*[\d.]+\s*(m²|㎡|m2|坪)\s*$/i, '').slice(0, 10); r.nameEn = EN[r.name] || (/[一-鿿]/.test(r.name) ? '' : r.name); if (/陽台|露台|balcony/i.test(t.text)) { r.outdoor = true; r.finish = 'balcony'; } if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
+    if (t) { r.name = t.text.replace(/\s*[\d.]+\s*(m²|㎡|m2|坪)\s*$/i, '').slice(0, 10); r.nameEn = EN[r.name] || (/[一-鿿]/.test(r.name) ? '' : r.name); Object.assign(r, roomFlagsFromName(t.text, r.finish)); if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
   }
   // the exterior door closest to an "entrance" label is the main door
   const ent = underlay.dxf.texts.find(t => /玄關|入口|entry|entrance/i.test(t.text));

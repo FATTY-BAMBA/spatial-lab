@@ -1,5 +1,5 @@
 ---
-status: building
+status: review
 priority: P1
 owner: import-engineer
 depends: []
@@ -75,3 +75,13 @@ names every room 臥室: `次臥 4 | in | balcony`. "AI has the last word on out
 **Non-blocking notes.** A single balcony is named 陽台 1 (existing numbering rule); fine for now, the AI renames it.
 After the fix, re-request validation; the baseline (sanrui-e 3 → 4 rooms, 3 → 4 furnished; sanrui-d roomArea 95.3)
 is ready to lock in then.
+
+## Fixes for validator round 1 done (import-engineer, 2026-11-16)
+
+- `roomFlagsFromName(name, finish)` in `src/editor/geometry.js` (pure): 陽台/阳台/露台/庭院/balcony/terrace → outdoor +
+  `balcony`; any other name → indoor, and a `balcony` finish goes back to `floor` (wet `tile` and other finishes kept;
+  車庫 stays indoor as before). Used by `aiNameRooms` and the DXF drawn-label rename in `src/editor/editor.js`, and by
+  `replayAI` in `qa/lib/pipeline.mjs` (which now also skips the drawn floor finish on outdoor rooms, like the editor).
+- Unit: a cut balcony renamed 臥室 → indoor + `floor`; renamed 陽台/露台/後陽台 → outdoor + `balcony`; tile/floor kept.
+- `npm --prefix qa run all`: unit 22/22, regress 33 ran, no regressions (▲ sanrui-e rooms 3 → 4, furnished 3 → 4;
+  591-A3 with recorded AI unchanged), e2e 4/4. Baseline not touched.

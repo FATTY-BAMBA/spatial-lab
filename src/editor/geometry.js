@@ -106,6 +106,15 @@ function simplify(p) {
   return out;
 }
 
+// A room's name decides whether it is outdoor: 陽台/露台/庭院 (balcony, terrace) are outdoor with the balcony finish;
+// any other name is indoor, and a balcony finish left from detection (the facade cut) goes back to floor. Wet-room tile
+// and other finishes are kept. Used by AI naming, drawing labels and the QA replay so all three agree.
+export const OUTDOOR_NAME = /陽台|阳台|露台|庭院|balcony|terrace/i;
+export function roomFlagsFromName(name, finish) {
+  const outdoor = OUTDOOR_NAME.test(name || '');
+  return { outdoor, finish: outdoor ? 'balcony' : finish === 'balcony' ? 'floor' : finish };
+}
+
 // Re-detect rooms, inheriting names/finishes from previous rooms that overlap.
 const DEFAULT_NAMES = [['客廳', 'Living'], ['臥室', 'Bedroom'], ['房間', 'Room']];
 export function detectRooms(level) {

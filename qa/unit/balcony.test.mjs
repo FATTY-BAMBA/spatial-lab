@@ -68,3 +68,29 @@ test('a living room open on its whole front (no facade wall to continue) is left
   assert.ok(P.polygonArea(open[0].polygon) > 30);
   assert.equal(L.rooms.filter(r => r.outdoor).length, 0);
 });
+
+// Validator round 1: a name decides indoor/outdoor both ways, so a cut-off part the AI (or a drawn label) calls a
+// bedroom is not left with balcony tiles and outside the flooring quote.
+const cutBalcony = () => { const L = sliderPlan(); G.detectRooms(L); return at(L, [6, 6.9])[0]; };
+const rename = (r, name) => Object.assign(r, { name }, G.roomFlagsFromName(name, r.finish)); // as aiNameRooms / replayAI
+
+test('a cut balcony renamed 臥室 becomes indoor with a floor finish', () => {
+  const r = cutBalcony();
+  assert.ok(r.outdoor && r.finish === 'balcony', 'born outdoor');
+  rename(r, '臥室');
+  assert.equal(r.outdoor, false);
+  assert.equal(r.finish, 'floor');
+});
+
+test('a cut balcony renamed 陽台 or 露台 stays outdoor with the balcony finish', () => {
+  for (const n of ['陽台', '露台', '後陽台']) {
+    const r = cutBalcony(); rename(r, '臥室'); rename(r, n);
+    assert.equal(r.outdoor, true, n); assert.equal(r.finish, 'balcony', n);
+  }
+});
+
+test('renaming keeps other finishes: a wet room stays tile, a floor room stays floor', () => {
+  assert.deepEqual(G.roomFlagsFromName('臥室', 'tile'), { outdoor: false, finish: 'tile' });
+  assert.deepEqual(G.roomFlagsFromName('客廳', 'floor'), { outdoor: false, finish: 'floor' });
+  assert.deepEqual(G.roomFlagsFromName('Balcony 2', 'floor'), { outdoor: true, finish: 'balcony' });
+});
