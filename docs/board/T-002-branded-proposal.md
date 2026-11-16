@@ -69,7 +69,7 @@ the firm profile cannot be saved (toast), share links work unbranded.
 - QR code to the 3D on the printed proposal (needs a small vendored QR lib) — follow-up.
 - Viewer's old 方案比較 one-page print still carries PrimeStride branding (owner-side tool); align in a follow-up.
 
-## Validation (2026-11-16, validator) — **blocked on migration approval**
+## Validation (2026-11-16, validator) — **ship**
 
 - Merged origin/main (T-005, T-001, T-001b) into the branch; conflicts in `qa/e2e.mjs` (both suites kept) and the board.
 - Gate on the merged branch: unit 47/47 · regress OK, no regressions · e2e 16/16 (T-002: 5/5 + the earlier steps;
@@ -90,3 +90,12 @@ Non-blocking notes (follow-ups, not fixes for this merge):
 - `projects.html` preview puts `initials(name)` into innerHTML unescaped (own-profile only, self-XSS); escape it.
 
 Owner decision: client wording 「本報價為初步估算，實際金額以正式報價單與現場丈量為準」 (sign-off).
+
+**Update — ship.** The owner approved; the coordinator applied migration `spatial_firms` (exact file SQL).
+- RLS script `supabase/tests/spatial_firms_rls.sql`: all checks passed, rolled back (0 firm rows, both owner FKs present).
+- Advisors (security): nothing new on `spatial_firms` / `spatial-logos`; `spatial_shared` flagged as anon-executable
+  SECURITY DEFINER — intentional (share links), same as before.
+- Live share RPC on a real token: name + renders + firm null (no profile yet).
+- Validator re-checked read-only: RLS on, 4 firm policies, 4 logo policies, bucket public, `client` column present,
+  RPC returns the 6 columns with `search_path ""`, grants anon/authenticated/service_role, anon cannot select the table.
+- Still open for the owner (not a blocker): sign-off on the quote fine print.
