@@ -67,12 +67,6 @@ test('R2004 DWG saved with the Taiwan code page (ANSI_950) is read as Big5', () 
   assert.equal(roomsOf(r.dxf).L.rooms.length, 2);
 });
 
-test('dwgToDXF without Worker (Node) gives the same DXF text', async () => {
-  const buf = planDWG(A.ACadVersion.AC1032);
-  const text = await DW.dwgToDXF(buf.slice(0));
-  assert.equal(typeof text, 'string');
-  assert.equal(X.parseDXF(text).segs.length, 10);
-});
 
 const code = fn => { try { fn(); } catch (e) { assert.ok(e instanceof DW.DwgError, `not a DwgError: ${e}`); return e.code; } return 'no error'; };
 test('bad input fails with a typed DwgError, size checked before parsing', () => {
@@ -91,9 +85,6 @@ test('bad input fails with a typed DwgError, size checked before parsing', () =>
   assert.equal(code(() => DW.convertDWG(boom, good.buffer, { maxBytes: 1000 })), 'too-large');
 });
 
-test('dwgToDXF rejects (does not throw) on a bad file', async () => {
-  await assert.rejects(DW.dwgToDXF(new ArrayBuffer(10)), e => e instanceof DW.DwgError && e.code === 'not-dwg');
-});
 
 // a real AutoCAD-saved DWG from the private fixtures, when they are synced
 const real = join(FIXTURES_DIR, 'dwg/lib_example_2018.dwg'), twin = join(FIXTURES_DIR, 'dwg/lib_example_2018.dxf');
@@ -146,4 +137,58 @@ test('runCAD: underlay only (plan: false), and typed errors for an unreadable DX
   assert.equal(r.level, null); assert.equal(r.d.segs.length, 10);
   await assert.rejects(CI.runCAD(new TextEncoder().encode('  0\nSECTION\n  2\nENTITIES\n  0\nENDSEC\n  0\nEOF\n').buffer), e => e.code === 'no-lines');
   await assert.rejects(CI.runCAD(new ArrayBuffer(10), { dwg: true }), e => e.code === 'not-dwg');
+});
+
+// runCADJob with a stand-in Worker: postMessage really transfers (detaches) the buffer, like a browser
+function fakeWorker(script) {
+  return class {
+    constructor() { setTimeout(() => script.start && script.start(this), 0); }
+    postMessage(msg, transfer) {
+      const m = structuredClone(msg, { transfer });
+      setTimeout(() => script.run(this, m), 0);
+    }
+    emit(type, ev) { const h = this['on' + type]; if (h) h(ev); }
+    terminate() { this.dead = true; }
+  };
+}
+async function withWorker(script, fn) {
+  const was = globalThis.Worker; globalThis.Worker = fakeWorker(script);
+  try { return await fn(); } finally { if (was === undefined) delete globalThis.Worker; else globalThis.Worker = was; }
+}
+
+test('runCADJob: worker script fails to load → the same import runs here, on the intact file', async () => {
+  const stages = [];
+  const buf = planDWG(A.ACadVersion.AC1032), size = buf.byteLength;
+  const r = await withWorker({ run: w => w.emit('error', { message: '404', preventDefault() {} }) },
+    () => CI.runCADJob(buf, { dwg: true, onStage: k => stages.push(k) }));
+  assert.equal(buf.byteLength, size, 'the page kept its bytes');
+  assert.deepEqual(stages, ['convert', 'read', 'walls', 'rooms', 'furniture']);
+  assert.equal(r.level.rooms.length, 2);
+});
+
+test('runCADJob: worker dies after its first progress message → "crashed" at once, no fallback, no wait', async () => {
+  const stages = [];
+  const t0 = Date.now();
+  await assert.rejects(withWorker({ run: w => { w.emit('message', { data: { stage: 'convert', info: { version: 'AC1032', year: '2018', ms: { total: 1, read: 1, write: 0 } } } }); setTimeout(() => w.emit('error', { message: 'out of memory', preventDefault() {} }), 5); } },
+    () => CI.runCADJob(planDWG(A.ACadVersion.AC1032), { dwg: true, onStage: k => stages.push(k) })), e => e.code === 'crashed');
+  assert.ok(Date.now() - t0 < 1000);
+  assert.deepEqual(stages, ['convert'], 'did not run again on the page');
+  await assert.rejects(withWorker({ run: w => { w.emit('message', { data: { stage: 'read', info: {} } }); w.emit('messageerror', {}); } },
+    () => CI.runCADJob(planDWG(A.ACadVersion.AC1032), { dwg: true })), e => e.code === 'crashed');
+});
+
+test('runCADJob: the worker\'s answer and its errors come through; silence ends in a timeout', async () => {
+  const ok = await withWorker({ run: (w, m) => { assert.ok(m.buf.byteLength > 0); w.emit('message', { data: { ok: true, result: { tag: 'from worker' } } }); } },
+    () => CI.runCADJob(planDWG(A.ACadVersion.AC1032), { dwg: true }));
+  assert.equal(ok.tag, 'from worker');
+  await assert.rejects(withWorker({ run: w => w.emit('message', { data: { ok: false, code: 'not-dwg', message: 'x' } }) },
+    () => CI.runCADJob(new ArrayBuffer(100), { dwg: true })), e => e instanceof DW.DwgError && e.code === 'not-dwg');
+  await assert.rejects(withWorker({ run: () => {} }, () => CI.runCADJob(new ArrayBuffer(100), { timeout: 50 })), e => e.code === 'timeout');
+});
+
+test('runCADJob without Worker (Node) runs here: the same result as runCAD', async () => {
+  const a = await CI.runCADJob(planDWG(A.ACadVersion.AC1032), { dwg: true });
+  const b = await CI.runCAD(planDWG(A.ACadVersion.AC1032), { dwg: true });
+  assert.deepEqual(a.level.rooms.map(r => r.name).sort(), b.level.rooms.map(r => r.name).sort());
+  assert.equal(a.d.segs.length, b.d.segs.length);
 });

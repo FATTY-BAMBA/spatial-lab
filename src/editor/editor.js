@@ -1337,6 +1337,7 @@ function cadFail(msg) { if (flow.on) flow.fail(msg); toast(msg); }
 function cadMessage(err) {
   if (err.code === 'dxf-failed') return t('DXF 讀取失敗：請另存為 ASCII DXF（R2010 或更舊）', 'Could not read the DXF. Save it as ASCII DXF (R2010 or older).');
   if (err.code === 'no-lines') return t('這個圖檔沒有可用的線條', 'This drawing has no usable lines');
+  if (err.code === 'crashed') return t('瀏覽器處理這張圖時中斷了（多半是圖面太大、記憶體不足）。請關閉其他分頁後再試一次，或在 CAD 中刪掉用不到的圖層、圖塊後再上傳。', 'The browser stopped while working on this drawing (usually too big for the memory available). Close other tabs and try again, or delete unused layers and blocks in your CAD app and upload again.');
   if (err.code === 'timeout') return t('圖面處理超過 3 分鐘仍未完成。請刪減圖面內容（例如不需要的圖層、圖塊）後再試。', 'The drawing took over 3 minutes. Trim it (unused layers, blocks) and try again.');
   const mb = err.bytes ? (err.bytes / 1048576).toFixed(0) : '';
   switch (err.code) {
