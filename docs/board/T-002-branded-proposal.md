@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 priority: P0
 owner: product-engineer
 depends: []
@@ -99,3 +99,5 @@ Owner decision: client wording 「本報價為初步估算，實際金額以正�
 - Validator re-checked read-only: RLS on, 4 firm policies, 4 logo policies, bucket public, `client` column present,
   RPC returns the 6 columns with `search_path ""`, grants anon/authenticated/service_role, anon cannot select the table.
 - Still open for the owner (not a blocker): sign-off on the quote fine print.
+
+**Merged** to main as `b552d38` (unit 47 tests on main: 46 pass, 1 skipped because the DWG fixtures were not synced; the full gate on the branch ran 47/47 with fixtures). Live verification: coordinator.
