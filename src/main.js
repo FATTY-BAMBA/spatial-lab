@@ -51,6 +51,10 @@ async function boot() {
     if (!customPlan) { const note = document.createElement('div'); note.className = 'cloud-miss'; note.textContent = shareTok ? t('這個分享連結已失效或不存在。', 'This share link has expired or does not exist.') : t('找不到這個專案，請先登入。', 'Project not found — please sign in.'); document.body.appendChild(note); setTimeout(() => note.remove(), 6000); }
   }
   const projectKey = customPlan ? 'custom' : PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
+  // what this browser remembers about a plan (style, finishes, 核准 stamp) is kept per project: saved projects by their
+  // id or share token, so a choice made in one project never shows up in another
+  const stateKey = customPlan && (cloudId || shareTok) ? `p.${cloudId || shareTok}` : projectKey;
+  const finKey = stateKey === projectKey ? 'spatial.finishes' : `spatial.finishes.${stateKey}`;
   const plan = localizeData(customPlan || (await loadPlan(PROJECTS[projectKey])));
   const editLink = document.getElementById('edit-link');
   if (editLink) editLink.href = cloudId && customPlan ? `/editor?id=${encodeURIComponent(cloudId)}` : `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
@@ -185,7 +189,7 @@ async function boot() {
 
   // ---------------- finishes + quote ----------------
   const chosen = { ...plan.defaultFinishes };
-  try { Object.assign(chosen, JSON.parse(localStorage.getItem('spatial.finishes') || '{}')); } catch {}
+  try { Object.assign(chosen, JSON.parse(localStorage.getItem(finKey) || '{}')); } catch {}
   for (const [g, o] of Object.entries(chosen)) world.applyFinish(g, o);
 
   function renderFinishes() {
@@ -337,15 +341,15 @@ async function boot() {
   let styleId = null; // null = custom mix
   let palette = ORIGINAL.palette;
   try {
-    const sid = localStorage.getItem(`spatial.style.${projectKey}`);
+    const sid = localStorage.getItem(`spatial.style.${stateKey}`);
     const st = styles.find(x => x.id === sid);
     if (st) { styleId = st.id; palette = st.palette; Object.assign(chosen, st.finishes); }
   } catch {}
-  if (styleId === null && !localStorage.getItem('spatial.finishes')) styleId = 'original';
+  if (styleId === null && !localStorage.getItem(finKey)) styleId = 'original';
   function applyState(fin, pal) { for (const [gid, oid] of Object.entries(fin)) world.applyFinish(gid, oid); world.applyPalette(pal); }
   applyState(chosen, palette);
   function saveState() {
-    try { localStorage.setItem('spatial.finishes', JSON.stringify(chosen)); localStorage.setItem(`spatial.style.${projectKey}`, styleId || ''); } catch {}
+    try { localStorage.setItem(finKey, JSON.stringify(chosen)); localStorage.setItem(`spatial.style.${stateKey}`, styleId || ''); } catch {}
   }
   function markCustom() { styleId = null; renderStyles(); }
   const totalFor = fin => buildQuote(plan, { ...chosen, ...fin }).total;
@@ -787,13 +791,14 @@ async function boot() {
     const r = await fetch('/api/render', {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ image: frame, project: cloudId, room: room ? room.name : '', style: st ? `${st.name}${st.nameEn ? ' / ' + st.nameEn : ''}` : '', styleDesc: st ? st.tagline || '' : '', outdoor: !!(room && room.outdoor) }),
-    });
+    }).catch(() => { throw new Error(t('網路連線中斷，效果圖沒有送出。請確認網路後再按一次。', 'No connection: the render was not sent. Check the network and press again.')); });
     const out = await r.json().catch(() => ({}));
     if (!r.ok) {
       const msg = r.status === 503 ? t('AI 效果圖尚未啟用（伺服器未設定 Gemini 金鑰）。', 'AI renders are not enabled yet (no Gemini key on the server).')
         : r.status === 401 ? t('請重新登入後再試', 'Please sign in again')
         : r.status === 429 && /free.?tier/i.test(out.detail || '') ? t('Gemini 金鑰目前是免費方案，不能產生圖片：請在 Google AI Studio 為這個金鑰的專案開啟付費（Billing）。', 'The Gemini key is on the free tier, which cannot make images: turn on billing for its project in Google AI Studio.')
         : r.status === 429 ? t('AI 服務忙碌或已達上限，請稍後再試。', 'The AI service is busy or at its limit; try again shortly.')
+        : r.status === 504 || r.status === 502 ? t('AI 這次太久沒有回應，請再按一次。', 'The AI took too long to answer; press again.')
         : t('生成失敗：', 'Render failed: ') + (out.detail || out.error || r.status);
       throw new Error(msg);
     }
@@ -916,7 +921,7 @@ async function boot() {
     return snaps[sid];
   }
   const proposal = setupProposal({
-    plan, projectKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest, snapshot,
+    plan, projectKey: stateKey, styles: () => styles, currentStyle: () => styleId, manifest: ai.manifest, snapshot,
     onView: id => { if (mode !== 'explore') setMode('explore'); selectStyle(id, true); },
   });
   { // 匯出: GLB / OBJ for SketchUp, 3ds Max…; DXF plan for AutoCAD

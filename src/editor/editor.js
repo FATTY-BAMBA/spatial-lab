@@ -279,7 +279,7 @@ const flow = {
     const iss = doc.levels.reduce((n, L) => n + findIssues(L).length, 0), secs = Math.round((Date.now() - this.t0) / 1000);
     el.querySelector('#flow-h').textContent = t('完成，可以走進去了', 'Done. Walk in.');
     const sum = el.querySelector('.sum'); sum.hidden = false;
-    sum.innerHTML = t(`<b>${doc.levels.length} 層、${rooms} 個房間、${items} 件家具</b>（另加 ${deco} 件窗簾、燈具與佈置），共 ${secs} 秒。`, `<b>${doc.levels.length} floor${doc.levels.length > 1 ? 's' : ''}, ${rooms} rooms, ${items} pieces of furniture</b> (plus ${deco} curtains, lights and decor) in ${secs} s.`)
+    sum.innerHTML = t(`<b>${doc.levels.length} 層、${rooms} 個房間、${items} 件家具</b>（另加 ${deco} 件窗簾、燈具與佈置），${secs ? `共 ${secs} 秒` : '不到 1 秒'}。`, `<b>${doc.levels.length} floor${doc.levels.length > 1 ? 's' : ''}, ${rooms} rooms, ${items} pieces of furniture</b> (plus ${deco} curtains, lights and decor) in ${secs ? `${secs} s` : 'under a second'}.`)
       + (iss ? t(`<br>「檢查」列出 ${iss} 處可補強的地方（例如沒接上的牆），之後可以一鍵補上。`, `<br>“Check” lists ${iss} things worth fixing (like walls that don't meet); most are one click.`) : '');
     const acts = el.querySelector('.acts'); acts.hidden = false;
     const goB = acts.querySelector('.go'), stay = acts.querySelector('.stay'); goB.hidden = false;

@@ -11,6 +11,8 @@
 //   9. no CAD Worker (404, old browsers): a valid DWG and DXF still import on the page; a Worker that dies mid-import
 //      shows the clear error at once instead of waiting for the timeout
 //  10. big drawings (40k-line DWG, 72×80 m mall DXF): the whole import keeps every frame under 250 ms and ends in 20 s
+//  11. demo journey (T-007): style switch → quote; ✦ 一鍵產生提案圖 → renders saved in that style; offline → zh message;
+//      style and 核准 remembered per project
 // Writes screenshots to qa/reports/e2e-*.png. Exit 1 on any failure.
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -35,7 +37,9 @@ const srv = await serve();
 const { chromium } = playwright();
 const browser = await chromium.launch();
 const results = []; let failed = 0;
+// E2E_ONLY=<text>: run only the steps whose name contains it (plans the skipped steps would make come from the DXF sample)
 async function step(name, fn) {
+  if (process.env.E2E_ONLY && !name.includes(process.env.E2E_ONLY)) return;
   const t0 = Date.now();
   try { await fn(); results.push(`✓ ${name} (${((Date.now() - t0) / 1000).toFixed(1)} s)`); }
   catch (e) { failed++; results.push(`✗ ${name}: ${String(e.message || e).split('\n')[0]}`); }
@@ -269,6 +273,59 @@ if (docJSON) await step('owner preview of 提案書 without a firm profile point
   const n = await p.evaluate(() => { const e = document.querySelector('#note'); return e && !e.hidden ? e.innerHTML : ''; });
   if (!n.includes('/projects#firm')) throw new Error(`note: ${n.slice(0, 120)}`);
   if (!(await p.textContent('.mast .firm b')).includes('QA 專案')) throw new Error('no project name in the masthead');
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+// ---------- T-007: the client-demo journey in the viewer ----------
+// style switch → quote follows; ✦ 一鍵產生提案圖 (render API stubbed) → renders listed and saved on the project; offline →
+// a zh message that says what to do; style and 核准 are remembered per project (they used to leak between projects)
+if (docJSON) await step('demo journey: style → quote, ✦ 一鍵產生提案圖 → renders saved, offline → zh message, choices kept per project', async () => {
+  const A = 'aaaaaaaa-2222-3333-4444-555555555555', B = 'bbbbbbbb-2222-3333-4444-555555555555';
+  const oldShared = { 'spatial.style.custom': 'wabi', 'spatial.finishes': JSON.stringify({ floor: 'oak' }), 'spatial.approval.custom': JSON.stringify({ style: 'wabi', name: '侘寂風', at: '2026/11/01 10:00', ref: 'P-20261101-1000', total: 1, grand: 1, finishes: {} }) };
+  const { p, ctx } = await page({ doc: true, viewport: { width: 960, height: 600 }, store: { 'qa-doc': docJSON, ...oldShared } });
+  let n = 0, offline = false;
+  await p.route('**/api/render', async r => {
+    if (offline) return r.abort('internetdisconnected');
+    const i = n++ % 3, img = ['living', 'dining', 'master'][i];
+    await new Promise(x => setTimeout(x, 200));
+    r.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: `qa-r${n}`, before: `/assets/ai/render/${img}.thumb.jpg`, after: `/assets/ai/render/${img}.jpg`, path: `qa-user/p/qa-r${n}.png`, model: 'stub' }) });
+  });
+  const open = async id => {
+    await p.goto(`${srv.url}/?id=${id}&q=lite#explore`); // lite: no post-processing, so the software-GL captures stay quick
+    await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
+    return p.evaluate(() => ({ style: document.querySelector('#style-now').textContent, total: document.querySelector('#quote-total').textContent, approved: !!window.__spatial.proposal.approval }));
+  };
+  let st = await open(A);
+  if (st.style !== '原始提案' || st.approved) throw new Error(`a new project opened with another project's choices: ${JSON.stringify(st)}`);
+  // style switch: the 3D wipes to 侘寂風 and the quote follows
+  await p.evaluate(() => [...document.querySelectorAll('#styles .style-card')].find(c => /侘寂/.test(c.textContent)).querySelector('.sc-main').click());
+  await p.waitForFunction(b => document.querySelector('#style-now').textContent === '侘寂風' && document.querySelector('#quote-total').textContent !== b, st.total, { timeout: 60000 });
+  await p.waitForTimeout(400);
+  const wabiTotal = await p.textContent('#quote-total');
+  // ✦ 一鍵產生提案圖 (DOM clicks: software GL frames are slow and Playwright's stability wait would time out)
+  await p.evaluate(() => document.querySelector('#ai-open').click());
+  await p.waitForSelector('#ai:not([hidden]) .ai-set:not([hidden])', { timeout: 20000 });
+  const t0 = Date.now();
+  await p.evaluate(() => document.querySelector('#ai .ai-set').click());
+  await p.waitForFunction(() => document.querySelector('#ai').classList.contains('generating'), null, { timeout: 10000 }).catch(() => {});
+  await p.waitForFunction(() => !document.querySelector('#ai').classList.contains('generating'), null, { timeout: 180000 });
+  const ai = await p.evaluate(async () => ({ thumbs: [...document.querySelectorAll('#ai .ai-thumbs button span')].map(s => s.textContent), status: document.querySelector('#ai .ai-status').hidden ? '' : document.querySelector('#ai .ai-status').textContent, saved: (await (await import('/src/cloud.js')).getRenders()).map(r => `${r.room}:${r.style}`) }));
+  if (!n || ai.thumbs.length !== n || ai.saved.length !== n) throw new Error(`renders: ${n} requests, thumbs ${JSON.stringify(ai.thumbs)}, saved ${JSON.stringify(ai.saved)}`);
+  if (!ai.saved.every(s => s.endsWith(':wabi'))) throw new Error(`renders not in the chosen style: ${ai.saved.join(', ')}`);
+  if (ai.status) throw new Error(`status left on screen: ${ai.status}`);
+  results.push(`    style 原始提案 ${st.total} → 侘寂風 ${wabiTotal} · ${n} renders (${ai.saved.map(s => s.split(':')[0]).join('、')}) in ${((Date.now() - t0) / 1000).toFixed(1)} s with a 0.2 s stub`);
+  // the network drops on stage: the set fails with a message that says what to do (not "Failed to fetch")
+  offline = true;
+  await p.evaluate(() => document.querySelector('#ai .ai-set').click());
+  await p.waitForFunction(() => !document.querySelector('#ai').classList.contains('generating') && /失敗/.test(document.querySelector('#ai .ai-status').textContent), null, { timeout: 180000 });
+  const msg = await p.textContent('#ai .ai-status');
+  if (!/網路連線中斷/.test(msg) || /fetch/i.test(msg)) throw new Error(`offline message: ${msg}`);
+  const box = await p.evaluate(() => { const s = document.querySelector('#ai .ai-status').getBoundingClientRect(); return { l: s.left, r: s.right, w: innerWidth }; });
+  if (box.l < 0 || box.r > box.w) throw new Error(`status runs off the screen: ${JSON.stringify(box)}`);
+  results.push(`    offline: ${msg}`);
+  // choices stay with their project: A keeps 侘寂風, B (never touched) opens on 原始提案
+  st = await open(A); if (st.style !== '侘寂風') throw new Error(`project A forgot its style: ${st.style}`);
+  st = await open(B); if (st.style !== '原始提案' || st.approved) throw new Error(`project B shows project A's choices: ${JSON.stringify(st)}`);
   if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
 });
 

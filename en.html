@@ -424,7 +424,7 @@ body.ai-on { overflow: hidden; }
 .ai-actions .ai-gen:hover { color: var(--text); border-color: var(--text-2); }
 .ai-actions .ai-gen:disabled { opacity: .55; cursor: progress; }
 .ai-actions .ai-gen ~ .ai-walk, .ai-actions .ai-walk:has(+ .ai-gen:not([hidden])) { background: rgba(237, 229, 215, .06); border-color: var(--hair-2); color: var(--text); font-weight: 500; }
-.ai-status { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 3; background: rgba(15, 13, 10, .82); color: var(--text); border: 1px solid var(--hair-2); padding: 9px 16px; border-radius: 999px; font-size: 13.5px; white-space: nowrap; pointer-events: none; }
+.ai-status { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 3; background: rgba(15, 13, 10, .82); color: var(--text); border: 1px solid var(--hair-2); padding: 9px 16px; border-radius: 18px; font-size: 13.5px; width: max-content; max-width: calc(100% - 32px); text-align: center; line-height: 1.5; pointer-events: none; }
 #ai.generating .ai-stage::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgba(227, 198, 144, .22) 50%, transparent 70%); background-size: 250% 100%; animation: aiscan 1.8s linear infinite; }
 @keyframes aiscan { from { background-position: 125% 0; } to { background-position: -125% 0; } }
 #ai.generating .ai-handle, #ai.generating .ai-tag.r, #ai.empty .ai-handle, #ai.empty .ai-tag, #ai.empty .ai-note { display: none; }
