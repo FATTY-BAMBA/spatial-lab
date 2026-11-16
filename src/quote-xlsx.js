@@ -2,7 +2,7 @@
 // 項目 / 規格 / 數量 / 單位 / 單價 / 複價 / 備註, section 小計, 合計（未稅）, 營業稅, 總計（含稅）, notes and sign-off lines.
 // Amounts are live formulas (=ROUND(數量×單價)) with their values cached, so the designer can edit quantities and prices
 // in Excel / Google Sheets and the totals follow. Pure: the same numbers as buildQuote (checked in qa/unit).
-import { buildQuote, pointInPolygon, polygonArea } from './plan.js';
+import { buildQuote, pointInPolygon, polygonArea, money } from './plan.js';
 import { t, isEn, unitLabel } from './i18n.js';
 import { contactLines } from './firm.js';
 import { xlsx, ref } from './xlsx.js';
@@ -80,7 +80,7 @@ export function quoteSheet({ plan, chosen, firm = null, project = '', client = '
 
   // totals
   push([]);
-  const subtotal = subs.reduce((a, s) => a + s.sum, 0), tax = Math.round(subtotal * B.taxRate), grand = subtotal + tax;
+  const subtotal = subs.reduce((a, s) => a + s.sum, 0), tax = money(subtotal * B.taxRate), grand = subtotal + tax;
   const tot = (label, v, f, sl, sv) => { const r = push([null, null, { v: label, s: sl }, { v: '', s: sl }, { v: '', s: sl }, { v, f, s: sv }], sl === 'grandL' ? 24 : 0); merge(r, 2, 4); return r; };
   const rs = tot(t('合計（未稅）', 'Subtotal (excl. tax)'), subtotal, subs.length ? subs.map(s => ref(s.r, 5)).join('+') : '0', 'totL', 'tot');
   const rt = tot(B.taxRate ? t(`營業稅 ${Math.round(B.taxRate * 100)}%`, `Business tax ${Math.round(B.taxRate * 100)}%`) : t('營業稅（不另計）', 'Business tax (not added)'), tax, `ROUND(${ref(rs, 5)}*${B.taxRate},0)`, 'totL', 'tot');

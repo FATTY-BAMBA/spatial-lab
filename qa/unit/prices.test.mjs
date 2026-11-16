@@ -11,6 +11,7 @@ import { P } from './helpers.mjs';
 const PR = await import(join(REPO, 'src/prices.js'));
 const QX = await import(join(REPO, 'src/quote-xlsx.js'));
 const PD = await import(join(REPO, 'src/proposal-doc.js'));
+const PL = await import(join(REPO, 'src/plan.js'));
 const base = JSON.parse(readFileSync(join(REPO, 'data/apartment.json'), 'utf8'));
 
 // a plan whose quantities are easy to work out by hand:
@@ -155,7 +156,7 @@ test('xlsx: a valid workbook with Chinese text, number formats, live formulas an
   // every item row's cached amount = round(qty × price); the 小計 rows sum their section; totals chain by formula
   const items = Object.entries(X.cells).filter(([, c]) => c.f && /^ROUND\(C\d+\*E\d+,0\)$/.test(c.f));
   assert.equal(items.length, 4 + 2 + 3);
-  for (const [k, c] of items) { const n = k.slice(1); assert.equal(c.v, Math.round(X.cells[`C${n}`].v * X.cells[`E${n}`].v), k); }
+  for (const [k, c] of items) { const n = k.slice(1); assert.equal(c.v, PL.money(X.cells[`C${n}`].v * X.cells[`E${n}`].v), k); }
   const subs = Object.values(X.cells).filter(c => c.f && c.f.startsWith('SUM('));
   assert.deepEqual(subs.map(c => c.v), [HAND.floor + HAND.counter + HAND.cabinet + HAND.paint, HAND.works, HAND.furniture]);
   const total = X.rows.findIndex(row => row && row[2] === '合計（未稅）');
@@ -174,4 +175,14 @@ test('xlsx without a firm profile or works lines: project as the header, sample 
   assert.ok(X.strings.some(s => /PrimeStride 示範價目表/.test(s)));
   assert.ok(!X.strings.some(s => /工程項目/.test(s)));
   assert.equal(out.totals.subtotal, P.buildQuote(p, p.defaultFinishes).total);
+});
+
+test('money rounds half away from zero like Excel ROUND(x,0), despite binary error', () => {
+  assert.equal(1.13 * 450, 508.49999999999994); // why Math.round alone is wrong
+  assert.equal(PL.money(1.13 * 450), 509);
+  assert.equal(PL.money(2.37 * 150), 356); // 355.5
+  assert.equal(PL.money(2130 * 0.05), 107); // 106.5
+  assert.equal(PL.money(508.4), 508);
+  assert.equal(PL.money(-2.5), -3);
+  assert.equal(PL.money(0), 0);
 });

@@ -429,7 +429,7 @@ async function grabXlsx(p, sel, dom = false) {
 }
 function checkXlsx(X, { total, grand, oak, works, furn }) {
   const oakRow = X.rows.find(r => r && r[1] === oak);
-  if (!oakRow || oakRow[4] !== 6000 || oakRow[5] !== Math.round(oakRow[2] * 6000)) throw new Error(`xlsx floor row ${JSON.stringify(oakRow)}`);
+  if (!oakRow || oakRow[4] !== 6000 || oakRow[5] !== Math.round(+(oakRow[2] * 6000).toFixed(6))) throw new Error(`xlsx floor row ${JSON.stringify(oakRow)}`);
   const w = X.rows.find(r => r && r[0] === works);
   if (!w || !(w[5] > 0)) throw new Error(`xlsx works line ${JSON.stringify(w)}`);
   if (furn && !X.rows.some(r => r && r[0] === furn.name && r[4] === furn.price)) throw new Error(`xlsx furniture ${furn.name} not at ${furn.price}`);
@@ -437,7 +437,7 @@ function checkXlsx(X, { total, grand, oak, works, furn }) {
   const [sub, tax, all] = [X.rows[ti][5], X.rows[ti + 1][5], X.rows[ti + 2][5]];
   const items = Object.entries(X.cells).filter(([, c]) => c.f && /^ROUND\(C\d+\*E\d+,0\)$/.test(c.f)).reduce((a, [, c]) => a + c.v, 0);
   if (sub !== total || items !== total) throw new Error(`xlsx subtotal ${sub}, rows ${items}, on screen ${total}`);
-  if (tax !== Math.round(total * 0.05) || all !== grand) throw new Error(`xlsx tax ${tax} / total ${all} vs ${grand}`);
+  if (tax !== Math.round(+(total * 0.05).toFixed(6)) || all !== grand) throw new Error(`xlsx tax ${tax} / total ${all} vs ${grand}`);
   if (!X.strings.includes('木與石室內設計') || !X.strings.some(s => s.includes('木與石 2026 價目表'))) throw new Error('xlsx header without the firm / price list');
   return { sub, tax, all, rows: X.rows.filter(Boolean).length };
 }
@@ -466,7 +466,7 @@ if (pricedFirm) await step('3D quote uses the firm price list → Excel 報價�
   if (!hit) throw new Error('Excel button not visible in the quote panel');
   const { name, X } = await grabXlsx(p, '#quote-xlsx', true);
   if (!/^報價單-/.test(name)) throw new Error(`file name ${name}`);
-  const r = checkXlsx(X, { total, grand: total + Math.round(total * 0.05), oak: oak[0].replace(/^地坪\s*/, ''), works: '保護工程', furn: { name: fname, price: fprice } });
+  const r = checkXlsx(X, { total, grand: total + Math.round(+(total * 0.05).toFixed(6)), oak: oak[0].replace(/^地坪\s*/, ''), works: '保護工程', furn: { name: fname, price: fprice } });
   if (!X.strings.includes('王小姐')) throw new Error('client name missing in the xlsx');
   await p.screenshot({ path: join(OUT, 'e2e-10-quote-firm-prices.png'), timeout: 120000 });
   results.push(`    viewer 未稅 NT$ ${total.toLocaleString('en-US')} = xlsx ${r.sub.toLocaleString('en-US')} + 稅 ${r.tax.toLocaleString('en-US')} = ${r.all.toLocaleString('en-US')} · ${r.rows} rows · ${name}`);

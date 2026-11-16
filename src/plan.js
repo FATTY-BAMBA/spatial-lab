@@ -138,6 +138,8 @@ export function quoteBasis(plan) { return { ...DEFAULT_BASIS, ...(plan.quoteBasi
 // The quote: finish lines (quantity from the plan, + waste), the firm's works lines, furniture as an allowance.
 // Quantities are rounded to 0.01 before pricing so a 報價單 reads 數量 × 單價 = 複價 exactly.
 export const r2 = v => Math.round(v * 100) / 100;
+// money: whole NT$, half away from zero like Excel's ROUND(x,0); toFixed absorbs binary error (1.13 × 450 = 508.49999… → 509)
+export const money = v => Math.sign(v) * Math.round(Math.abs(+v.toFixed(6)));
 export function buildQuote(plan, chosen) {
   const q = quantities(plan), basis = quoteBasis(plan);
   const area = (m2, unit) => (unit === 'm²' ? m2 : toPing(m2));
@@ -146,11 +148,11 @@ export function buildQuote(plan, chosen) {
   for (const g of plan.finishes) {
     const opt = g.options.find(o => o.id === chosen[g.id]) || g.options[0];
     const net = (basisQty[g.basis] || (() => 0))(g.unit), waste = basis.waste[g.id] || 0, qty = r2(net * (1 + waste));
-    lines.push({ group: g.name, groupEn: g.nameEn, gid: g.id, oid: opt.id, name: opt.name, unit: g.unit, net, waste, qty, unitPrice: opt.price, total: Math.round(qty * opt.price), finish: true, status: 'confirmed' });
+    lines.push({ group: g.name, groupEn: g.nameEn, gid: g.id, oid: opt.id, name: opt.name, unit: g.unit, net, waste, qty, unitPrice: opt.price, total: money(qty * opt.price), finish: true, status: 'confirmed' });
   }
   for (const l of basis.lines || []) {
     const qty = l.unit === '式' ? l.qty || 1 : r2(area(q.floorArea, l.unit));
-    lines.push({ group: t('工程項目', 'Works'), name: l.name, spec: l.spec || '', unit: l.unit, qty, unitPrice: l.price, total: Math.round(qty * l.price), labour: true, status: 'confirmed' });
+    lines.push({ group: t('工程項目', 'Works'), name: l.name, spec: l.spec || '', unit: l.unit, qty, unitPrice: l.price, total: money(qty * l.price), labour: true, status: 'confirmed' });
   }
   const byName = new Map();
   for (const L of plan.levels) for (const f of L.furniture) {
@@ -163,7 +165,7 @@ export function buildQuote(plan, chosen) {
   for (const row of byName.values()) lines.push({ ...row, total: row.qty * row.unitPrice });
   const sum = ls => ls.reduce((s, l) => s + l.total, 0);
   const total = sum(lines), finishTotal = sum(lines.filter(l => l.finish)), labourTotal = sum(lines.filter(l => l.labour));
-  const tax = Math.round(total * basis.taxRate);
+  const tax = money(total * basis.taxRate);
   return { lines, total, finishTotal, labourTotal, allowance: total - finishTotal - labourTotal, tax, grand: total + tax, q, basis };
 }
 
