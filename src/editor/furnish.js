@@ -7,6 +7,9 @@ import { pointInPolygon, polygonArea, wallFrame, stairBox } from '../plan.js';
 import { dressLevel } from './dress.js';
 
 const G = 0.05; // grid (m)
+// rooms whose bounding box needs more grid cells than this (100 m × 100 m) are not furnished: that is not an interior
+// room but a drawing in the wrong units or a site outline, and the grid alone would take minutes and gigabytes
+export const MAX_GRID_CELLS = 4e6;
 const FREE = 0, HARD = 1, SOFT = 2, KEEP = 3; // SOFT = someone's clearance, KEEP = door swing / opening (no furniture)
 const TALL = new Set(['wardrobe', 'shelf', 'tallcab', 'fridge', 'tvwall']);
 
@@ -31,6 +34,10 @@ export function roomType(r) {
 }
 
 // --------------------------------------------------------------------------- room grid
+function gridCells(room) {
+  const xs = room.polygon.map(p => p[0]), zs = room.polygon.map(p => p[1]);
+  return Math.ceil((Math.max(...xs) - Math.min(...xs)) / G) * Math.ceil((Math.max(...zs) - Math.min(...zs)) / G);
+}
 function roomGrid(level, room) {
   const P = room.polygon, xs = P.map(p => p[0]), zs = P.map(p => p[1]);
   const x0 = Math.min(...xs), z0 = Math.min(...zs), nx = Math.ceil((Math.max(...xs) - x0) / G), nz = Math.ceil((Math.max(...zs) - z0) / G);
@@ -339,6 +346,7 @@ export function autoFurnish(level, { replace = false, stairs = [], skipDrawn = f
     if (type === 'none') continue;
     if (level.furniture.some(f => f.drawn && pointInPolygon([f.x, f.z], room.polygon))) continue;
     if (!replace && level.furniture.some(f => !f.dress && pointInPolygon([f.x, f.z], room.polygon))) continue;
+    if (gridCells(room) > MAX_GRID_CELLS) continue;
     const R = roomGrid(level, room);
     for (const f of level.furniture) boxMark(R, rotBox(f), HARD);
     // stair flights (going up from here or arriving from below) plus a landing in front stay clear
