@@ -170,3 +170,42 @@ recordings out of this repo (see N7).
 - Gate alone on a quiet box: unit 47/47 · regress 51, no regressions · **e2e all 19 passed** (step 11 43.3 s; 40k DWG
   longest frame 83 ms, 6.6 s).
 - Status stays `review`: awaiting the owner's script review, O1, and the NT$4 live render check.
+
+## Validation round 2 (validator, 2026-11-16, branch at 6a8a472)
+
+**Verdict: ship** (code and docs). B1–B3 are fixed and verified. Not merged. Merge order: T-003 first, then rebase this
+branch and resolve `qa/e2e.mjs` (N1, still the only conflict), rerun the gate, merge. Keep status `review` after merge:
+the owner still has to review the script, decide O1 and do the NT$4 live render check.
+
+**Evidence**
+- Gate alone on a quiet box: unit 47/47 · regress 51, no regressions · **e2e 19/19** (step 11 44.1 s; new steps 6.1 s
+  and 1.8 s; 40k DWG 6.6 s, frames under 250 ms).
+- New steps fail on 6690968's `src/` with this branch's `qa/e2e.mjs`: 「editor 在 3D 中查看…」 → `waitForURL` timeout;
+  「3D opens with site storage blocked」 → never ready. Both pass on 6a8a472.
+- **B1 repro**, Playwright with cloud stubbed, no AI:
+  - Legacy keys + an old handover with no `localId` → `/?p=custom` opens on 原始提案, not approved, and the legacy keys
+    are deleted.
+  - Two unsaved plans in a row (signed out, editor → 在 3D 中查看): plan A gets its own `localId`, opens clean, and is
+    approved in 侘寂風. Plan B gets a new `localId` and opens on 原始提案, not approved. A's choices stay under
+    `*.local.<A>`.
+  - The demo apartment after A's approval is not approved.
+- **B2**, signed in on saved project `?id=A`: save ok → `/?id=A` in 0.5 s (✦ 一鍵產生提案圖 shown). Save in flight
+  (3 s) → waits, then `/?id=A` (3.5 s). Save fails → local preview `?p=custom` with its own key in 0.6 s. A new plan
+  that is not saved yet, signed in → saved, then `/?id=<new>`.
+- **B3**: the round-1 repro (localStorage getter throws) now boots, and so does the e2e step.
+- Docs: O1 wording neutral (pending owner), `&q=med`, consent wording covers testing, weak-detection fallback correct.
+  Made-up 統一編號 12345675.
+
+**Non-blocking, new**
+- **N9** — when the save fails, 「在 3D 中查看」 goes to the local preview without saying so. On stage that means no ✦ AI
+  renders and no 提案書, and nothing on screen explains why. A toast is enough, e.g.
+  「尚未儲存到帳號，先開本機預覽（沒有 AI 效果圖與提案書）」. demo.md already says to wait for 「已儲存到帳號」.
+- **N10** — the demo plans still share the old un-keyed `spatial.finishes`, which main also wrote for every saved
+  project. With such a value present, `/?p=apartment` opens as 「自訂組合」 instead of 原始提案 (not approved). That is
+  the 「一切都不行 → 示範宅」 fallback. Delete the legacy key once, or key the demo plans' finishes by name. Until then,
+  add a checklist line: open the demo apartment once and click 原始提案.
+- **N11** — dropping a new picture into the same editor doc ("取代目前樓層的牆體？" → yes) keeps that doc's `localId`.
+  The preview then treats it as the same plan and keeps its style and 核准. This only happens signed out and after an
+  explicit replace, so it's acceptable. 新專案 / upload from 我的專案 start a new doc and a new id.
+- Still open from round 1: N1 (T-003 conflict), N2 (update the script once T-003 is live), N5 (phone failure state),
+  N7 (T-013 recordings from the private dir).
