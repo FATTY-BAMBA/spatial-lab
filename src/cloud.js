@@ -59,6 +59,17 @@ export async function saveProject({ id, name, doc, thumb }) {
   const { data, error } = await sb.from('spatial_projects').insert(row).select('id').single();
   if (error) throw error; return data.id;
 }
+// T-011: the style and finishes the designer presents (see src/presented.js) live in the project doc, so the share RPC
+// already returns them and no migration is needed. Only `doc.presented` changes; the rest of the doc is read fresh
+// first so an edit saved by the editor in the meantime is kept.
+export async function savePresented(id, presented) {
+  const sb = await client();
+  const { data, error } = await sb.from('spatial_projects').select('doc').eq('id', id).single();
+  if (error) throw error;
+  const doc = { ...(data.doc || {}), presented };
+  const { error: e2 } = await sb.from('spatial_projects').update({ doc }).eq('id', id);
+  if (e2) throw e2; return presented;
+}
 export async function renameProject(id, name) { const sb = await client(); const { error } = await sb.from('spatial_projects').update({ name }).eq('id', id); if (error) throw error; }
 export async function deleteProject(id) { const sb = await client(); const { error } = await sb.from('spatial_projects').delete().eq('id', id); if (error) throw error; }
 // Turn the read-only share link on (returns the token) or off (null)
@@ -67,8 +78,7 @@ export async function setShare(id, on) {
   const token = on ? Array.from(crypto.getRandomValues(new Uint8Array(18)), b => b.toString(36).padStart(2, '0')).join('').slice(0, 28) : null;
   const { error } = await sb.from('spatial_projects').update({ share_token: token }).eq('id', id);
   if (error) throw error; return token;
-}
-export async function sharedProject(token) {
+}export async function sharedProject(token) {
   const sb = await client();
   const { data, error } = await sb.rpc('spatial_shared', { token });
   if (error) throw error; return data && data[0] ? data[0] : null;
