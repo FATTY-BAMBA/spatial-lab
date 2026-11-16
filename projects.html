@@ -114,7 +114,7 @@ h1 { font-family: var(--display); font-weight: 900; font-size: clamp(26px, 4vw, 
         <span class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e3c690" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span>
         <h2 id="u-h"></h2>
         <p id="u-p"></p>
-        <span class="fmt"><span>格局圖 JPG / PNG</span><span>PDF</span><span>DXF</span><span>DWG</span><span id="u-multi"></span></span>
+        <span class="fmt"><span id="u-img">格局圖 JPG / PNG</span><span>PDF</span><span>DXF</span><span>DWG</span><span id="u-multi"></span></span>
         <span class="row"><span class="btn go" id="u-b"></span><span class="alt" id="u-drag"></span></span>
       </label>
       <ol class="steps">
@@ -144,6 +144,7 @@ $('#u-p').textContent = t('591 格局圖、建案 DM、掃描或 CAD 都可以�
 $('#u-multi').textContent = t('多樓層', 'Multi-floor');
 $('#u-b').textContent = t('選擇檔案', 'Choose a file');
 $('#u-drag').textContent = t('或把檔案拖進來', 'or drop it here');
+$('#u-img').textContent = t('格局圖 JPG / PNG', 'Plan image JPG / PNG');
 // picked or dropped plan → editor imports it right away (handed over through IndexedDB)
 async function startWith(file) {
   if (!file) return;
