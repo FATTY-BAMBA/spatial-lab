@@ -17,6 +17,8 @@
 //  11. demo journey (T-007): style switch → quote; ✦ 一鍵產生提案圖 → renders saved in that style; offline → zh message
 //      (960 and 360 px); style and 核准 remembered per project; the editor's 在 3D 中查看 opens the saved project, or an
 //      unsaved plan's own preview (old shared keys ignored); the 3D opens with site storage blocked
+//  12. AI 服務狀態 (T-012): /projects?check runs the free check, 確認額度 shows a Gemini free-tier warning (360 px);
+//      not run on a plain visit; English + expired session
 // Writes screenshots to qa/reports/e2e-*.png. Exit 1 on any failure.
 // QA_ONLY=<regex> runs only the matching steps (the gate always runs them all).
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -604,6 +606,49 @@ await step('damaged .dwg in the editor → clear zh error, no page error', async
   await p.screenshot({ path: join(OUT, 'e2e-6-dwg-error.png') });
   results.push(`    ${st.sum.slice(0, 90)}`);
   if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+// ---------- T-012: AI 服務狀態 on 我的專案 (free check, then the paid confirm), /api/health stubbed ----------
+await step('AI 服務狀態: /projects?check → keys valid → 確認額度 → free-tier warning (360 px); hidden by default; English', async () => {
+  const { p } = await page({ viewport: { width: 360, height: 780 } });
+  const hits = [];
+  await p.route('**/api/health', r => {
+    const m = r.request().method(); hits.push([m, r.request().headers().authorization]);
+    const body = m === 'POST'
+      ? { checked_at: '2026-11-17T08:00:00Z', probe: true, vision: { code: 'ready', model: 'claude-sonnet-5-5' }, render: { code: 'free-tier', model: 'gemini-3-pro-image' } }
+      : { checked_at: '2026-11-17T08:00:00Z', probe: false, vision: { code: 'ok', model: 'claude-sonnet-5-5' }, render: { code: 'ok', model: 'gemini-3-pro-image' } };
+    r.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  // a plain visit does not run the check
+  await p.goto(`${srv.url}/projects`);
+  await p.waitForSelector('#list:not([hidden])', { timeout: 15000 });
+  await p.waitForTimeout(300);
+  if (!(await p.isHidden('#aih')) || hits.length) throw new Error('AI status opened / checked on a plain visit');
+  // the pre-demo link
+  await p.goto(`${srv.url}/projects?check`);
+  await p.waitForSelector('#aih:not([hidden]) li[data-id=render]', { timeout: 15000 });
+  let st = await p.evaluate(() => ({ sum: document.querySelector('#aih-sum').textContent, rows: [...document.querySelectorAll('#aih li')].map(l => l.dataset.tone + ':' + l.textContent), probe: !document.querySelector('#aih-probe').hidden, sw: document.documentElement.scrollWidth }));
+  if (!/確認額度/.test(st.sum) || !st.rows.every(r => /^warn:.*金鑰有效/.test(r))) throw new Error(`free check: ${JSON.stringify(st)}`);
+  if (!st.probe) throw new Error('確認額度 button missing');
+  if (st.sw > 360) throw new Error(`horizontal scroll at 360 px: ${st.sw}`);
+  if (!hits.length || hits[0][0] !== 'GET' || hits[0][1] !== 'Bearer qa-token') throw new Error(`request ${JSON.stringify(hits)}`);
+  await p.click('#aih-probe');
+  await p.waitForFunction(() => document.querySelector('#aih').dataset.tone === 'bad', null, { timeout: 10000 });
+  st = await p.evaluate(() => ({ sum: document.querySelector('#aih-sum').textContent, render: document.querySelector('#aih li[data-id=render]').textContent, vision: document.querySelector('#aih li[data-id=vision]').dataset.tone, sw: document.documentElement.scrollWidth }));
+  if (hits[hits.length - 1][0] !== 'POST') throw new Error('confirm did not POST');
+  if (!/免費方案.*開啟付費/.test(st.render) || !/備用專案/.test(st.sum) || st.vision !== 'ok') throw new Error(`confirm: ${JSON.stringify(st)}`);
+  if (st.sw > 360) throw new Error(`horizontal scroll at 360 px: ${st.sw}`);
+  await p.screenshot({ path: join(OUT, 'e2e-12-ai-health-phone.png'), fullPage: true });
+  if (p.errors.length) throw new Error(p.errors[0]);
+  // English, session expired (401) → asks to sign in again; opened from the footer link
+  const { p: q } = await page();
+  await q.route('**/api/health', r => r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"sign-in required"}' }));
+  await q.goto(`${srv.url}/projects?lang=en`);
+  await q.waitForSelector('#list:not([hidden])', { timeout: 15000 });
+  await q.click('#aih-open');
+  await q.waitForFunction(() => /Sign in again/.test(document.querySelector('#aih-sum').textContent), null, { timeout: 10000 });
+  if ((await q.textContent('#aih-t')) !== 'AI services') throw new Error('panel title not in English');
+  if (q.errors.length) throw new Error(q.errors[0]);
 });
 
 await browser.close(); srv.close();
