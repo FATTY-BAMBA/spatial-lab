@@ -8,7 +8,7 @@ One file per task: `T-xxx-name.md`, with front matter `status` (todo · research
 |---|---|---|---|
 | [T-001 DWG upload](T-001-dwg-upload.md) | P0 | done — merged e57ddab + T-001b 5b578be, live verified | import-engineer |
 | [T-002 Firm profile + branded proposal](T-002-branded-proposal.md) | P0 | done — merged b552d38, migration applied; live check pending | product-engineer |
-| [T-003 Price list + Excel quote](T-003-price-list-excel.md) | P0 | review — validated (ship); awaiting owner: migration approval, works-line prices + xlsx note, Excel/Sheets open check | product-engineer |
+| [T-003 Price list + Excel quote](T-003-price-list-excel.md) | P0 | done — merged 43de2cc, migration applied, live-checked 2026-11-17 | product-engineer |
 | [T-004 Record AI for all image fixtures](T-004-record-fixtures.md) | P0 | blocked: fixtures repo | qa-engineer |
 | [T-005 Room/balcony split behind sliders](T-005-balcony-split.md) | P1 | done | import-engineer |
 | [T-006 Hand-drawn watercolor plans](T-006-watercolor-plans.md) | P1 | todo | import-engineer |

@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 priority: P0
 owner: product-engineer
 depends: [T-002]
@@ -207,3 +207,20 @@ harness 7ef7415). Conflicts: `qa/e2e.mjs` only (step filter + both new step bloc
 - Gate, run alone on an idle box: unit 55/55 · regress OK, no regressions · e2e 23/23 (T-007 demo journey: 原始提案
   1,985,327 → 侘寂風 2,761,505; T-003: viewer 未稅 2,113,323 = xlsx, 含稅 2,218,989 = 提案書 = proposal xlsx).
 - Still not merged; migration `20261116150000_spatial_firm_prices.sql` still not applied (needs the owner's approval).
+
+## Shipped (2026-11-17)
+
+Owner approved everything on 2026-11-17 ("APPLY ALL"): the migration, the seeded works lines (保護工程 600/坪, 垃圾清運
+15,000/式, 完工清潔 450/坪, 工程管理 30,000/式, all off by default), the xlsx note 「數量依平面圖計算，實際以現場丈量為準。」,
+the quote fine print 「本報價為初步估算，實際金額以正式報價單與現場丈量為準。」, and Excel for the designer only.
+
+- Migration `spatial_firm_prices` applied to the live project; `supabase/tests/spatial_firm_prices_rls.sql` passed there
+  (rolled back: owner FKs present, no test rows left). `spatial_shared` grants: anon, authenticated, service_role.
+  Security advisor: nothing new (the share RPC is public by design, token-gated; other warnings are the other product's tables).
+- Merged to `main` in 43de2cc (gate on b6fcf2a: unit 55/55, regress no regressions, e2e 23/23).
+- Live check (signed in): `plan.js` serves `money`, 我的專案 → 價目表 opens with the migration detected (no "coming"
+  notice), the 提案書 shows 「下載 Excel 報價單（可編輯）」 with no console errors, an existing share link still resolves
+  through the new `spatial_shared`. The owner's firm data was not changed.
+- Still open: O1, opening a downloaded 報價單 once in desktop Excel and Google Sheets (structure-checked, not run here).
+  Non-blocking follow-ups from validation: whitelist works-line fields in the RPC, print page break, 價格基準 field on
+  Safari/Firefox desktop.
