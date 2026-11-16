@@ -114,3 +114,33 @@ Regression ms: d10 20.7 s → 0.8 s, babcock 1.2 → 0.3 s, wilson 1.5 → 0.1 s
 Also: the 我的專案 format chip「格局圖 JPG / PNG」now reads "Plan image JPG / PNG" in English.
 
 Still open: push the `dwg/` fixtures (now including `big_40k.dwg`) to the private fixtures repo before merge. Real client DWGs and Big5 R2004 remain unverified.
+
+## Validation round 2 (2026-11-16, validator): **ship**
+
+I checked these myself, not from the builder's numbers:
+- **Walls are byte-identical.** I ran `wallsFromDXF` from main and from the branch on the same parsed input: all 19 `dxf/` fixtures, all 19 `dwg/` files (DWGs converted first) and big_40k matched JSON for JSON. big_40k went from 63.4 s to 2.4 s (Node). The LibreDWG example (km-wide extents) got slower, 1 ms → 0.7 s, which is harmless.
+- **Furniture is identical.** I ran main's and the branch's `autoFurnish` on the same level for 12 CAD fixtures, including d10, d19, d12 and d13. Everything matches except the per-call `id`/`seed` uids. d10 went from 22.0 s to 0.67 s, d19 from 1.57 s to 0.05 s.
+- **Headless Chrome, whole editor import** (`measure-t001.mjs`): no frame over 250 ms on any file.
+
+| File | Before (total / frozen) | Now (total / frozen) |
+|---|---|---|
+| big_40k.dwg | 45.4 s / 42.7 s | 5.4 s / none |
+| d10_mall_gf.dxf | 18.6 s / 18.4 s | 1.9 s / none |
+| d19_wilson_basement.dxf | 1.8 s / 1.6 s | 0.8 s / none |
+| d12_babcock_l3.dxf | 1.3 s / 1.1 s | 0.9 s / none |
+| acs_sample_AC1032.dwg | 1.1 s / none | 1.4 s / none |
+
+The steps tick in order: 轉檔 2.0 s → 讀取 2.6 s → 牆 4.7 s → 房間 5.0 s → 儲存 5.4 s.
+- **Gate** (`QA_FIXTURES=…`): unit 38/38; regress 51 fixtures, 0 regressions; e2e 8/8. In the e2e perf step the longest frame was 83 ms for big_40k and 67 ms for d10. The e2e prints these result lines one step early (cosmetic).
+- **自動辨識牆體** (sample DXF): 9 walls, 6 named rooms, toast OK. A DWG dropped into a plan that already has walls only becomes the underlay, with walls untouched and no progress screen.
+- **Journey, zh/en at 1280 and 390 px:** 我的專案 → DWG → 轉檔 → all steps done → 3D. Damaged and 51 MB DWGs show their messages. No horizontal scroll and no page errors. The en chip now reads "Plan image JPG / PNG".
+- **Baseline:** I accepted the 18 new fixtures only. The 33 existing entries are byte-for-byte unchanged, timings included.
+
+**Follow-ups (not blocking the demo):**
+- **Worker fallback is broken** (`runCADJob` in `cadimport.js`; same pattern in `dwg.js` `dwgToDXFInfo`). `postMessage(..., [buf])` detaches `buf` before the Worker can fail to load, so `here()` runs on an empty buffer. Checked: with `cad-worker.js` returning 404 or a syntax error, a valid DWG shows「這不是 AutoCAD 的 DWG 檔，或檔案已損毀」and a valid DXF shows「DXF 讀取失敗」. This only happens when the module Worker can't load (browsers before Safari 15 / Firefox 114, or a failed fetch), but the message wrongly blames the designer's file. Fix: keep a copy for the fallback (`buf.slice(0)` before transferring), and add an e2e step that routes `cad-worker.js` to a 404.
+- **A Worker that crashes after its first stage message** (e.g. out of memory) is ignored by `onerror` (`answered` is true), so the designer waits until the 180 s timeout. Treat any `error` after start as a failure (or fall back).
+- **Dead code:** `dwgToDXFInfo` / `dwg-worker.js` are no longer used by the site, only by unit tests. Remove them, or point the tests at `runCAD`.
+
+**Open (owner):**
+- The private fixtures repo doesn't exist yet, so CI shows the 18 `dwg/` fixtures as missing until they're pushed (the files are in the validator's scratch `qa-fixtures/dwg/`).
+- No real client DWG yet. The Chinese DWG has no DXF twin. Big5 in R2004 DWGs is unverified.
