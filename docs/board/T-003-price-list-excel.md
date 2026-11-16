@@ -93,3 +93,78 @@ Chinese download names survive (a POSIX locale made Chrome name every download "
   NT$450/坪, 工程管理 NT$30,000/式) and the extra xlsx note 「數量依平面圖計算，實際以現場丈量為準。」.
 - Follow-ups: per-room 規格 for finishes (e.g. 地坪 by room) if designers ask; a 價目表 import/export (CSV) for firms
   with an existing price book.
+
+## Validation (validator, 2026-11-16)
+
+**Verdict: ship after fixes.** One small blocking fix (B1) and one owner check (O1). Everything else holds up.
+
+**Evidence**
+- Gate (idle machine, `QA_FIXTURES` synced): unit 54/54 · regress 51 fixtures, no regressions, metrics identical to
+  baseline, so no baseline update. e2e was red in 2 of 4 branch runs: 3 failures (T-002 share-branding 10 s wait, DWG
+  screenshot timeout, 40k-DWG frame gap 7.5 s). One of those red runs was competing with my own CPU-heavy script; the
+  other was on an idle machine. The branch was green 21/21 when run alone and on a third full `npm run all`. Main
+  (ce0aa91) was green in all 3 runs. In both red runs the Explore step ran slowly (122–130 s instead of ~67 s). Then the
+  first failed step skipped `ctx.close()`, its software-WebGL page kept running, and every later step slowed down,
+  including untouched DWG/editor steps. Nothing in the diff explains it; I count it as a harness flake (N4), not a branch
+  regression. New timeouts are only on the new steps (download wait 90 s, screenshot 120 s). The new viewer step takes
+  69–70 s, the same as the existing Explore step (software-WebGL boot), so the timeouts don't hide a slowdown.
+- Quote with no price list (main vs branch, 53 plans × 6 styles = 318 quotes): every line has the same name and unit
+  price; every line differs only within its 0.01-quantity rounding; largest total change 0.05 %. Sample 提案書 goes
+  1,985,259 → 1,985,327 (+68), reproduced in e2e on main and on the branch.
+- Hand-computed unit case re-derived independently: 52,500 + 50,000 + 27,500 + 9,240 + 6,000 + 15,000 + 40,000 +
+  14,000 + 33,333 = 247,573; tax 12,378.65 → 12,379. Correct. The tests would fail if the change were reverted.
+- Migration, on local PG16 with my own Supabase-like scaffold: T-002 then T-003 apply; both check scripts pass. Down
+  path (T-002 function + grants, drop column) runs, the T-002 check (main's version) passes, then re-apply passes.
+  Function is `security definer`, `search_path=""`, ACL anon/authenticated/service_role only, nothing for PUBLIC. anon
+  gets `permission denied for table spatial_firms`. Switched-off lines and other projects' furniture are not returned.
+  Touches only spatial_* objects.
+- xlsx sample (`報價單-sample-viewer.xlsx`):
+  - Zip: CRC OK, UTF-8 name flag set.
+  - Package: all 9 parts well-formed, each with an XML declaration; content types and rels complete.
+  - Styles: style counts match their elements, every style index is in range.
+  - Cells: rows and cell refs in order, dimension A1:G106 matches the used range, no overlapping or single-cell merges
+    (26).
+  - Sheet: worksheet children in schema order. Formulas have no leading '='. Sheet name 報價單 and Print_Titles
+    `'報價單'!$10:$10` are valid.
+  - Shared strings: 136 strings, escaped correctly; CJK intact. Number formats: `#,##0`, `"NT$ "#,##0`, `0.00`.
+  - openpyxl reads it. A forced LibreOffice recalc (UNO calculateAll) leaves all 73 formulas unchanged, totals
+    2,113,323 / 105,666 / 2,218,989. Plain headless conversion does not recalc: LibreOffice keeps cached values, so the
+    builder's "recalculates" note was not actually tested by that method.
+- Owner-only: Excel button hidden on `?share=` (JS + CSS) and absent on `/proposal?share=`. Shown for the owner and on
+  demo plans. Price list dialog: hidden signed out; migration-missing state and bad input are covered by e2e; zh + en.
+- 360 px (own Playwright check, owner + firm price list, zh + en): 提案書 toolbar wraps, page width 360, no overflow.
+  Viewer quote buttons (查看清單 / Excel 報價單 / 建立提案) are 94 px each with no clipped text. No page errors.
+- T-002 follow-ups: initials and logo URL escaped in the preview (projects.html); logo hint says 8 MB, which matches
+  the 8 MB check at projects.html:382.
+- No secrets, client data, fixture content or binaries in the diff. No new dependency (xlsx written by hand). No AI
+  cost.
+
+**Blocking**
+- B1 `src/plan.js:149` and `:153`: `total: Math.round(qty * price)` rounds in binary floating point, so a half-dollar
+  product rounds down. Example: 1.13 坪 × 450 = 508.5 should be 509, but JS gives 508 (because 1.13 × 450 =
+  508.49999999999994). This hits 2–4 % of lines at unit prices ending in 50 (seeded 完工清潔 450/坪, and common firm
+  prices like 350/850/1,250). The on-screen quote and 提案書 then differ by NT$1 from a calculator, and very likely
+  from Excel/Sheets after `fullCalcOnLoad` recalculates `ROUND(C*E,0)` (LibreOffice happens to agree with JS).
+  Fix: `Math.round(Math.round(qty * 100) * price / 100)` (exact for 2-decimal quantities and whole-NT$ prices) on both
+  lines. Add a unit case (1.13 × 450 → 509). The checks at `qa/unit/prices.test.mjs:158` and `qa/e2e.mjs:332` use the
+  same JS rounding, so they can't catch this.
+
+**Owner check before merge (O1)**
+- Acceptance says "opens cleanly in Excel and Google Sheets"; neither is available here. My structural review found
+  nothing Excel would reject, but someone must open the sample once in desktop Excel and in Google Sheets: no repair
+  prompt, Chinese text, NT$ format, totals 2,113,323 / 105,666 / 2,218,989. The Excel button goes live on merge
+  (demo plans too), independent of the migration.
+
+**Non-blocking**
+- N1 migration line 23: `jsonb_agg(l)` returns whole line objects, so any extra key on a switched-on line reaches anon.
+  Today the UI stores `normPrices` output, so there are no extra keys. Whitelist id/name/spec/unit/qty/price/on with
+  `jsonb_build_object` for defence in depth. Line 10: `create or replace` would work (same signature and columns) and
+  avoids drop/re-grant.
+- N2 Owner awareness: a share link's payload carries the firm's full 材質 price table (every option), waste % and
+  notes. The client's 方案比較 needs it, but a client with dev tools can read it.
+- N3 Print: LibreOffice paginates the sample to 3 A4 pages. Page 3 holds only note 4 and the sign-off under a repeated
+  header row. Keep notes and sign-off together (row break before 備註, or `rowBreaks`). Excel pagination may differ.
+- N4 e2e harness (qa-engineer): wrap each step's page in try/finally `ctx.close()` so one failure doesn't leave a
+  WebGL page running and cascade. The 10 s branding wait is tight under software WebGL.
+- N5 `src/prices-ui.js:35`: `<input type=month>` is a plain text box in desktop Firefox and Safari, and a value that
+  isn't YYYY-MM is silently dropped. Add `placeholder="2026-11"` or validate.
