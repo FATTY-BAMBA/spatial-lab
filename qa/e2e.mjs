@@ -11,8 +11,9 @@
 //   9. no CAD Worker (404, old browsers): a valid DWG and DXF still import on the page; a Worker that dies mid-import
 //      shows the clear error at once instead of waiting for the timeout
 //  10. big drawings (40k-line DWG, 72×80 m mall DXF): the whole import keeps every frame under 250 ms and ends in 20 s
-//  11. demo journey (T-007): style switch → quote; ✦ 一鍵產生提案圖 → renders saved in that style; offline → zh message;
-//      style and 核准 remembered per project
+//  11. demo journey (T-007): style switch → quote; ✦ 一鍵產生提案圖 → renders saved in that style; offline → zh message
+//      (960 and 360 px); style and 核准 remembered per project; the editor's 在 3D 中查看 opens the saved project, or an
+//      unsaved plan's own preview (old shared keys ignored); the 3D opens with site storage blocked
 // Writes screenshots to qa/reports/e2e-*.png. Exit 1 on any failure.
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -163,14 +164,14 @@ await step('公司資料: designer saves logo, name, contact and 統一編號', 
   await p.click('#fm-save');
   const err = await p.textContent('[data-err=tax_id]');
   if (!/統一編號/.test(err)) throw new Error(`bad 統一編號 accepted (${err})`);
-  await p.fill('[name=tax_id]', '22099131');
+  await p.fill('[name=tax_id]', '12345675');
   if ((await p.textContent('#pv-bar b')) !== '木與石室內設計') throw new Error('preview not updated');
   await p.screenshot({ path: join(OUT, 'e2e-5-firm-phone.png') });
   await p.click('#fm-save');
   await p.waitForFunction(() => !document.querySelector('dialog#firm').open, null, { timeout: 10000 });
   firmJSON = await p.evaluate(() => localStorage.getItem('qa-firm'));
   const f = JSON.parse(firmJSON || 'null');
-  if (!f || f.name !== '木與石室內設計' || f.tax_id !== '22099131' || f.color !== '#2f5d50' || !/^data:image\/png/.test(f.logo || '')) throw new Error(`saved ${String(firmJSON).slice(0, 160)}`);
+  if (!f || f.name !== '木與石室內設計' || f.tax_id !== '12345675' || f.color !== '#2f5d50' || !/^data:image\/png/.test(f.logo || '')) throw new Error(`saved ${String(firmJSON).slice(0, 160)}`);
   if (await p.isVisible('#nudge')) throw new Error('nudge still shown after saving');
   if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
 });
@@ -232,7 +233,7 @@ if (docJSON && firmJSON) await step('提案書: renders, rooms (m²/坪), totals
   if (!d.rows.length) throw new Error('no rooms');
   for (const [m2, ping] of d.rows) if (!(m2 > 0) || Math.abs(ping - m2 / 3.305785) > 0.11) throw new Error(`room ${m2} m² / ${ping} 坪`);
   if (!(d.total > 0) || d.grand !== d.total + Math.round(d.total * 0.05)) throw new Error(`totals ${d.total} / ${d.grand}`);
-  for (const w of ['小計（未稅）', '營業稅 5%', '合計（含稅）', '王小姐', '22099131', '@woodstone', 'Powered by PrimeStride']) if (!d.text.includes(w)) throw new Error(`missing “${w}”`);
+  for (const w of ['小計（未稅）', '營業稅 5%', '合計（含稅）', '王小姐', '12345675', '@woodstone', 'Powered by PrimeStride']) if (!d.text.includes(w)) throw new Error(`missing “${w}”`);
   if (!d.text.includes(`NT$ ${d.grand.toLocaleString('en-US')}`)) throw new Error('含稅 total not shown');
   await p.screenshot({ path: join(OUT, 'e2e-7-proposal.png'), fullPage: true });
   // print: A4 portrait. The printable width is 210 − 2 × 12 mm = 186 mm ≈ 703 px; nothing may be wider than that.
@@ -322,10 +323,52 @@ if (docJSON) await step('demo journey: style → quote, ✦ 一鍵產生提案�
   if (!/網路連線中斷/.test(msg) || /fetch/i.test(msg)) throw new Error(`offline message: ${msg}`);
   const box = await p.evaluate(() => { const s = document.querySelector('#ai .ai-status').getBoundingClientRect(); return { l: s.left, r: s.right, w: innerWidth }; });
   if (box.l < 0 || box.r > box.w) throw new Error(`status runs off the screen: ${JSON.stringify(box)}`);
+  // the same message on a phone (360 px): it wraps and stays on screen
+  await p.setViewportSize({ width: 360, height: 780 }); await p.waitForTimeout(300);
+  const box360 = await p.evaluate(() => { const s = document.querySelector('#ai .ai-status').getBoundingClientRect(); return { l: s.left, r: s.right, w: innerWidth, sw: document.documentElement.scrollWidth }; });
+  if (box360.l < 0 || box360.r > box360.w || box360.sw > 360) throw new Error(`status at 360 px: ${JSON.stringify(box360)}`);
+  await p.setViewportSize({ width: 960, height: 600 });
   results.push(`    offline: ${msg}`);
   // choices stay with their project: A keeps 侘寂風, B (never touched) opens on 原始提案
   st = await open(A); if (st.style !== '侘寂風') throw new Error(`project A forgot its style: ${st.style}`);
   st = await open(B); if (st.style !== '原始提案' || st.approved) throw new Error(`project B shows project A's choices: ${JSON.stringify(st)}`);
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+// the editor's 在 3D 中查看: a saved project opens as the project (AI 效果圖, 提案書); an unsaved plan opens the local
+// preview with its own choices — old shared keys (spatial.style.custom, spatial.approval.custom, spatial.finishes) ignored
+if (docJSON) await step('editor 在 3D 中查看: saved → the project; unsaved → own preview, old shared style/核准 ignored', async () => {
+  const A = 'aaaaaaaa-2222-3333-4444-555555555555';
+  { // signed in, project in the account
+    const { p, ctx } = await page({ doc: true, store: { 'qa-doc': docJSON } });
+    await p.goto(`${srv.url}/editor?id=${A}`);
+    await p.waitForFunction(() => window.__editor && window.__editor.doc.levels[0].rooms.length > 0, null, { timeout: 30000 });
+    await p.evaluate(() => document.querySelector('#btn-3d').click());
+    await p.waitForURL(u => u.pathname === '/' && u.searchParams.get('id') === A, { timeout: 20000 });
+    if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+  }
+  { // signed out: local preview, with the stale keys every browser that used main has
+    const old = { 'spatial.style.custom': 'wabi', 'spatial.finishes': JSON.stringify({ floor: 'oak' }), 'spatial.approval.custom': JSON.stringify({ style: 'wabi', name: '侘寂風', at: '2026/11/01 10:00', ref: 'P-20261101-1000', total: 1, grand: 1, finishes: {} }) };
+    const { p, ctx } = await page({ share: true, viewport: { width: 960, height: 600 }, store: { 'spatial.editor.doc': docJSON, ...old } });
+    await p.goto(`${srv.url}/editor`);
+    await p.waitForFunction(() => window.__editor && window.__editor.doc.levels[0].rooms.length > 0, null, { timeout: 30000 });
+    await p.evaluate(() => document.querySelector('#btn-3d').click());
+    await p.waitForURL(/[?&]p=custom/, { timeout: 20000 });
+    await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
+    const st = await p.evaluate(() => ({ style: document.querySelector('#style-now').textContent, approved: !!window.__spatial.proposal.approval, id: JSON.parse(localStorage.getItem('spatial.custom')).localId, left: ['spatial.style.custom', 'spatial.approval.custom'].filter(k => localStorage.getItem(k) != null) }));
+    if (st.style !== '原始提案' || st.approved) throw new Error(`preview opened with stale choices: ${JSON.stringify(st)}`);
+    if (!st.id) throw new Error('the handed-over plan has no localId');
+    if (st.left.length) throw new Error(`old shared keys not removed: ${st.left.join(', ')}`);
+    if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+  }
+});
+
+// a browser that blocks site storage (Chrome "block all cookies", some in-app browsers) still opens the 3D
+await step('3D opens with site storage blocked', async () => {
+  const { p, ctx } = await page({ viewport: { width: 960, height: 600 } });
+  await p.addInitScript(() => { for (const k of ['localStorage', 'sessionStorage']) Object.defineProperty(window, k, { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } }); });
+  await p.goto(`${srv.url}/?p=apartment&q=lite#explore`);
+  await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
   if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
 });
 

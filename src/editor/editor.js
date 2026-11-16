@@ -193,23 +193,23 @@ function cloudSoon() {
   cloud.timer = setTimeout(cloudSave, 1500);
 }
 async function cloudSave() {
-  if (cloud.busy) { cloud.again = true; return; }
-  cloud.busy = true;
+  if (cloud.busy) { cloud.again = true; return false; }
+  cloud.busy = true; let ok = false;
   try {
     const id = await Cloud.saveProject({ id: cloud.id, name: doc.project.name, doc, thumb: planThumb() });
     if (!cloud.id) { cloud.id = id; const u = new URL(location.href); u.searchParams.delete('new'); u.searchParams.set('id', id); history.replaceState(null, '', u); }
-    cloudStatus(t('已儲存到帳號', 'Saved to your account'), 'ok');
+    cloudStatus(t('已儲存到帳號', 'Saved to your account'), 'ok'); ok = true;
   } catch (e) { console.warn('cloud save', e); cloudStatus(t('未能儲存，稍後重試', 'Not saved — retrying'), 'err'); clearTimeout(cloud.timer); cloud.timer = setTimeout(cloudSave, 8000); }
   cloud.busy = false;
   if (cloud.again) { cloud.again = false; cloudSoon(); }
+  return ok;
 }
-// save right now (used before leaving for the 3D view); true when the project is in the account
+// save right now (used before leaving for the 3D view); true when the account has exactly this plan
 async function cloudFlush() {
   if (!cloud.user) return false;
   clearTimeout(cloud.timer);
   for (let i = 0; i < 50 && cloud.busy; i++) await new Promise(r => setTimeout(r, 200));
-  await cloudSave();
-  return !!cloud.id;
+  return (await cloudSave()) && !!cloud.id;
 }
 function go3D() { if (cloud.id) location.href = `/?id=${encodeURIComponent(cloud.id)}#explore`; else open3D(true); }
 
@@ -1275,11 +1275,20 @@ $('#btn-download').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${(isEn ? doc.project.nameEn || doc.project.name : doc.project.name) || 'plan'}.spatial.json`; a.click();
 });
-$('#btn-3d').addEventListener('click', () => open3D());
+// 在 3D 中查看: a project in the account opens as that project (AI 效果圖, 提案書, share); only a plan that is not saved
+// (signed out, save failed) opens as the local preview
+$('#btn-3d').addEventListener('click', () => view3D());
+async function view3D(explore = false) {
+  if (!doc.levels[0].rooms.length) { toast(t('還沒有封閉的房間：先畫出外牆和隔間。', 'No closed rooms yet. Draw the exterior walls and partitions first.')); return; }
+  if (cloud.user && await cloudFlush().catch(() => false)) { location.href = `/?id=${encodeURIComponent(cloud.id)}${explore ? '#explore' : ''}`; return; }
+  open3D(explore);
+}
 async function open3D(explore = false) {
   if (!doc.levels[0].rooms.length) { toast(t('還沒有封閉的房間：先畫出外牆和隔間。', 'No closed rooms yet. Draw the exterior walls and partitions first.')); return; }
+  // each plan handed to the preview carries its own id, so its style and 核准 stay apart from other plans' (main.js)
+  if (!doc.localId) { doc.localId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; try { localStorage.setItem(STORE, JSON.stringify(doc)); } catch {} }
   const base = await (await fetch('data/apartment.json')).json();
-  const full = completePlan(doc, base);
+  const full = completePlan(doc, base); full.localId = doc.localId;
   try { localStorage.setItem('spatial.custom', JSON.stringify(full)); } catch { toast(t('瀏覽器儲存空間不足', 'Not enough browser storage')); return; }
   location.href = `index.html?p=custom${explore ? '#explore' : ''}`;
 }

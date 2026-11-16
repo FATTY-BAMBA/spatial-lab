@@ -51,10 +51,13 @@ async function boot() {
     if (!customPlan) { const note = document.createElement('div'); note.className = 'cloud-miss'; note.textContent = shareTok ? t('這個分享連結已失效或不存在。', 'This share link has expired or does not exist.') : t('找不到這個專案，請先登入。', 'Project not found — please sign in.'); document.body.appendChild(note); setTimeout(() => note.remove(), 6000); }
   }
   const projectKey = customPlan ? 'custom' : PROJECTS[params.get('p')] ? params.get('p') : 'apartment';
-  // what this browser remembers about a plan (style, finishes, 核准 stamp) is kept per project: saved projects by their
-  // id or share token, so a choice made in one project never shows up in another
-  const stateKey = customPlan && (cloudId || shareTok) ? `p.${cloudId || shareTok}` : projectKey;
-  const finKey = stateKey === projectKey ? 'spatial.finishes' : `spatial.finishes.${stateKey}`;
+  // what this browser remembers about a plan (style, finishes, 核准 stamp) is kept per plan: saved projects by their id
+  // or share token, an unsaved editor preview (?p=custom) by the id the editor gives each plan it hands over, the demo
+  // plans by name. A choice made in one plan never shows up in another.
+  const stateKey = !customPlan ? projectKey : cloudId || shareTok ? `p.${cloudId || shareTok}` : `local.${String(customPlan.localId || 'plan').slice(0, 40)}`;
+  const finKey = customPlan ? `spatial.finishes.${stateKey}` : 'spatial.finishes';
+  // before per-plan keys every saved project and preview shared these: drop them so no old style or 核准 resurfaces
+  try { for (const k of ['spatial.style.custom', 'spatial.approval.custom']) localStorage.removeItem(k); } catch {}
   const plan = localizeData(customPlan || (await loadPlan(PROJECTS[projectKey])));
   const editLink = document.getElementById('edit-link');
   if (editLink) editLink.href = cloudId && customPlan ? `/editor?id=${encodeURIComponent(cloudId)}` : `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
@@ -345,7 +348,7 @@ async function boot() {
     const st = styles.find(x => x.id === sid);
     if (st) { styleId = st.id; palette = st.palette; Object.assign(chosen, st.finishes); }
   } catch {}
-  if (styleId === null && !localStorage.getItem(finKey)) styleId = 'original';
+  try { if (styleId === null && !localStorage.getItem(finKey)) styleId = 'original'; } catch { styleId = 'original'; }
   function applyState(fin, pal) { for (const [gid, oid] of Object.entries(fin)) world.applyFinish(gid, oid); world.applyPalette(pal); }
   applyState(chosen, palette);
   function saveState() {

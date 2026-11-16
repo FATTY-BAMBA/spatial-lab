@@ -146,3 +146,27 @@ its own browser tests on this 2-CPU box at the same time (software GL); run the 
 
 Board tasks T-010–T-013: sensible, front matter and README rows correct; T-013 correctly keeps client plans and their
 recordings out of this repo (see N7).
+
+## Fixes after validation (product-engineer, 2026-11-16)
+- **B1 fixed.** Unsaved previews (`/?p=custom`) get their own key: the editor writes a per-plan `localId` into the doc it
+  hands over (`open3D`), and the viewer keys style, finishes and 核准 on `local.<localId>` (saved projects `p.<id|token>`,
+  demo plans by name). Custom plans never read the un-keyed `spatial.finishes`; the legacy `spatial.style.custom` /
+  `spatial.approval.custom` are deleted on load. e2e: legacy keys seeded → editor (signed out) → 在 3D 中查看 → preview
+  opens on 原始提案, not approved, legacy keys gone, `localId` present.
+- **B2 fixed.** The editor's 「在 3D 中查看」 saves first and, when the account has exactly this plan, opens
+  `/?id=…` (AI 效果圖, 提案書, share); only a plan that is not saved (signed out, save failed) opens the local preview.
+  `cloudFlush` now reports a real save (an earlier id with a failed update no longer counts). demo.md's weak-detection
+  fallback says to wait for 「已儲存到帳號」 and what each path gives. e2e: signed-in editor `?id=A` → `/?id=A`.
+- **B3 fixed.** `src/main.js` 「styleId === null && !localStorage…」 wrapped (falls back to 原始提案). All other storage
+  accesses on the viewer/editor/proposal paths were already in try/catch (grep: main, proposal, i18n, editor; handoff's
+  `indexedDB.open` runs inside a Promise). e2e: `localStorage`/`sessionStorage` getters throw → demo apartment opens.
+- Both new e2e steps fail on the previous commit (waitForURL / never ready) and pass now.
+- **O1 — pending owner.** demo.md now says 「試用的方式和費用，我整理好再跟您確認。」; whether the pilot is free is
+  Abdoulie's call (T-008).
+- Non-blocking done: N3 `&q=med`; N4 the plan request asks permission for 示範與內部測試 (or delete after the demo);
+  N6 step 11 also checks the status at 360 px; N8 made-up 統一編號 `12345675` (checksum-valid, obviously fake) in e2e and
+  rehearse. Not done: N1/N2 wait for T-003 to merge; N5 (phone empty-state overlap, broken-image icon) and N7 (T-013
+  recordings from the private dir) left as noted.
+- Gate alone on a quiet box: unit 47/47 · regress 51, no regressions · **e2e all 19 passed** (step 11 43.3 s; 40k DWG
+  longest frame 83 ms, 6.6 s).
+- Status stays `review`: awaiting the owner's script review, O1, and the NT$4 live render check.

@@ -49,7 +49,7 @@ const cloudStub = share => `
   export const FIRM_FIELDS = ['name', 'logo', 'phone', 'line_id', 'email', 'address', 'tax_id', 'color'];
   export const getFirm = async () => ls('qa-firm', null);
   export const saveFirm = async f => f; export const putLogo = async () => ''; export const removeLogo = async () => {};`;
-const FIRM = JSON.stringify({ name: '木與石室內設計', phone: '02-2345-6789', line_id: '@woodstone', email: 'hello@example.com', address: '台北市中山區松江路 1 號', tax_id: '22099131', color: '#2f5d50' });
+const FIRM = JSON.stringify({ name: '木與石室內設計', phone: '02-2345-6789', line_id: '@woodstone', email: 'hello@example.com', address: '台北市中山區松江路 1 號', tax_id: '12345675', color: '#2f5d50' });
 const RENDER_IMG = ['living', 'dining', 'master'];
 
 const srv = await serve();
