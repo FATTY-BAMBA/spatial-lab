@@ -131,7 +131,7 @@ dialog#prices::backdrop { background: rgba(8,6,4,.66); }
 .fld select, .fld textarea, .fld input[type=month] { background: var(--panel-2); border: 1px solid var(--hair-2); border-radius: 9px; padding: 9px 11px; color: var(--text); font-size: 14px; width: 100%; font-family: inherit; }
 .fld textarea { resize: vertical; line-height: 1.6; }
 .pl-off { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(201,162,106,.1); border: 1px solid rgba(201,162,106,.35); color: var(--text-2); font-size: 13px; line-height: 1.6; }
-.pl-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--hair); overflow-x: auto; }
+.pl-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--hair); min-height: 38px; }
 .pl-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; color: var(--text-2); white-space: nowrap; }
 .pl-tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--brass); font-weight: 700; }
 .pl-panel { min-width: 0; }
@@ -167,7 +167,9 @@ dialog#prices::backdrop { background: rgba(8,6,4,.66); }
   .pl-line .num { grid-column: 2; grid-row: 2; justify-self: end; }
   .pl-p { width: 92px; }
   #prices-open span { display: none; }
+  header { gap: 8px; } .brand span { display: none; }
 }
+@media (max-width: 420px) { .brand b { display: none; } }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 9; }
 </style>
 </head>

@@ -6,6 +6,9 @@
 //   5. 公司資料: the designer fills the firm profile (logo, name, contact, 統一編號) → saved
 //   6. the share link shows the firm's logo and name (ours only as "Powered by")
 //   7. 提案書: renders, rooms (m² / 坪), totals (未稅 / 含稅); fits A4 portrait in print; phone + English
+//   7b. 價目表 (T-003): change prices + a works line on 我的專案 → the 3D quote, share link and 提案書 use them →
+//       Excel 報價單 downloaded from the viewer and the proposal is parsed and checked; before the DB column exists the
+//       dialog explains and does not save
 //   8. DWG (T-001): a .dwg dropped on 我的專案 → 轉檔 step → walls and rooms; the file never leaves the page; the UI keeps
 //      painting while it converts; a damaged .dwg shows the zh error; the converter is not loaded for a picture
 //   9. no CAD Worker (404, old browsers): a valid DWG and DXF still import on the page; a Worker that dies mid-import
@@ -15,6 +18,7 @@
 //      (960 and 360 px); style and 核准 remembered per project; the editor's 在 3D 中查看 opens the saved project, or an
 //      unsaved plan's own preview (old shared keys ignored); the 3D opens with site storage blocked
 // Writes screenshots to qa/reports/e2e-*.png. Exit 1 on any failure.
+// QA_ONLY=<regex> runs only the matching steps (the gate always runs them all).
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -22,6 +26,7 @@ import { QA } from './lib/node-env.mjs';
 import { serve } from './lib/serve.mjs';
 import { playwright } from './lib/browser.mjs';
 import { loadFixtures, recordingPath } from './lib/fixtures.mjs';
+import { readXlsx, findRow } from './lib/xlsx-read.mjs';
 
 const OUT = join(QA, 'reports');
 // a 240 × 80 test logo (brand-colour block on transparent), made here so no picture is committed
@@ -36,11 +41,13 @@ const dwgFx = loadFixtures().find(f => f.id === 'dwg-libredwg-example-2018' && f
 const rec = fx && existsSync(recordingPath(fx.id)) ? JSON.parse(readFileSync(recordingPath(fx.id), 'utf8')) : null;
 const srv = await serve();
 const { chromium } = playwright();
-const browser = await chromium.launch();
+// a UTF-8 locale so downloads keep their Chinese file names (a POSIX locale makes Chrome fall back to "download")
+const browser = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8' } });
 const results = []; let failed = 0;
-// E2E_ONLY=<text>: run only the steps whose name contains it (plans the skipped steps would make come from the DXF sample)
+// QA_ONLY=<regex>: run only the matching steps, e.g. QA_ONLY='demo journey|價目表' (plans the skipped steps would make
+// come from the DXF sample)
 async function step(name, fn) {
-  if (process.env.E2E_ONLY && !name.includes(process.env.E2E_ONLY)) return;
+  if (process.env.QA_ONLY && !new RegExp(process.env.QA_ONLY).test(name)) return; // e.g. QA_ONLY='公司資料|價目表' while iterating
   const t0 = Date.now();
   try { await fn(); results.push(`✓ ${name} (${((Date.now() - t0) / 1000).toFixed(1)} s)`); }
   catch (e) { failed++; results.push(`✗ ${name}: ${String(e.message || e).split('\n')[0]}`); }
@@ -67,7 +74,9 @@ const cloudStub = (doc = null, share = false) => `
   export const getFirm = async () => ls('qa-firm', null);
   export const saveFirm = async f => { const row = { ...f }; localStorage.setItem('qa-firm', JSON.stringify(row)); return row; };
   export const putLogo = async b => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
-  export const removeLogo = async () => {};`;
+  export const removeLogo = async () => {};
+  export const pricesAvailable = () => !localStorage.getItem('qa-noprices');
+  export const savePrices = async pr => { const f = ls('qa-firm', null) || { name: '' }; f.prices = pr; localStorage.setItem('qa-firm', JSON.stringify(f)); return pr; };`;
 async function page({ doc = false, share = false, viewport = { width: 1280, height: 800 }, store = {} } = {}) {
   const ctx = await browser.newContext({ viewport });
   if (Object.keys(store).length) await ctx.addInitScript(st => { for (const [k, v] of Object.entries(st)) localStorage.setItem(k, v); }, store);
@@ -193,7 +202,7 @@ if (docJSON && firmJSON) await step('share link shows the firm logo and name (Pr
   const { p, ctx } = await page({ doc: true, share: true, store: { 'qa-doc': docJSON, 'qa-firm': firmJSON, 'qa-renders': RENDERS } });
   await p.goto(`${srv.url}/?share=${TOKEN}`);
   await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
-  await p.waitForFunction(() => document.querySelector('.bar .brand.firm'), null, { timeout: 10000 }).catch(async () => { throw new Error(`bar not branded: ${await p.evaluate(() => document.querySelector('.bar .brand').outerHTML.slice(0, 160) + ' · ' + document.body.className)}`); });
+  await p.waitForFunction(() => document.querySelector('.bar .brand.firm'), null, { timeout: 10000 }).catch(async e => { throw new Error(`${String(e.message).slice(0, 120)} bar not branded: ${await p.evaluate(() => document.querySelector('.bar .brand').outerHTML.slice(0, 160) + ' · ' + document.body.className)}`); });
   const st = await p.evaluate(() => {
     const b = document.querySelector('.bar .brand'), img = b.querySelector('img'), doc = document.querySelector('#doc-link');
     return { name: b.textContent.trim(), img: img ? img.src.slice(0, 22) : '', imgOk: !!img && img.complete && img.naturalWidth > 0, title: document.title, doc: doc && !doc.hidden ? doc.getAttribute('href') : '', powered: (document.querySelector('.hero-copy .powered') || {}).textContent || '', lede: document.querySelector('.hero-copy > p').textContent };
@@ -369,6 +378,139 @@ await step('3D opens with site storage blocked', async () => {
   await p.addInitScript(() => { for (const k of ['localStorage', 'sessionStorage']) Object.defineProperty(window, k, { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } }); });
   await p.goto(`${srv.url}/?p=apartment&q=lite#explore`);
   await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+// ---------- T-003: 價目表 → quote → Excel 報價單 ----------
+const money = s => +String(s).replace(/[^\d.-]/g, '');
+let pricedFirm = null, furnKey = null;
+if (docJSON && firmJSON) await step('價目表: designer changes a finish price, a furniture price and adds a works line (phone)', async () => {
+  const { p, ctx } = await page({ viewport: { width: 360, height: 780 }, store: { 'qa-firm': firmJSON } });
+  await p.goto(`${srv.url}/projects`);
+  await p.waitForSelector('#prices-open:not([hidden])', { timeout: 15000 });
+  await p.click('#prices-open');
+  await p.waitForSelector('dialog#prices[open] .pl-p[data-k="floor.oak"]');
+  if (await p.isVisible('.pl-off')) throw new Error('"not available yet" note shown although the column exists');
+  if (await p.inputValue('[data-k="floor.oak"]') !== '4800') throw new Error('not seeded from the sample prices');
+  const over = await p.evaluate(() => { const d = document.querySelector('dialog#prices'); return [d.getBoundingClientRect().right, d.querySelector('.fm-b').scrollWidth - d.querySelector('.fm-b').clientWidth, document.documentElement.scrollWidth]; });
+  if (over[0] > 360 || over[1] > 0 || over[2] > 360) throw new Error(`wider than the phone: dialog right ${over[0]} px, overflow ${over[1]} px, page ${over[2]} px`);
+  await p.fill('[name=pl-name]', '木與石 2026 價目表');
+  await p.fill('[data-k="floor.oak"]', '-5');
+  await p.click('#pl-save');
+  if (!/單價/.test(await p.textContent('.pl-err')) || !(await p.evaluate(() => document.querySelector('dialog#prices').open))) throw new Error('a negative price was accepted');
+  await p.fill('[data-k="floor.oak"]', '6000');
+  // a furniture piece that is in this project
+  const keys = [...new Set(JSON.parse(docJSON).levels.flatMap(L => L.furniture).filter(f => f.price > 0).map(f => `${f.name}@${f.price}`))];
+  await p.click('[data-tab=furn]');
+  for (const k of keys) if (await p.$(`[data-k="f:${k}"]`)) { furnKey = k; break; }
+  if (!furnKey) throw new Error(`no catalogue row for the project's furniture (${keys.slice(0, 4).join(', ')})`);
+  await p.fill(`[data-k="f:${furnKey}"]`, String(+furnKey.split('@')[1] + 1000));
+  await p.click('[data-tab=works]');
+  await p.check('.pl-line[data-i="0"] [data-f=on]');
+  await p.screenshot({ path: join(OUT, 'e2e-9-prices-phone.png') });
+  await p.click('#pl-save');
+  await p.waitForFunction(() => !document.querySelector('dialog#prices').open, null, { timeout: 10000 });
+  pricedFirm = await p.evaluate(() => localStorage.getItem('qa-firm'));
+  const pr = JSON.parse(pricedFirm).prices;
+  if (pr.name !== '木與石 2026 價目表' || pr.finishes['floor.oak'] !== 6000 || !pr.lines[0].on || pr.furniture[furnKey] !== +furnKey.split('@')[1] + 1000) throw new Error(`saved ${JSON.stringify(pr).slice(0, 200)}`);
+  if (JSON.parse(pricedFirm).name !== '木與石室內設計') throw new Error('saving prices changed the firm profile');
+  results.push(`    floor.oak 4,800 → 6,000 · ${furnKey} +1,000 · ${pr.lines[0].name} on`);
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+async function grabXlsx(p, sel, dom = false) {
+  const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 90000 }), // software WebGL keeps the page busy in CI
+    dom ? p.$eval(sel, b => b.click()) : p.click(sel)]);
+  const name = dl.suggestedFilename();
+  if (!/\.xlsx$/.test(name)) throw new Error(`download name ${name}`);
+  const file = join(OUT, `e2e-quote-${sel.replace(/\W/g, '')}.xlsx`);
+  await dl.saveAs(file);
+  return { name, X: readXlsx(readFileSync(file)), file };
+}
+function checkXlsx(X, { total, grand, oak, works, furn }) {
+  const oakRow = X.rows.find(r => r && r[1] === oak);
+  if (!oakRow || oakRow[4] !== 6000 || oakRow[5] !== Math.round(oakRow[2] * 6000)) throw new Error(`xlsx floor row ${JSON.stringify(oakRow)}`);
+  const w = X.rows.find(r => r && r[0] === works);
+  if (!w || !(w[5] > 0)) throw new Error(`xlsx works line ${JSON.stringify(w)}`);
+  if (furn && !X.rows.some(r => r && r[0] === furn.name && r[4] === furn.price)) throw new Error(`xlsx furniture ${furn.name} not at ${furn.price}`);
+  const ti = X.rows.findIndex(r => r && /^(合計（未稅）|Subtotal)/.test(r[2] || ''));
+  const [sub, tax, all] = [X.rows[ti][5], X.rows[ti + 1][5], X.rows[ti + 2][5]];
+  const items = Object.entries(X.cells).filter(([, c]) => c.f && /^ROUND\(C\d+\*E\d+,0\)$/.test(c.f)).reduce((a, [, c]) => a + c.v, 0);
+  if (sub !== total || items !== total) throw new Error(`xlsx subtotal ${sub}, rows ${items}, on screen ${total}`);
+  if (tax !== Math.round(total * 0.05) || all !== grand) throw new Error(`xlsx tax ${tax} / total ${all} vs ${grand}`);
+  if (!X.strings.includes('木與石室內設計') || !X.strings.some(s => s.includes('木與石 2026 價目表'))) throw new Error('xlsx header without the firm / price list');
+  return { sub, tax, all, rows: X.rows.filter(Boolean).length };
+}
+
+if (pricedFirm) await step('3D quote uses the firm price list → Excel 報價單 from the viewer matches it', async () => {
+  const { p, ctx } = await page({ doc: true, store: { 'qa-doc': docJSON, 'qa-firm': pricedFirm } });
+  await p.goto(`${srv.url}/?id=11111111-2222-3333-4444-555555555555&q=lite#explore`);
+  await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
+  const q = await p.evaluate(() => ({
+    rows: [...document.querySelectorAll('#quote-lines tbody tr')].map(tr => [...tr.children].map(td => td.textContent.trim())),
+    total: document.querySelector('#quote-total').textContent, basis: document.querySelector('#quote-basis').textContent,
+    btn: !document.querySelector('#quote-xlsx').hidden, edit: (document.querySelector('#quote-basis a') || {}).href || '',
+  }));
+  const oak = q.rows.find(r => /海島型木地板/.test(r[0]));
+  if (!oak || money(oak[2]) !== 6000) throw new Error(`floor line ${JSON.stringify(oak)}`);
+  if (!q.rows.some(r => /保護工程/.test(r[0]))) throw new Error('works line missing from the quote');
+  const fname = furnKey.split('@')[0], fprice = +furnKey.split('@')[1] + 1000;
+  if (!q.rows.some(r => r[0].startsWith(fname) && money(r[2]) === fprice)) throw new Error(`${fname} not at ${fprice}`);
+  if (!/木與石 2026 價目表/.test(q.basis) || /PrimeStride 示範價目表/.test(q.basis)) throw new Error(`basis: ${q.basis}`);
+  if (!q.edit.endsWith('/projects#prices')) throw new Error('no link to edit the price list');
+  if (!q.btn) throw new Error('Excel button hidden for the owner');
+  const total = money(q.total);
+  // the button is on screen and not covered (a real click target); the click itself is dispatched in the page because
+  // Playwright's stability wait can take minutes while software WebGL renders the explore view
+  const hit = await p.evaluate(() => { const b = document.querySelector('#quote-xlsx'), r = b.getBoundingClientRect(); return r.width > 0 && document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === b; });
+  if (!hit) throw new Error('Excel button not visible in the quote panel');
+  const { name, X } = await grabXlsx(p, '#quote-xlsx', true);
+  if (!/^報價單-/.test(name)) throw new Error(`file name ${name}`);
+  const r = checkXlsx(X, { total, grand: total + Math.round(total * 0.05), oak: oak[0].replace(/^地坪\s*/, ''), works: '保護工程', furn: { name: fname, price: fprice } });
+  if (!X.strings.includes('王小姐')) throw new Error('client name missing in the xlsx');
+  await p.screenshot({ path: join(OUT, 'e2e-10-quote-firm-prices.png'), timeout: 120000 });
+  results.push(`    viewer 未稅 NT$ ${total.toLocaleString('en-US')} = xlsx ${r.sub.toLocaleString('en-US')} + 稅 ${r.tax.toLocaleString('en-US')} = ${r.all.toLocaleString('en-US')} · ${r.rows} rows · ${name}`);
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+if (pricedFirm) await step('share link + 提案書 use the firm prices; Excel 報價單 only for the owner, matching the proposal', async () => {
+  const st = { 'qa-doc': docJSON, 'qa-firm': pricedFirm, 'qa-renders': RENDERS };
+  const { p, ctx } = await page({ doc: true, share: true, store: st });
+  await p.goto(`${srv.url}/?share=${TOKEN}`);
+  await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
+  const sv = await p.evaluate(() => ({ btn: getComputedStyle(document.querySelector('#quote-xlsx')).display !== 'none' && !document.querySelector('#quote-xlsx').hidden, oak: [...document.querySelectorAll('#quote-lines tbody tr')].map(tr => tr.textContent).find(t => /海島型木地板/.test(t)) || '', edit: !!document.querySelector('#quote-basis a') }));
+  if (sv.btn) throw new Error('Excel export offered on the client share link');
+  if (!/6,000/.test(sv.oak)) throw new Error(`share quote floor line: ${sv.oak}`);
+  if (sv.edit) throw new Error('client sees the price-list edit link');
+  await p.goto(`${srv.url}/proposal?share=${TOKEN}`);
+  await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 30000 });
+  const pv = await p.evaluate(() => ({ text: document.querySelector('[data-page=quote]').innerText, works: document.querySelectorAll('table.q tr[data-works]').length, xlsx: !!document.querySelector('#xlsx'), total: +document.querySelector('.totals').dataset.total, grand: +document.querySelector('.totals').dataset.grand }));
+  if (!/6,000/.test(pv.text) || pv.works !== 1) throw new Error(`proposal quote: works ${pv.works}, ${pv.text.slice(0, 160)}`);
+  if (!/木與石 2026 價目表/.test(pv.text) || /PrimeStride 示範價目表/.test(pv.text)) throw new Error('proposal basis line does not name the firm price list');
+  if (pv.xlsx) throw new Error('Excel export offered on the client proposal');
+  await ctx.close();
+  const o = await page({ doc: true, store: st });
+  await o.p.goto(`${srv.url}/proposal?id=11111111-2222-3333-4444-555555555555`);
+  await o.p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 30000 });
+  const tot = await o.p.evaluate(() => ({ total: +document.querySelector('.totals').dataset.total, grand: +document.querySelector('.totals').dataset.grand }));
+  if (tot.total !== pv.total) throw new Error(`owner and client proposal differ: ${tot.total} vs ${pv.total}`);
+  const { X, file } = await grabXlsx(o.p, '#xlsx');
+  const r = checkXlsx(X, { total: tot.total, grand: tot.grand, oak: X.rows.find(r => r && r[0] === '地坪')[1], works: '保護工程' });
+  await o.p.screenshot({ path: join(OUT, 'e2e-11-proposal-firm-prices.png'), fullPage: true, timeout: 120000 });
+  results.push(`    提案書 未稅 NT$ ${tot.total.toLocaleString('en-US')} / 含稅 ${tot.grand.toLocaleString('en-US')} = xlsx ${r.all.toLocaleString('en-US')} · ${file.split('/').pop()}`);
+  if (p.errors.length || o.p.errors.length) throw new Error(p.errors[0] || o.p.errors[0]); await o.ctx.close();
+});
+
+await step('價目表 before the database column exists: explains, does not save (English)', async () => {
+  const { p, ctx } = await page({ store: { 'qa-noprices': '1' } });
+  await p.goto(`${srv.url}/projects?lang=en`);
+  await p.waitForSelector('#prices-open:not([hidden])', { timeout: 15000 });
+  if ((await p.textContent('#prices-open')).trim() !== 'Price list') throw new Error('English label');
+  await p.click('#prices-open');
+  await p.waitForSelector('dialog#prices[open]');
+  const st = await p.evaluate(() => ({ off: !document.querySelector('.pl-off').hidden, save: document.querySelector('#pl-save').disabled, title: document.querySelector('#pl-title').textContent, tabs: [...document.querySelectorAll('.pl-tabs button')].map(b => b.textContent) }));
+  if (!st.off || !st.save) throw new Error(`note ${st.off}, save disabled ${st.save}`);
+  if (st.title !== 'Price list' || st.tabs.join() !== 'Finishes,Works,Furniture,Notes') throw new Error(`English: ${st.title} / ${st.tabs}`);
   if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
 });
 
