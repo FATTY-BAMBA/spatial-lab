@@ -10,6 +10,7 @@ import { placeDrawn, insideWalls, mergeItems } from './drawn.js';
 import { tidyExteriorOpenings } from './openings.js';
 import { takeFile } from '../handoff.js';
 import { parseDXF, decodeDXF, defaultWallLayers, wallsFromDXF } from './dxf.js';
+import { dwgToDXFInfo, DWG_MAX_BYTES } from './dwg.js';
 import { extractPlanLines, wallsFromImage } from './raster.js';
 import { findIssues, applyFix, fixAll } from './issues.js';
 import { autoFurnish } from './furnish.js';
@@ -25,7 +26,8 @@ translateDom({
   '大樓 3 房 2 廳': 'Apartment · 3 bed',
   '透天 2 樓': 'Townhouse · 2 floors',
   'DXF 範例：2房公寓': 'DXF sample: 2-bed apartment',
-  '匯入 DXF': 'Import DXF',
+  '匯入 DXF／DWG': 'Import DXF / DWG',
+  '轉檔（DWG → DXF）': 'Converting DWG → DXF',
   '匯入平面圖圖片／PDF': 'Import plan image / PDF',
   '先校正比例再辨識，門寬與房間大小才會準確。': 'Set the scale before detecting so door widths and room sizes come out right.',
   '開啟 JSON': 'Open JSON',
@@ -215,7 +217,8 @@ function go3D() { if (cloud.id) location.href = `/?id=${encodeURIComponent(cloud
 const flow = {
   on: false, timer: 0,
   el: () => $('#flow'),
-  start(name) {
+  // cad: a DXF/DWG drawing (rooms are named from the drawing's text, not by AI); dwg: show the 轉檔 step first
+  start(name, { cad = false, dwg = false } = {}) {
     const el = this.el(); if (!el) return;
     this.on = true; this.t0 = Date.now(); clearInterval(this.timer);
     el.hidden = false; el.classList.remove('done');
@@ -223,8 +226,16 @@ const flow = {
     el.querySelector('.fn').textContent = name || '';
     el.querySelector('.pv').style.backgroundImage = 'none';
     el.querySelectorAll('li').forEach(li => { li.className = ''; li.querySelector('small').textContent = ''; });
+    const conv = el.querySelector('li[data-k="convert"]');
+    if (conv) { conv.hidden = !dwg; if (!dwg) conv.className = 'skip'; }
+    const rl = el.querySelector('li[data-k="rooms"] span');
+    rl.dataset.ai = rl.dataset.ai || rl.textContent;
+    rl.textContent = cad ? t('依圖面文字命名房間', 'Rooms named from the drawing') : rl.dataset.ai;
+    const fl = el.querySelector('li[data-k="furniture"] span');
+    fl.dataset.ai = fl.dataset.ai || fl.textContent;
+    fl.textContent = cad ? t('擺放家具與佈置', 'Furniture and decor') : fl.dataset.ai;
     el.querySelector('.sum').hidden = true; el.querySelector('.acts').hidden = true;
-    this.step('read', 'active');
+    this.step(dwg ? 'convert' : 'read', 'active');
   },
   preview(src) { if (this.on) this.el().querySelector('.pv').style.backgroundImage = `url("${src}")`; },
   step(k, state, note) {
@@ -1021,11 +1032,12 @@ function fromBuiltIn(d) {
   }
   return out;
 }
-$('#file-dxf').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; nameFromFile(f.name); importDXF(await f.arrayBuffer(), f.name); e.target.value = ''; });
+const isCAD = f => /\.(dxf|dwg)$/i.test(f.name);
+$('#file-dxf').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; isCAD(f) ? importCADFile(f) : importImageFile(f); });
 $('#file-img').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   e.target.value = '';
-  importImageFile(f);
+  isCAD(f) ? importCADFile(f) : importImageFile(f);
 });
 async function importImageFile(f) {
   nameFromFile(f.name);
@@ -1272,11 +1284,64 @@ async function open3D(explore = false) {
 
 const ROOMWORD = /房|廳|厅|室|臥|卧|廚|厨|浴|廁|厕|衛|卫|陽台|阳台|玄關|書房|儲|倉|走道|梯|辦公|會議|大廳|茶水|機房|room|bed|living|dining|kitchen|bath|wc|toilet|hall|lobby|office|meeting|conference|storage|store|closet|laundry|utility|garage|study|foyer|entry|corridor|balcony|terrace|pantry|shop|retail|电|電氣|electrical|mech/i;
 const ROOMRANK = [/客廳|客厅|起居|living|lounge/i, /餐廳|餐厅|dining/i, /臥|卧|bed/i, /辦公|office|會議|meeting/i, /廚|厨|kitchen/i];
-function importDXF(src, name) {
+// A DXF or DWG file picked or dropped. Into an empty project it goes straight to walls, rooms and furniture with the
+// progress screen (like a picture); into a plan with walls it only becomes the underlay to trace over.
+async function importCADFile(f) {
+  nameFromFile(f.name);
+  const auto = !doc.levels.some(L => L.walls.length);
+  const dwg = /\.dwg$/i.test(f.name);
+  if (auto) flow.start(f.name, { cad: true, dwg });
+  let src;
+  try { src = await f.arrayBuffer(); } catch (err) { console.error(err); return cadFail(t('無法讀取這個檔案', 'Could not read this file')); }
+  if (dwg) {
+    const t0 = Date.now(), tick = setInterval(() => flow.step('convert', 'active', t(`${Math.round((Date.now() - t0) / 1000)} 秒…`, `${Math.round((Date.now() - t0) / 1000)} s…`)), 1000);
+    if (!auto) toast(t('DWG 轉檔中…', 'Converting the DWG…'));
+    try {
+      const r = await dwgToDXFInfo(src);
+      console.info(`DWG ${r.version} → DXF in ${r.ms.total} ms (read ${r.ms.read}, write ${r.ms.write}, ${r.thread})`);
+      flow.step('convert', 'done', t(`AutoCAD ${r.year} · ${(r.ms.total / 1000).toFixed(1)} 秒`, `AutoCAD ${r.year} · ${(r.ms.total / 1000).toFixed(1)} s`));
+      src = r.dxf;
+    } catch (err) { console.error(err); return cadFail(dwgMessage(err)); }
+    finally { clearInterval(tick); }
+  }
+  // let the progress screen paint before the (synchronous) DXF parse
+  await new Promise(r => setTimeout(r, 30));
+  importDXF(src, f.name, { auto });
+}
+function cadFail(msg) { if (flow.on) flow.fail(msg); toast(msg); }
+function dwgMessage(err) {
+  const mb = err.bytes ? (err.bytes / 1048576).toFixed(0) : '';
+  switch (err.code) {
+    case 'too-large': return t(`這個 DWG 有 ${mb} MB，超過 ${DWG_MAX_BYTES / 1048576} MB 上限。請在 AutoCAD 刪掉用不到的圖層並執行 PURGE 清理後再上傳，或另存為 DXF。`, `This DWG is ${mb} MB, over the ${DWG_MAX_BYTES / 1048576} MB limit. Delete unused layers and run PURGE in AutoCAD, then upload again, or save it as DXF.`);
+    case 'not-dwg': return t('這不是 AutoCAD 的 DWG 檔，或檔案已損毀。', 'This is not an AutoCAD DWG file, or the file is damaged.');
+    case 'old-version': return t(`這個 DWG 是 R12 以前的舊格式（${err.version}）。請在 CAD 中另存為 AutoCAD 2018 DWG 或 DXF 再上傳。`, `This DWG uses a format older than R12 (${err.version}). Save it as AutoCAD 2018 DWG or DXF and upload again.`);
+    case 'new-version': case 'unsupported-version': return t(`目前還無法轉換這個 DWG 版本${err.version ? `（${err.version}）` : ''}。請在 AutoCAD 另存為「AutoCAD 2018 DWG」或 DXF 再上傳。`, `This DWG version${err.version ? ` (${err.version})` : ''} can't be converted yet. Save it as "AutoCAD 2018 DWG" or DXF in AutoCAD and upload again.`);
+    case 'empty': return t('這個 DWG 裡沒有可讀取的線條（可能只有外部參照或專用物件）。請在 CAD 中綁定外部參照，或另存為 DXF 再上傳。', 'No readable lines in this DWG (it may only hold external references or custom objects). Bind the xrefs in your CAD app, or save as DXF, and upload again.');
+    case 'timeout': return t('DWG 轉檔超過 2 分鐘仍未完成。請刪減圖面內容（例如不需要的圖層、圖塊）後再試，或另存為 DXF。', 'The DWG conversion took over 2 minutes. Trim the drawing (unused layers, blocks) and try again, or save it as DXF.');
+    default: return t('DWG 轉檔失敗，檔案可能損毀或含有無法讀取的物件。請在 AutoCAD 另存為 DXF 後再上傳。', 'The DWG could not be converted; the file may be damaged or hold objects we cannot read. Save it as DXF in AutoCAD and upload again.');
+  }
+}
+// small top-down picture of the drawing for the progress screen
+function cadPreview(d) {
+  try {
+    const pts = d.segs.flatMap(s => [s.a, s.b]); if (!pts.length) return;
+    // 1st–99th percentile, so a stray title block or a point far away doesn't shrink the plan to a dot
+    const q = (v, f) => v[Math.min(v.length - 1, Math.floor(f * v.length))];
+    const xs = pts.map(p => p[0]).sort((a, b) => a - b), zs = pts.map(p => p[1]).sort((a, b) => a - b);
+    const b = { x0: q(xs, 0.01), x1: q(xs, 0.99), z0: q(zs, 0.01), z1: q(zs, 0.99) }, W = 1120, H = 360, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const sc = Math.min((W - 40) / (b.x1 - b.x0 || 1), (H - 40) / (b.z1 - b.z0 || 1));
+    const g = c.getContext('2d'); g.fillStyle = '#f3efe8'; g.fillRect(0, 0, W, H); g.strokeStyle = '#3a342c'; g.lineWidth = 1.2; g.beginPath();
+    const ox = (W - (b.x1 - b.x0) * sc) / 2, oz = (H - (b.z1 - b.z0) * sc) / 2;
+    for (const s of d.segs) { g.moveTo(ox + (s.a[0] - b.x0) * sc, oz + (s.a[1] - b.z0) * sc); g.lineTo(ox + (s.b[0] - b.x0) * sc, oz + (s.b[1] - b.z0) * sc); }
+    g.stroke(); flow.preview(c.toDataURL('image/png'));
+  } catch (err) { console.error(err); }
+}
+function importDXF(src, name, { auto = false } = {}) {
   let d;
-  if (/\.dwg$/i.test(name || '')) { toast(t('請先在 CAD 中另存為 DXF（DWG 尚不支援）', 'Save it as DXF from your CAD app first (DWG is not supported yet).')); return; }
-  try { d = parseDXF(typeof src === 'string' ? src : decodeDXF(src)); } catch (err) { console.error(err); toast(t('DXF 讀取失敗：請另存為 ASCII DXF（R2010 或更舊）', 'Could not read the DXF. Save it as ASCII DXF (R2010 or older).')); return; }
-  if (!d.segs.length) { toast(t('這個 DXF 沒有可用的線條', 'This DXF has no usable lines')); return; }
+  if (/\.dwg$/i.test(name || '') && typeof src !== 'string') { importCADFile(new File([src], name)); return; }
+  if (auto) flow.step('read', 'active');
+  try { d = parseDXF(typeof src === 'string' ? src : decodeDXF(src)); } catch (err) { console.error(err); cadFail(t('DXF 讀取失敗：請另存為 ASCII DXF（R2010 或更舊）', 'Could not read the DXF. Save it as ASCII DXF (R2010 or older).')); return; }
+  if (!d.segs.length) { cadFail(t('這個圖檔沒有可用的線條', 'This drawing has no usable lines')); return; }
   underlay.dxf = d;
   underlay.dxfLayers = new Set(Object.keys(d.layers));
   underlay.wallLayers = new Set(defaultWallLayers(d));
@@ -1284,7 +1349,23 @@ function importDXF(src, name) {
   $('#ul-dxf').hidden = false;
   $('#dxf-name').textContent = `${name} · ${(d.units * 1000).toFixed(0) === '1' ? 'mm' : d.units === 0.01 ? 'cm' : 'm'} · ${d.segs.length} ${t('線段', 'lines')}`;
   fitView();
-  toast(t(`DXF 已載入，牆線圖層：${[...underlay.wallLayers].join('、')}。按「自動辨識牆體」，或直接沿著藍線描牆。`, `DXF loaded. Wall layers: ${[...underlay.wallLayers].join(', ')}. Press “Detect walls”, or trace along the blue lines.`));
+  if (!auto) { toast(t(`DXF 已載入，牆線圖層：${[...underlay.wallLayers].join('、')}。按「自動辨識牆體」，或直接沿著藍線描牆。`, `DXF loaded. Wall layers: ${[...underlay.wallLayers].join(', ')}. Press “Detect walls”, or trace along the blue lines.`)); return; }
+  // empty project: walls, rooms (named from the drawing's text) and furniture right away, then save and open the 3D
+  cadPreview(d);
+  flow.step('read', 'done', t(`${d.segs.length} 線段 · ${Object.keys(d.layers).length} 圖層`, `${d.segs.length} lines · ${Object.keys(d.layers).length} layers`));
+  flow.step('walls', 'active');
+  setTool('select');
+  setTimeout(async () => {
+    const res = detectDXF({ quiet: true });
+    if (!res) { cadFail(t(`牆線圖層（${[...underlay.wallLayers].join('、')}）找不到牆。請在右側改選牆線圖層後按「自動辨識牆體」，或沿著藍線手動描牆。`, `No walls on the wall layers (${[...underlay.wallLayers].join(', ')}). Pick other wall layers on the right and press “Detect walls”, or trace along the blue lines.`)); return; }
+    flow.step('walls', 'done', t(`${res.walls} 道牆 · 圖層 ${[...underlay.wallLayers].join('、')}`.slice(0, 48), `${res.walls} walls · layer ${[...underlay.wallLayers].join(', ')}`.slice(0, 48)));
+    flow.step('rooms', 'done', t(`${res.rooms} 間${res.named ? `，${res.named} 間有名稱` : ''}`, `${res.rooms} rooms${res.named ? `, ${res.named} named` : ''}`));
+    flow.step('furniture', 'done', t(`${res.furniture} 件標準配置`, `${res.furniture} pieces, standard layout`));
+    flow.step('save', 'active');
+    const saved = await cloudFlush().catch(() => false);
+    flow.step('save', saved ? 'done' : 'skip', saved ? t('已儲存', 'saved') : t('未登入：只存在這台電腦', 'not signed in: this browser only'));
+    flow.finish();
+  }, 60);
 }
 function buildLayerList() {
   const host = $('#dxf-layers'); host.innerHTML = '';
@@ -1297,21 +1378,24 @@ function buildLayerList() {
     host.appendChild(row);
   }
 }
-$('#dxf-detect').addEventListener('click', () => {
-  if (!underlay.wallLayers.size) { toast(t('請先勾選至少一個牆線圖層', 'Tick at least one wall layer first')); return; }
+$('#dxf-detect').addEventListener('click', () => detectDXF());
+// DXF underlay → walls, rooms named from the drawing's text, main door, furniture. Returns counts, or null when no walls.
+function detectDXF({ quiet = false } = {}) {
+  if (!underlay.wallLayers.size) { if (!quiet) toast(t('請先勾選至少一個牆線圖層', 'Tick at least one wall layer first')); return null; }
   const walls = wallsFromDXF(underlay.dxf, [...underlay.wallLayers]);
-  if (!walls.some(w => w.kind !== 'zone')) { toast(t('這些圖層找不到牆線，請改選圖層或手動描繪', 'No wall lines on these layers. Pick other layers or trace by hand.')); return; }
+  if (!walls.some(w => w.kind !== 'zone')) { if (!quiet) toast(t('這些圖層找不到牆線，請改選圖層或手動描繪', 'No wall lines on these layers. Pick other layers or trace by hand.')); return null; }
   const L = level();
   sel = null;
   L.walls = walls.map((w, i) => ({ id: `d${i}`, ...w }));
   detectRooms(L);
   // name rooms from DXF text inside them
+  let named = 0;
   for (const r of L.rooms) {
     const inside = underlay.dxf.texts.filter(t => pointInPolygon(t.p, r.polygon) && !/^[\d\s.,:×x*+\-=/'"mM²㎡]+$/.test(t.text) && t.text.length <= 24);
     // open plans carry several labels (玄關 + 客廳 + 餐廳): the main living space names the room
     const rank = t => { const i = ROOMRANK.findIndex(re => re.test(t.text)); return i < 0 ? 99 : i; };
     const t = inside.filter(t => ROOMWORD.test(t.text)).sort((a, b) => rank(a) - rank(b))[0] || inside.find(t => /[一-鿿가-힣]/.test(t.text));
-    if (t) { r.name = t.text.replace(/\s*[\d.]+\s*(m²|㎡|m2|坪)\s*$/i, '').slice(0, 10); r.nameEn = EN[r.name] || (/[一-鿿]/.test(r.name) ? '' : r.name); if (/陽台|露台|balcony/i.test(t.text)) { r.outdoor = true; r.finish = 'balcony'; } if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
+    if (t) { named++; r.name = t.text.replace(/\s*[\d.]+\s*(m²|㎡|m2|坪)\s*$/i, '').slice(0, 10); r.nameEn = EN[r.name] || (/[一-鿿]/.test(r.name) ? '' : r.name); if (/陽台|露台|balcony/i.test(t.text)) { r.outdoor = true; r.finish = 'balcony'; } if (/浴|廁|bath|wc/i.test(t.text)) { r.finish = 'tile'; r.wet = true; } }
   }
   // the exterior door closest to an "entrance" label is the main door
   const ent = underlay.dxf.texts.find(t => /玄關|入口|entry|entrance/i.test(t.text));
@@ -1320,8 +1404,9 @@ $('#dxf-detect').addEventListener('click', () => {
   if (best) best.o.main = true;
   const nF = autoFurnish(L, { replace: true, stairs: doc.stairs });
   commit();
-  toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間，並自動配置 ${nF} 件家具（Ctrl+Z 可復原）。請檢查門窗類型與房間名稱。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}, and placed ${plural(nF, 'piece')} of furniture (Ctrl+Z undoes). Check door/window types and room names.`));
-});
+  if (!quiet) toast(t(`辨識出 ${walls.length} 道牆、${L.rooms.length} 個房間，並自動配置 ${nF} 件家具（Ctrl+Z 可復原）。請檢查門窗類型與房間名稱。`, `Found ${plural(walls.length, 'wall')} and ${plural(L.rooms.length, 'room')}, and placed ${plural(nF, 'piece')} of furniture (Ctrl+Z undoes). Check door/window types and room names.`));
+  return { walls: walls.length, rooms: L.rooms.length, named, furniture: nF };
+}
 $('#dxf-opacity').addEventListener('input', e => { underlay.dxfOpacity = +e.target.value; render(); });
 $('#dxf-remove').addEventListener('click', () => { underlay.dxf = null; $('#ul-dxf').hidden = true; render(); });
 
@@ -1347,10 +1432,10 @@ addEventListener('resize', resize);
   if (params.get('upload')) {
     const u = new URL(location.href); u.searchParams.delete('upload'); history.replaceState(null, '', u);
     const f = await takeFile().catch(() => null);
-    if (f) setTimeout(() => (/\.(dxf|dwg)$/i.test(f.name) ? f.arrayBuffer().then(b => { nameFromFile(f.name); importDXF(b, f.name); }) : importImageFile(f)), 50);
+    if (f) setTimeout(() => (isCAD(f) ? importCADFile(f) : importImageFile(f)), 50);
   }
   Cloud.onAuth(u => { const was = cloud.user; cloud.user = u; if (!!was !== !!u) cloudHeader(); });
   resize(); fitView();
   setTool(doc.levels[0].walls.length ? 'select' : 'wall');
-  window.__editor = { get doc() { return doc; }, loadDoc, importDXF, open3D, setTool, commit, view, fitView, level };
+  window.__editor = { get doc() { return doc; }, loadDoc, importDXF, importCADFile, open3D, setTool, commit, view, fitView, level };
 })();

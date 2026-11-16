@@ -155,7 +155,8 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
 #flow li.active { color: var(--text); } #flow li.active i { border-color: var(--brass); border-top-color: transparent; animation: flowspin .8s linear infinite; }
 #flow li.done { color: var(--text); } #flow li.done i { background: var(--brass); border-color: var(--brass); color: var(--on-brass); } #flow li.done i::after { content: "✓"; }
 #flow li.skip i { border-style: dashed; } #flow li.skip i::after { content: "–"; }
-#flow li small { color: var(--text-2); font-size: 12.5px; text-align: right; }
+#flow li small { color: var(--text-2); font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+#flow li[hidden] { display: none; }
 @keyframes flowspin { to { transform: rotate(360deg); } }
 #flow .sum { margin-top: 18px; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); color: var(--text-2); font-size: 13px; line-height: 1.6; }
 #flow .sum b { color: var(--text); }
@@ -173,7 +174,7 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
     <a class="brand" href="index.html" aria-label="回到 Spatial Lab"><svg width="24" height="24" viewBox="0 0 26 26" fill="none" stroke="#c9a26a" stroke-width="1.6" aria-hidden="true"><path d="M8 24H2V2h22v22H14"/><path d="M8 24v-6a6 6 0 0 1 6 6" stroke-width="1.2"/><path d="M15 2v9h9" stroke-width="1.2"/></svg><b>PrimeStride</b><span>平面編輯器</span></a>
     <button type="button" class="hbtn" id="btn-new">新專案</button>
     <select class="hbtn" id="btn-sample" aria-label="開啟範例"><option value="">開啟範例</option><option value="apartment">大樓 3 房 2 廳</option><option value="house">透天 2 樓</option><option value="dxf">DXF 範例：2房公寓</option></select>
-    <label class="hbtn">匯入 DXF<input type="file" id="file-dxf" accept=".dxf,.dwg"></label>
+    <label class="hbtn">匯入 DXF／DWG<input type="file" id="file-dxf" accept=".dxf,.dwg"></label>
     <label class="hbtn">匯入平面圖圖片／PDF<input type="file" id="file-img" accept="image/*,application/pdf,.pdf"></label>
     <label class="hbtn">開啟 JSON<input type="file" id="file-json" accept=".json,application/json"></label>
     <button type="button" class="hbtn" id="btn-download">下載 JSON</button>
@@ -207,6 +208,7 @@ footer { grid-area: status; display: flex; gap: 16px; padding: 6px 14px; border-
       <h2 id="flow-h">正在把平面圖變成 3D</h2>
       <div class="fn"></div>
       <ol>
+        <li data-k="convert" hidden><i></i><span>轉檔（DWG → DXF）</span><small></small></li>
         <li data-k="read"><i></i><span>讀取圖面</span><small></small></li>
         <li data-k="walls"><i></i><span>牆體、門窗與樓層</span><small></small></li>
         <li data-k="rooms"><i></i><span>AI 辨識房間</span><small></small></li>
