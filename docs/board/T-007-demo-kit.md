@@ -39,10 +39,12 @@ share link 1.4–2.0 s, 提案書 0.6–1.0 s. Upload → first renders, with th
 `docs/demo-rehearsal.md`.
 
 ## QA
-- unit 47/47 · regress 51 fixtures, no regressions · e2e 15/17 in the full run, incl. new step 11 (78.7 s); the 2 failures are the frame-gap steps below. The new step fails
-  on main's `src/main.js` ("a new project opened with another project's choices: 侘寂風, approved").
-- The two big-drawing frame-gap steps fail only while another worktree's tests share this 2-CPU box; run alone
-  (`E2E_ONLY="big drawing"`) they pass: d10 3.2 s, 40k DWG 6.8 s.
+- unit 47/47 · regress 51 fixtures, no regressions · e2e 16/17 in the last full run (4 m 46 s), incl. new step 11
+  (58.6 s). Step 11 fails on main's `src/main.js` ("a new project opened with another project's choices: 侘寂風,
+  approved").
+- The one failure is the 40k-line DWG frame-gap step (400 ms > 250 ms), which this branch does not touch. It fails only
+  while other worktrees' tests share this 2-CPU box (load 2.5–4.8 during the run); run alone
+  (`E2E_ONLY="big drawing"`) it passes: d10 3.2 s, 40k DWG 6.8 s. Validator: rerun the gate on a quiet box / CI.
 
 ## Bugs and rough edges found
 
