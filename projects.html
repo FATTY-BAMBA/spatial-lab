@@ -87,6 +87,44 @@ h1 { font-family: var(--display); font-weight: 900; font-size: clamp(26px, 4vw, 
 .sec .n { color: var(--text-3); font-size: 13px; }
 .empty { border: 1.5px dashed var(--hair-2); border-radius: 14px; padding: 34px 20px; text-align: center; color: var(--text-3); line-height: 1.7; }
 @media (max-width: 760px) { .hero-up { grid-template-columns: 1fr; } .hero-up .drop { border-right: 0; border-bottom: 1px solid var(--hair); padding: 24px 20px; } .steps { padding: 20px; } .who span { display: none; } }
+/* 公司資料 */
+.nudge { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid rgba(201,162,106,.35); background: rgba(201,162,106,.08); border-radius: 12px; padding: 12px 16px; margin: -10px 0 26px; color: var(--text-2); line-height: 1.6; }
+.nudge p { margin: 0; flex: 1 1 260px; } .nudge b { color: var(--text); }
+dialog#firm { width: min(600px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid var(--hair-2); border-radius: 16px; background: var(--panel); color: var(--text); }
+dialog#firm::backdrop { background: rgba(8,6,4,.66); }
+.fm { display: flex; flex-direction: column; max-height: calc(100dvh - 26px); }
+.fm-h { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--hair); }
+.fm-h h2 { margin: 0; font-family: var(--display); font-size: 20px; } .fm-h small { color: var(--text-3); }
+.fm-h .x { margin-left: auto; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--hair-2); background: none; color: var(--text); font-size: 16px; }
+.fm-b { padding: 16px 18px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.fm-b .full { grid-column: 1 / -1; }
+.fld { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--text-2); min-width: 0; }
+.fld input[type=text], .fld input[type=email], .fld input[type=tel] { background: var(--panel-2); border: 1px solid var(--hair-2); border-radius: 9px; padding: 9px 11px; color: var(--text); font-size: 14px; width: 100%; }
+.fld input:focus { outline: none; border-color: var(--brass); }
+.fld .err { color: #f0a08f; font-size: 12px; min-height: 0; }
+.fld .err:empty { display: none; }
+.fld .hint { color: var(--text-3); font-size: 12px; }
+.req::after { content: " *"; color: var(--brass); }
+.logo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.logo-box { width: 132px; height: 64px; border-radius: 10px; background: #fff center / contain no-repeat; border: 1px solid var(--hair-2); display: grid; place-items: center; color: #8b8478; font-size: 12px; flex: none; }
+.logo-box img { max-width: 120px; max-height: 54px; object-fit: contain; }
+.color-row { display: flex; align-items: center; gap: 8px; }
+.color-row input[type=color] { width: 44px; height: 38px; border: 1px solid var(--hair-2); border-radius: 9px; background: var(--panel-2); padding: 3px; }
+.pv { grid-column: 1 / -1; border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; }
+.pv-l { font-size: 12px; color: var(--text-3); padding: 8px 12px; border-bottom: 1px solid var(--hair); }
+.pv-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #1b1712; }
+.pv-bar img { height: 28px; max-width: 110px; object-fit: contain; background: #fff; border-radius: 6px; padding: 3px 5px; }
+.pv-bar .ini, .pv-mast .ini { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; font-weight: 900; font-size: 13px; }
+.pv-bar b { font-family: var(--display); font-size: 15px; }
+.pv-mast { display: flex; align-items: center; gap: 10px; padding: 12px; background: #fff; color: #1f1c18; border-top: 3px solid var(--pv, #8a6a3f); }
+.pv-mast img { max-height: 34px; max-width: 120px; object-fit: contain; }
+.pv-mast b { font-family: var(--display); font-size: 15px; } .pv-mast span { margin-left: auto; font-size: 11px; color: #8b8478; letter-spacing: .1em; }
+.fm-f { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--hair); }
+.card .row2 { display: flex; gap: 8px; align-items: center; }
+.card .client { flex: 1; min-width: 0; background: none; border: 1px solid var(--hair); border-radius: 8px; padding: 5px 8px; font-size: 12.5px; color: var(--text-2); }
+.card .client:focus { outline: none; border-color: var(--brass); color: var(--text); }
+.card .row2 .alt { font-size: 12.5px; white-space: nowrap; }
+@media (max-width: 560px) { .fm-b { grid-template-columns: 1fr; } #firm-open span { display: none; } }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 9; }
 </style>
 </head>
@@ -94,6 +132,7 @@ h1 { font-family: var(--display); font-weight: 900; font-size: clamp(26px, 4vw, 
 <header>
   <a class="brand" href="/" aria-label="回到 Spatial Lab"><svg width="24" height="24" viewBox="0 0 26 26" fill="none" stroke="#c9a26a" stroke-width="1.6" aria-hidden="true"><path d="M8 24H2V2h22v22H14"/><path d="M8 24v-6a6 6 0 0 1 6 6" stroke-width="1.2"/><path d="M15 2v9h9" stroke-width="1.2"/></svg><b>PrimeStride</b><span>Spatial Lab</span></a>
   <span class="spacer"></span>
+  <button type="button" class="btn" id="firm-open" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 14.5h12M3 14.5V4l5-2.5L13 4v10.5M6 7h1M9 7h1M6 10h1M9 10h1"/></svg><span></span></button>
   <span class="who" id="who"></span>
   <button type="button" class="btn" id="out" hidden></button>
 </header>
@@ -123,14 +162,33 @@ h1 { font-family: var(--display); font-weight: 900; font-size: clamp(26px, 4vw, 
         <li><div><b id="s3"></b><span id="s3d"></span></div></li>
       </ol>
     </div>
+    <div class="nudge" id="nudge" hidden><p id="nudge-t"></p><button type="button" class="btn go" id="nudge-b"></button></div>
     <div class="sec"><h3 id="p-h"></h3><span class="n" id="p-n"></span><span class="spacer"></span><a class="alt" id="try" href="/editor?from=apartment"></a></div>
     <div class="grid" id="grid"></div>
   </section>
 </main>
+<dialog id="firm" aria-labelledby="fm-title">
+  <form class="fm" method="dialog" novalidate>
+    <div class="fm-h"><div><h2 id="fm-title"></h2><small id="fm-sub"></small></div><button type="button" class="x" id="fm-x">×</button></div>
+    <div class="fm-b">
+      <label class="fld full"><span class="req" id="fl-name"></span><input type="text" name="name" maxlength="120" autocomplete="organization"><span class="err" data-err="name"></span></label>
+      <div class="fld full"><span id="fl-logo"></span><div class="logo-row"><span class="logo-box" id="logo-box"></span><label class="btn"><input type="file" id="logo-pick" accept="image/png,image/jpeg,image/webp" hidden><span id="logo-up"></span></label><button type="button" class="btn" id="logo-rm" hidden></button></div><span class="hint" id="logo-hint"></span><span class="err" data-err="logo"></span></div>
+      <label class="fld"><span id="fl-phone"></span><input type="tel" name="phone" maxlength="40" autocomplete="tel"></label>
+      <label class="fld"><span>LINE ID</span><input type="text" name="line_id" maxlength="60" placeholder="@yourfirm"></label>
+      <label class="fld"><span>Email</span><input type="email" name="email" maxlength="120" autocomplete="email"><span class="err" data-err="email"></span></label>
+      <label class="fld"><span id="fl-tax"></span><input type="text" name="tax_id" maxlength="8" inputmode="numeric" pattern="[0-9]{8}"><span class="err" data-err="tax_id"></span></label>
+      <label class="fld full"><span id="fl-addr"></span><input type="text" name="address" maxlength="200" autocomplete="street-address"></label>
+      <div class="fld full"><span id="fl-color"></span><div class="color-row"><input type="color" name="color" value="#8a6a3f"><span class="hint" id="color-hint"></span></div><span class="err" data-err="color"></span></div>
+      <div class="pv"><div class="pv-l" id="pv-l"></div><div class="pv-bar" id="pv-bar"></div><div class="pv-mast" id="pv-mast"></div></div>
+    </div>
+    <div class="fm-f"><button type="button" class="btn" id="fm-cancel"></button><button type="submit" class="btn go" id="fm-save"></button></div>
+  </form>
+</dialog>
 <div id="toast" hidden></div>
 <script type="module">
 import { t, isEn } from './src/i18n.js';
 import * as C from './src/cloud.js';
+import { checkFirm, normFirm, onColor, initials, DEFAULT_COLOR } from './src/firm.js';
 const $ = s => document.querySelector(s);
 const toast = m => { const e = $('#toast'); e.textContent = m; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (e.hidden = true), 2600); };
 document.title = t('我的專案 · Spatial Lab', 'My projects · Spatial Lab');
@@ -178,6 +236,7 @@ async function render() {
   if (pic) { const im = new Image(); im.src = pic; im.alt = ''; im.referrerPolicy = 'no-referrer'; im.onerror = () => im.replaceWith(Object.assign(document.createElement('b'), { className: 'ini', textContent: (full[0] || '?').toUpperCase() })); who.appendChild(im); }
   else who.appendChild(Object.assign(document.createElement('b'), { className: 'ini', textContent: (full[0] || '?').toUpperCase() }));
   who.appendChild(Object.assign(document.createElement('span'), { textContent: full }));
+  loadFirm();
   $('#l-h').textContent = first ? t(`歡迎回來，${first}`, `Welcome back, ${first}`) : t('我的專案', 'My projects');
   let rows = [];
   try { rows = await C.listProjects(); } catch (e) { toast(t('讀取專案失敗', 'Could not load projects')); }
@@ -189,9 +248,13 @@ async function render() {
     const c = document.createElement('article'); c.className = 'card';
     c.innerHTML = `<a class="thumb" href="/?id=${p.id}" style="background-image:${p.thumb ? `url(${p.thumb})` : 'none'}" aria-label="${t('在 3D 中開啟', 'Open in 3D')}"></a>
       <div class="body"><input class="name" value="" aria-label="${t('專案名稱', 'Project name')}"><span class="meta">${t('更新於', 'Updated')} ${fmt(p.updated_at)}</span>
+      <div class="row2"><input class="client" maxlength="120" placeholder="${t('業主名稱（選填，顯示在提案書）', 'Client name (optional, shown on the proposal)')}" aria-label="${t('業主名稱', 'Client name')}"><a class="alt" href="/proposal?id=${p.id}">${t('提案書 →', 'Proposal →')}</a></div>
       <div class="acts"><a class="btn go" href="/?id=${p.id}">${t('3D 導覽', 'Open 3D')}</a><a class="btn" href="/editor?id=${p.id}">${t('編輯平面', 'Edit plan')}</a><button type="button" class="btn sh">${p.share_token ? t('分享中', 'Shared') : t('分享', 'Share')}</button><button type="button" class="btn del" title="${t('刪除', 'Delete')}">✕</button></div>
       <div class="share" ${p.share_token ? '' : 'hidden'}><input readonly value="${p.share_token ? C.shareUrl(p.share_token) : ''}"><button type="button" class="btn cp">${t('複製', 'Copy')}</button><button type="button" class="btn off">${t('停止', 'Stop')}</button></div></div>`;
     const name = c.querySelector('.name'); name.value = p.name;
+    const cl = c.querySelector('.client'); cl.value = p.client || '';
+    if (!('client' in p)) cl.disabled = true; // the client column is not in the database yet
+    cl.addEventListener('change', async () => { try { await C.setClient(p.id, cl.value); p.client = cl.value.trim(); toast(t('已更新業主名稱', 'Client name saved')); } catch { toast(t('業主名稱儲存失敗', 'Could not save the client name')); } });
     name.addEventListener('change', async () => { try { await C.renameProject(p.id, name.value.trim() || p.name); toast(t('已更新名稱', 'Renamed')); } catch { toast(t('更新失敗', 'Could not rename')); } });
     const box = c.querySelector('.share'), inp = box.querySelector('input');
     c.querySelector('.sh').addEventListener('click', async () => {
@@ -203,6 +266,101 @@ async function render() {
     grid.appendChild(c);
   }
 }
+// ---------- 公司資料 (firm profile): logo, name and contact on every share link and proposal ----------
+let firm = null, logoBlob = null, logoGone = false;
+const dlg = $('#firm'), form = dlg.querySelector('form');
+$('#firm-open').querySelector('span').textContent = t('公司資料', 'Firm profile');
+$('#firm-open').title = t('公司資料：Logo、名稱與聯絡方式', 'Firm profile: logo, name and contact details');
+$('#fm-title').textContent = t('公司資料', 'Firm profile');
+$('#fm-sub').textContent = t('客戶打開分享連結與提案書時，會看到你的 Logo、公司名稱與聯絡方式。', 'Your clients see this logo, name and contact details on share links and proposals.');
+$('#fl-name').textContent = t('公司名稱', 'Firm name');
+$('#fl-logo').textContent = 'Logo';
+$('#logo-up').textContent = t('上傳 Logo', 'Upload logo');
+$('#logo-rm').textContent = t('移除', 'Remove');
+$('#logo-hint').textContent = t('PNG（透明背景最佳）、JPG 或 WebP，2 MB 以內；會自動縮成適合的大小。', 'PNG (transparent works best), JPG or WebP, up to 2 MB; resized automatically.');
+$('#fl-phone').textContent = t('電話', 'Phone');
+$('#fl-tax').textContent = t('統一編號（選填）', 'Tax ID 統一編號 (optional)');
+$('#fl-addr').textContent = t('地址', 'Address');
+$('#fl-color').textContent = t('品牌色', 'Brand colour');
+$('#color-hint').textContent = t('用在提案書的標題線與總價。', 'Used for the rules and the total on the proposal.');
+$('#pv-l').textContent = t('預覽：分享連結與提案書', 'Preview: share link and proposal');
+$('#fm-cancel').textContent = t('取消', 'Cancel');
+$('#fm-save').textContent = t('儲存', 'Save');
+$('#nudge-t').innerHTML = t('<b>設定公司資料</b>，分享連結與提案書就會換上你的 Logo、公司名稱與聯絡方式。', '<b>Add your firm profile</b> and share links and proposals show your logo, name and contact details.');
+$('#nudge-b').textContent = t('設定公司資料', 'Set up');
+
+const F = () => Object.fromEntries(['name', 'phone', 'line_id', 'email', 'address', 'tax_id', 'color'].map(k => [k, form.elements[k].value.trim()]));
+let logoPreview = '';
+function preview() {
+  const f = F(), col = /^#[0-9a-f]{6}$/i.test(f.color) ? f.color : DEFAULT_COLOR, name = f.name || t('你的公司名稱', 'Your firm name');
+  const mark = logoPreview ? `<img src="${logoPreview}" alt="">` : `<span class="ini" style="background:${col};color:${onColor(col)}">${initials(name)}</span>`;
+  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  $('#pv-bar').innerHTML = `${mark}<b>${esc(name)}</b>`;
+  $('#pv-mast').innerHTML = `${mark}<b>${esc(name)}</b><span>${t('設計提案書', 'PROPOSAL')}</span>`;
+  $('#pv-mast').style.setProperty('--pv', col);
+  const box = $('#logo-box'); box.innerHTML = logoPreview ? `<img src="${logoPreview}" alt="Logo">` : t('尚無 Logo', 'No logo');
+  $('#logo-rm').hidden = !logoPreview;
+}
+form.addEventListener('input', preview);
+function openFirm() {
+  const f = firm || {};
+  for (const k of ['name', 'phone', 'line_id', 'email', 'address', 'tax_id']) form.elements[k].value = f[k] || '';
+  form.elements.color.value = f.color || DEFAULT_COLOR;
+  logoBlob = null; logoGone = false; logoPreview = f.logo || '';
+  form.querySelectorAll('[data-err]').forEach(e => { e.textContent = ''; });
+  preview();
+  if (!dlg.open) dlg.showModal();
+  form.elements.name.focus();
+}
+const closeFirm = () => { if (dlg.open) dlg.close(); if (location.hash === '#firm') history.replaceState(null, '', location.pathname + location.search); };
+$('#firm-open').addEventListener('click', openFirm);
+$('#nudge-b').addEventListener('click', openFirm);
+$('#fm-x').addEventListener('click', closeFirm);
+$('#fm-cancel').addEventListener('click', closeFirm);
+// logo: drawn into a canvas at most 600 × 240 (keeps transparency), saved as PNG — small, crisp, no EXIF
+async function shrink(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+    const k = Math.min(1, 600 / img.naturalWidth, 240 / img.naturalHeight);
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, 'image/png'));
+  } finally { URL.revokeObjectURL(url); }
+}
+$('#logo-pick').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = ''; const err = form.querySelector('[data-err=logo]'); err.textContent = '';
+  if (!file) return;
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { err.textContent = t('請用 PNG、JPG 或 WebP 圖檔', 'Use a PNG, JPG or WebP picture'); return; }
+  if (file.size > 8 * 1024 * 1024) { err.textContent = t('圖檔太大（上限 8 MB）', 'That file is too large (8 MB max)'); return; }
+  try { logoBlob = await shrink(file); logoGone = false; logoPreview = URL.createObjectURL(logoBlob); preview(); }
+  catch { err.textContent = t('無法讀取這張圖', 'Could not read that picture'); }
+});
+$('#logo-rm').addEventListener('click', () => { logoBlob = null; logoGone = true; logoPreview = ''; preview(); });
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = F(), chk = checkFirm(f);
+  form.querySelectorAll('[data-err]').forEach(x => { x.textContent = chk.errors[x.dataset.err] || ''; });
+  if (!chk.ok) { form.querySelector(`[name=${Object.keys(chk.errors)[0]}]`)?.focus(); return; }
+  const save = $('#fm-save'); save.disabled = true; save.textContent = t('儲存中…', 'Saving…');
+  try {
+    const old = firm && firm.logo;
+    let logo = logoGone ? '' : old || '';
+    if (logoBlob) logo = await C.putLogo(logoBlob);
+    firm = await C.saveFirm({ ...f, logo });
+    if (old && old !== logo) C.removeLogo(old);
+    closeFirm(); $('#nudge').hidden = !!normFirm(firm);
+    toast(t('已儲存公司資料：分享連結與提案書會顯示你的品牌', 'Firm profile saved: share links and proposals now carry your brand'));
+  } catch (err) { console.warn('firm save', err); toast(t('公司資料儲存失敗，請稍後再試', 'Could not save the firm profile; try again shortly')); }
+  save.disabled = false; save.textContent = t('儲存', 'Save');
+});
+async function loadFirm() {
+  firm = await C.getFirm().catch(() => null);
+  $('#firm-open').hidden = false;
+  $('#nudge').hidden = !!normFirm(firm);
+  if (location.hash === '#firm') openFirm();
+}
+
 C.onAuth(() => render());
 render();
 </script>

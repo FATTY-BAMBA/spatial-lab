@@ -25,6 +25,20 @@ Pipeline (`tools/` + `.github/workflows/fetch-renders.yml`):
 
 Quote basis (`plan.quoteBasis`, defaults in `src/plan.js`): price book + date, 含工帶料, waste per finish group, 5% 營業稅, written assumptions — shown under the total and in the proposal.
 
+## 公司資料 + 提案書 (firm branding, client proposal)
+
+- 我的專案 → **公司資料**: firm name, logo (PNG/JPG/WebP, resized in the browser, stored in the `spatial-logos` bucket),
+  phone, LINE ID, email, address, 統一編號 (checksum-validated, optional), brand colour. One profile per account
+  (`spatial_firms`, owner-only RLS). Each project card also takes the 業主名稱 shown on the proposal cover.
+- Saved projects (`?id=` and client `?share=` links) show the firm's logo and name in the top bar, with
+  "Powered by PrimeStride Spatial Lab" under the opening text, and a **提案書** button.
+- **提案書** `/proposal?share=<token>` (client) or `/proposal?id=<project>` (owner preview); `/?share=…&view=proposal`
+  redirects there. Cover (render, project, 業主, date, style, 坪), AI renders, floor plans + room table (m² / 坪),
+  finishes, quote (未稅 / 營業稅 5% / 含稅), contact block and signature lines. `&style=<id>` picks the quoted style
+  (default: the style with the most AI renders). 列印 / 存成 PDF prints A4 portrait.
+- Database: `supabase/migrations/20261116090000_spatial_firms.sql` (`spatial_shared(token)` also returns `client` and
+  the firm's public fields).
+
 ## 匯出 (export to the designer's tools)
 
 Top bar → 匯出. Exports what is on screen, in the current style:

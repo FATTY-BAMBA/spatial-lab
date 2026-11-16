@@ -9,6 +9,7 @@ export const INDEX_EN = {
   'AI 效果圖': 'AI renders',
   '匯出': 'Export',
   '提案': 'Proposal',
+  '提案書': 'Proposal PDF',
   '匯出 Export': 'Export',
   '匯出到你的設計軟體': 'Export to your design software',
   '3D 模型': '3D model',
