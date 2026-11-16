@@ -1,5 +1,5 @@
 ---
-status: review
+status: building
 priority: P0
 owner: import-engineer
 depends: []
@@ -54,3 +54,36 @@ Research: docs/research/T-001-dwg.md — recommendation: convert in the browser 
 - Geometry after conversion is the existing DXF path: on the synthetic 40k-line DWG, `wallsFromDXF` + `detectRooms` took ~60 s in Node (that file is not in the gate). Real large plans may freeze the editor at the walls step; moving `parseDXF` + wall detection into the Worker is the follow-up if client files show it.
 - Custom objects (天正 walls, proxy entities), xref-only DWGs: not drawn; the `empty` error tells the designer to bind xrefs or save as DXF.
 - Not yet checked on the Vercel preview or Safari/iOS (module Worker needs Safari 15+; older falls back to the main thread).
+
+## Validation (2026-11-16, validator) — **ship after fixes**
+
+Merged `origin/main` (T-005) into the branch: one conflict in `detectDXF`, kept both `named++` and `roomFlagsFromName` (229fd7c).
+
+**Passes**
+- Gate with private fixtures: unit 33/33 (11 DWG); regress 50 ran, 0 missing, 0 regressions, 17 new (all DWG twins `=` their DXF, convert 48–200 ms); e2e 6/6.
+- Tests exercise the change: DWG unit tests import `dwg.js`; the regress pair check fails on > 10%; e2e drops a DWG on 我的專案 and a damaged DWG in the editor.
+- Licence: `vendor/acad-ts/LICENSE` (MIT) + CREDITS line. No .dwg/.dxf/pictures added to the repo (only `samples/sample-2br-apartment.dxf`, already on main); fixtures.json holds only ids/notes of public LibreDWG/ACadSharp drawings. No secrets. No Supabase change. NT$0 per conversion; the file never leaves the browser (e2e checks no non-GET/off-site request).
+- Converter is lazy (not fetched for pictures), runs in the Worker: no frame over 250 ms during 轉檔.
+- Journey walked locally, zh/en × 1280/390: 我的專案 → DWG → 轉檔「AutoCAD 2018 · 0.4 秒」→ all steps ✓ → 3D opens on the imported plan; no horizontal scroll at 390 px; damaged DWG → clear zh/en message + 手動描牆; 51 MB DWG → too-large message. No page errors.
+- Scope change (CAD into an empty project runs the full flow) accepted: it is what the task goal asks for ("same result as a DXF: walls, rooms… furniture") and matches the product promise. But it makes the freeze below automatic for every CAD upload.
+
+**Blocker: the page freezes after conversion on large drawings** (headless Chrome, editor import, longest frame gap):
+
+| File | Total | Frozen (single long task) | Where |
+|---|---|---|---|
+| big_40k.dwg (synthetic, 40k wall lines, 0.8 MB) | 45.4 s | **42.7 s** | `wallsFromDXF` |
+| d10_mall_gf.dxf (72×80 m mall) | 18.6 s | **18.4 s** | `autoFurnish` |
+| d19_wilson_basement.dxf | 1.8 s | 1.6 s | furnish |
+| d12_babcock_l3.dxf | 1.3 s | 1.1 s | furnish |
+| acs_sample_AC1032.dwg, lib_example_2000.dwg | 1.1–1.3 s | < 0.25 s | — |
+
+`detectWalls` pairs every wall-layer segment with every other (`pairUp`, `src/editor/dxf.js` ~l.151): Node 5k segs 0.6 s, 10k 2.6 s, 20k 12.7 s, 40k 55 s. Real Taiwan DWGs (5–30 MB, blocks exploded onto wall layers) will be in the 10k–40k range: 3–55 s of a dead page during the client demo, with the seconds counter stopped.
+
+**Required fixes**
+1. Make `detectWalls` pairing sub-quadratic (bucket by direction, sort by normal offset, compare only within `maxT`; same for the zone pass). Target: `wallsFromDXF` on big_40k < 3 s in Node, regress 0 changes on all 50 fixtures.
+2. Run the CAD auto-flow geometry (`parseDXF` → `wallsFromDXF` → `detectRooms` → name rooms → `autoFurnish`) in the Worker (all Node-pure already), posting progress per stage; the main thread only applies the level and ticks elapsed seconds on the active step. Target: longest frame gap < 250 ms over the whole import of big_40k.dwg and d10_mall_gf.dxf. (The manual 自動辨識牆體 button may keep the main-thread path.)
+3. Gate it: add big_40k.dwg to the private fixtures + `qa/fixtures.json` (kind dwg), and an e2e step that imports it (or d10) and fails if any frame gap > 250 ms or the flow takes > 20 s.
+
+**Also before merge (not code)**: the `dwg/` fixtures exist only in the validator scratch folder; push them to `FATTY-BAMBA/spatial-lab-fixtures`, or CI will report the 17 new fixtures as missing.
+
+**Open, owner-dependent (not blocking)**: no real client DWG yet; the Chinese DWG fixture (`dwg-cjk-r2018`) is one synthetic line with no DXF twin, so the "Chinese layer names/text within 10%" criterion is only met by unit tests. Pre-existing, unrelated: the 我的專案 format chip「格局圖 JPG / PNG」is not translated in en.
