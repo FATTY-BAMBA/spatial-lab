@@ -87,6 +87,7 @@ error states (signed out, AI unavailable, slow network) · copy is clear Traditi
 | `npm --prefix qa run all` | the full gate |
 | `npm --prefix qa run baseline` | validator only: accept current regression results |
 | `npm --prefix qa run serve` | the site on http://localhost:8080 |
+| `npm --prefix qa run rehearse -- <id\|file>` | the client-demo journey, timed, AI stubbed (`docs/demo.md`, `docs/demo-rehearsal.md`) |
 
 Recording AI answers for a fixture (so the gate covers the AI steps for free): import the plan once in the live editor
 while signed in, then copy `window.__qaVision` into `qa/recordings/<fixture-id>.json` (shape: `{ S, size, passes }`).
