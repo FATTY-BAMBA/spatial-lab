@@ -1,5 +1,5 @@
 ---
-status: building
+status: review
 priority: P0
 owner: import-engineer
 depends: []
@@ -87,3 +87,30 @@ Merged `origin/main` (T-005) into the branch: one conflict in `detectDXF`, kept 
 **Also before merge (not code)**: the `dwg/` fixtures exist only in the validator scratch folder; push them to `FATTY-BAMBA/spatial-lab-fixtures`, or CI will report the 17 new fixtures as missing.
 
 **Open, owner-dependent (not blocking)**: no real client DWG yet; the Chinese DWG fixture (`dwg-cjk-r2018`) is one synthetic line with no DXF twin, so the "Chinese layer names/text within 10%" criterion is only met by unit tests. Pre-existing, unrelated: the 我的專案 format chip「格局圖 JPG / PNG」is not translated in en.
+
+## Validator round 1 fixes done (2026-11-16, import-engineer)
+
+Commits: `61dc205` walls, `b14e1f7` furnishing, `1502fbe` Worker, `02116de` gate, `95a668a` en chip.
+
+1. **Wall detection without all-pairs loops** (`src/editor/dxf.js`). Pair candidates come from direction bins plus an (offset, extent) grid in each bin's frame, widened by the measuring error (2·R·Δθ). The clash pass indexes kept pairs; "explained" uses a cell grid of band rectangles; the collinear merge does a binary search on per-bin offsets. Every index returns a superset and the original tests run in the original order. `wallsFromDXF` on big_40k: **78 s → 2.3 s** (Node). Output is **byte-identical** on all 38 CAD fixtures and big_40k. `qa/unit/dxf-index.test.mjs` compares indexed vs `exhaustive: true` on 40 random drawings (it fails if a pruning window is cut; checked).
+2. **Furnishing** (`src/editor/furnish.js`). The 18 s on d10 came from `roomGrid` testing every 5 cm cell against every wall (2.3 M cells × 55 walls, `wallFrame` per call), plus the dining-table search scanning each candidate box. Now: a scanline inside-test (same crossing formula), wall clearance only over each wall's nearby cells, and a summed-area table for the dining search. **d10 25.6 s → 0.7 s, wilson 1.7 → 0.05 s, babcock 0.9 → 0.06 s.** Furniture is identical on all 50 fixtures (kind, size, position, rotation).
+3. **Whole CAD auto-import in a Worker**: `src/editor/cadimport.js` (pure `runCAD`/`planLevel`) and `src/editor/cad-worker.js`. Stages are posted as they finish; the page ticks seconds on the active step and applies the result in pieces (no redundant room re-detection, preview capped at 6,000 lines). The 自動辨識牆體 button still runs `planLevel` on the page. Into a plan with walls, reading the drawing also happens in the Worker.
+4. **Gate**: `dwg-perf-40k` fixture (`dwg/big_40k.dwg`) is in `qa/fixtures.json`. An e2e step imports big_40k.dwg and d10_mall_gf.dxf and fails on any frame > 250 ms or > 20 s.
+
+**Headless Chrome, whole editor import** (validator's `measure-t001.mjs`):
+
+| File | Before: total / longest freeze | After: total / longest frame |
+|---|---|---|
+| big_40k.dwg | 45.4 s / 42.7 s | **5.1 s / none > 250 ms** (e2e: 100 ms) |
+| d10_mall_gf.dxf | 18.6 s / 18.4 s | **1.9 s / none > 250 ms** (e2e: 50 ms) |
+| d19_wilson_basement.dxf | 1.8 s / 1.6 s | 0.8 s / none |
+| d12_babcock_l3.dxf | 1.3 s / 1.1 s | 0.8 s / none |
+| acs_sample_AC1032.dwg, lib_example_2000.dwg | 1.1–1.3 s | 0.8–1.8 s / none |
+
+Regression ms: d10 20.7 s → 0.8 s, babcock 1.2 → 0.3 s, wilson 1.5 → 0.1 s.
+
+**Gate** (`QA_FIXTURES=… npm --prefix qa run all`): unit 38/38; regress 51 fixtures, 0 regressions, the 33 baseline fixtures unchanged on every metric, the 17 round-1 DWG/DXF fixtures unchanged, +1 new (`dwg-perf-40k`); e2e 8/8. Baseline not touched.
+
+Also: the 我的專案 format chip「格局圖 JPG / PNG」now reads "Plan image JPG / PNG" in English.
+
+Still open: push the `dwg/` fixtures (now including `big_40k.dwg`) to the private fixtures repo before merge. Real client DWGs and Big5 R2004 remain unverified.
