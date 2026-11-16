@@ -132,6 +132,26 @@ export function parseDXF(text) {
 
 function cleanText(t) { return t.replace(/\\U\+([0-9A-Fa-f]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16))).replace(/%%[cC]/g, 'Ø').replace(/%%[dD]/g, '°').replace(/%%[pP]/g, '±').replace(/\\[A-Za-z][^;]*;/g, '').replace(/\\P/g, ' ').replace(/[{}]/g, '').trim(); }
 
+// ---- spatial indexes for detectWalls. Each one only prunes: it returns a superset of the items that can pass the
+// caller's exact test, and the caller still runs that test in the original order, so results are identical to the
+// all-pairs loops they replace (O(n²) → about O(n), see qa/unit/dxf-index.test.mjs).
+const ANG_BINS = 600, ANG_W = Math.PI / ANG_BINS, PAR = Math.asin(0.0201); // |cross| ≤ 0.02 ⇔ |Δθ| ≤ asin(0.02) (mod π)
+const ANG_REACH = Math.ceil(PAR / ANG_W) + 1;
+const angOf = (ux, uz) => Math.atan2(uz, ux);
+const angBin = th => ((Math.round(th / ANG_W) % ANG_BINS) + ANG_BINS) % ANG_BINS;
+const angDist = (a, b) => { const d = Math.abs(a - b) % Math.PI; return Math.min(d, Math.PI - d); };
+// bins of near-parallel items, each with the exact direction of its first member as its frame
+function angleBins() {
+  const bins = new Map();
+  return {
+    bins,
+    add(th, ux, uz) { const k = angBin(th); let b = bins.get(k); if (!b) bins.set(k, b = { th, ux, uz, nx: -uz, nz: ux, items: [] }); return b; },
+    // bins that may hold an item parallel to direction th, with the angle between th and the bin's frame
+    *near(th) { const k = angBin(th); for (let i = -ANG_REACH; i <= ANG_REACH; i++) { const b = bins.get((k + i + ANG_BINS) % ANG_BINS); if (b) yield [b, angDist(th, b.th)]; } },
+  };
+}
+const cellKey = (i, j) => i * 4194304 + j; // |i|, |j| < 2^21 (cells are clamped to that)
+
 // Walls from linework, in three passes:
 //  1. constant-width polylines are walls already (centreline + width);
 //  2. pairs of parallel lines 7–42 cm apart are the two faces of a wall; a second pass pairs what is
@@ -139,25 +159,74 @@ function cleanText(t) { return t.replace(/\\U\+([0-9A-Fa-f]{4})/g, (m, h) => Str
 //  3. if most of the layer is still unexplained, the drawing uses single-line walls: long lines become
 //     centrelines with a default thickness (set later by detectRooms: 20 cm exterior, 12 cm interior).
 // Collinear pieces merge; the gaps between them become openings (a gap with glazing lines is a window).
-export function detectWalls(segs, { minT = 0.07, maxT = 0.42, minLen = 0.08, others = [], arcs = [] } = {}) {
+// `exhaustive: true` skips the indexes (every pair is tested): the unit tests compare both on random drawings.
+export function detectWalls(segs, { minT = 0.07, maxT = 0.42, minLen = 0.08, others = [], arcs = [], exhaustive = false } = {}) {
   const prep = list => list.filter(s => !s.arc && !s.w).map(s => {
     const dx = s.b[0] - s.a[0], dz = s.b[1] - s.a[1], len = Math.hypot(dx, dz);
     let ux = dx / len, uz = dz / len;
     if (ux < -1e-9 || (Math.abs(ux) < 1e-9 && uz < 0)) { ux = -ux; uz = -uz; }
     return { ...s, len, ux, uz };
   }).filter(s => s.len > minLen);
+  // centre and radius of the drawing: offsets measured from the centre keep the pruning windows tight
+  let O = [0, 0], RAD = 1;
+  {
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const s of segs) for (const p of [s.a, s.b]) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < z0) z0 = p[1]; if (p[1] > z1) z1 = p[1]; }
+    if (x0 <= x1) { O = [(x0 + x1) / 2, (z0 + z1) / 2]; RAD = Math.hypot(x1 - x0, z1 - z0) / 2 + 1; }
+  }
+  const EPS = 1e-6;
+  // candidate partners j > i for every i: same or neighbouring direction bin, B.a within hi of A's line (plus the
+  // error from measuring both in the bin's frame: 2·RAD·Δθ), and overlapping extents along the line
+  const pairCandidates = (S, hi) => {
+    if (exhaustive) return S.map((_, i) => Array.from({ length: S.length - i - 1 }, (_, k) => i + 1 + k));
+    const AB = angleBins(), HC = Math.max(hi / 2, 0.05), HS = Math.max(1, (2 * RAD) / 2e6);
+    const fr = S.map(A => {
+      const b = AB.add(angOf(A.ux, A.uz), A.ux, A.uz);
+      return b;
+    });
+    // each item in its own bin's frame: c = offset of .a, [s0, s1] = extent along the bin direction
+    const rec = S.map((A, i) => {
+      const b = fr[i], ca = (A.a[0] - O[0]) * b.nx + (A.a[1] - O[1]) * b.nz;
+      const p = (A.a[0] - O[0]) * b.ux + (A.a[1] - O[1]) * b.uz, q = (A.b[0] - O[0]) * b.ux + (A.b[1] - O[1]) * b.uz;
+      const r = { c: ca, s0: Math.min(p, q), s1: Math.max(p, q) };
+      if (!b.grid) b.grid = new Map();
+      const row = Math.floor(ca / HC);
+      for (let col = Math.floor(r.s0 / HS), c1 = Math.floor(r.s1 / HS); col <= c1; col++) { const k = cellKey(row, col); let l = b.grid.get(k); if (!l) b.grid.set(k, l = []); l.push(i); }
+      return r;
+    });
+    const stamp = new Int32Array(S.length).fill(-1), out = [];
+    for (let i = 0; i < S.length; i++) {
+      const A = S[i], th = angOf(A.ux, A.uz), list = [];
+      for (const [b, dth] of AB.near(th)) {
+        if (dth > PAR + ANG_W) continue;
+        const slack = 2 * RAD * dth + EPS;
+        const ca = (A.a[0] - O[0]) * b.nx + (A.a[1] - O[1]) * b.nz;
+        const p = (A.a[0] - O[0]) * b.ux + (A.a[1] - O[1]) * b.uz, q = (A.b[0] - O[0]) * b.ux + (A.b[1] - O[1]) * b.uz;
+        const r0 = Math.floor((ca - hi - slack) / HC), r1 = Math.floor((ca + hi + slack) / HC);
+        const c0 = Math.floor((Math.min(p, q) - slack) / HS), c1 = Math.floor((Math.max(p, q) + slack) / HS);
+        for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
+          const l = b.grid.get(cellKey(row, col)); if (!l) continue;
+          for (const j of l) if (j > i && stamp[j] !== i) { stamp[j] = i; list.push(j); }
+        }
+      }
+      out.push(list.sort((x, y) => x - y));
+    }
+    return out;
+  };
   const pairUp = (S, lo, hi) => {
     const raw = [];
-    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) {
+    const cand = pairCandidates(S, hi);
+    for (let i = 0; i < S.length; i++) for (const j of cand[i]) {
       const A = S[i], B = S[j];
       if (Math.abs(A.ux * B.uz - A.uz * B.ux) > 0.02) continue; // not parallel
       const nx = -A.uz, nz = A.ux;
       const d = (B.a[0] - A.a[0]) * nx + (B.a[1] - A.a[1]) * nz;
       const t = Math.abs(d);
       if (t < lo || t > hi) continue;
-      const pa = [A.a, A.b].map(p => p[0] * A.ux + p[1] * A.uz).sort((x, y) => x - y);
-      const pb = [B.a, B.b].map(p => p[0] * A.ux + p[1] * A.uz).sort((x, y) => x - y);
-      const s0 = Math.max(pa[0], pb[0]), s1 = Math.min(pa[1], pb[1]);
+      // each end pair in ascending order (same values a two-element sort gives, without the arrays)
+      const a0 = A.a[0] * A.ux + A.a[1] * A.uz, a1 = A.b[0] * A.ux + A.b[1] * A.uz, b0 = B.a[0] * A.ux + B.a[1] * A.uz, b1 = B.b[0] * A.ux + B.b[1] * A.uz;
+      const pa0 = a0 > a1 ? a1 : a0, pa1 = a0 > a1 ? a0 : a1, pb0 = b0 > b1 ? b1 : b0, pb1 = b0 > b1 ? b0 : b1;
+      const s0 = Math.max(pa0, pb0), s1 = Math.min(pa1, pb1);
       if (s1 - s0 < minLen) continue;
       const off = (A.a[0] * nx + A.a[1] * nz) + d / 2;
       raw.push({ ux: A.ux, uz: A.uz, nx, nz, off, s0, s1, t, i, j });
@@ -166,11 +235,22 @@ export function detectWalls(segs, { minT = 0.07, maxT = 0.42, minLen = 0.08, oth
     // Ties (same thickness) go to the longer pair, and a same-thickness pair only drops when it sits
     // inside one already kept — so a short stub never evicts the full wall it belongs to.
     raw.sort((a, b) => (a.t - b.t > 0.01 ? 1 : b.t - a.t > 0.01 ? -1 : (b.s1 - b.s0) - (a.s1 - a.s0)));
+    // kept pairs indexed by their stored offset and extent (the clash test compares exactly those values), visited
+    // in the order they were kept; pairs dropped later are skipped like the filter below did
     let kept = [];
+    const KH = Math.max(hi / 2, 0.05), KS = Math.max(1, (2 * RAD) / 2e6), kgrid = new Map();
+    let seq = 0;
     for (const r of raw) {
       const rl = r.s1 - r.s0;
       let clash = false;
-      for (const k of kept) {
+      const near = [], reach = (hi + r.t) / 2 + EPS, mark = ++seq;
+      if (exhaustive) { for (const k of kept) if (!k.dead) near.push(k); } else for (let row = Math.floor((r.off - reach) / KH), r1 = Math.floor((r.off + reach) / KH); row <= r1; row++)
+        for (let col = Math.floor(r.s0 / KS) - 1, c1 = Math.floor(r.s1 / KS) + 1; col <= c1; col++) {
+          const l = kgrid.get(cellKey(row, col)); if (!l) continue;
+          for (const k of l) if (!k.dead && k.mark !== mark) { k.mark = mark; near.push(k); }
+        }
+      if (near.length > 1) near.sort((a, b) => a.seq - b.seq);
+      for (const k of near) {
         if (Math.abs(k.ux * r.uz - k.uz * r.ux) > 0.02 || Math.abs(k.off - r.off) >= (k.t + r.t) / 2 - 1e-6) continue;
         const ov = Math.min(k.s1, r.s1) - Math.max(k.s0, r.s0);
         if (ov <= 0.1 && !(ov > 0 && rl <= 0.12)) continue;
@@ -187,10 +267,13 @@ export function detectWalls(segs, { minT = 0.07, maxT = 0.42, minLen = 0.08, oth
         }
         clash = true; break;
       }
-      kept = kept.filter(k => !k.dead);
-      if (!clash) kept.push(r);
+      if (!clash) {
+        r.seq = seq++; kept.push(r);
+        const row = Math.floor(r.off / KH);
+        for (let col = Math.floor(r.s0 / KS), c1 = Math.floor(r.s1 / KS); col <= c1; col++) { const k = cellKey(row, col); let l = kgrid.get(k); if (!l) kgrid.set(k, l = []); l.push(r); }
+      }
     }
-    return kept;
+    return kept.filter(k => !k.dead).map(k => { delete k.seq; delete k.mark; return k; });
   };
   const S = prep(segs);
   let bands = pairUp(S, minT, maxT);
@@ -201,10 +284,30 @@ export function detectWalls(segs, { minT = 0.07, maxT = 0.42, minLen = 0.08, oth
     const across = Math.abs(m[0] * b.nx + m[1] * b.nz - b.off), along = m[0] * b.ux + m[1] * b.uz;
     return across <= b.t / 2 + 0.02 && along > b.s0 - 0.05 && along < b.s1 + 0.05;
   };
-  const explained = s => bands.some(b => inBand(s, b));
+  // bands indexed by the cells their rectangle (± t/2 + 2 cm across, ± 5 cm along) covers; a segment's midpoint
+  // can only be inside bands registered in its own cell
+  const bandIndex = list => {
+    const CELL = 1, g = new Map();
+    for (const b of list) {
+      const h = b.t / 2 + 0.02 + CELL / 2 + EPS, a0 = b.s0 - 0.05, a1 = b.s1 + 0.05;
+      const n = Math.max(1, Math.ceil((a1 - a0) / CELL));
+      const seen = new Set();
+      for (let k = 0; k <= n; k++) {
+        const al = a0 + ((a1 - a0) * k) / n, px = b.ux * al + b.nx * b.off, pz = b.uz * al + b.nz * b.off;
+        for (let i = Math.floor((px - h - O[0]) / CELL), i1 = Math.floor((px + h - O[0]) / CELL); i <= i1; i++)
+          for (let j = Math.floor((pz - h - O[1]) / CELL), j1 = Math.floor((pz + h - O[1]) / CELL); j <= j1; j++) {
+            const key = cellKey(i, j); if (seen.has(key)) continue; seen.add(key);
+            let l = g.get(key); if (!l) g.set(key, l = []); l.push(b);
+          }
+      }
+    }
+    if (exhaustive) return s => list.some(b => inBand(s, b));
+    return s => { const m = [(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2], l = g.get(cellKey(Math.floor((m[0] - O[0]) / CELL), Math.floor((m[1] - O[1]) / CELL))); return !!l && l.some(b => inBand(s, b)); };
+  };
+  let explained = bandIndex(bands);
   // pass 2: thin partitions among the leftovers
   const left = S.filter(s => !explained(s));
-  if (left.length) bands = bands.concat(pairUp(left, 0.035, minT));
+  if (left.length) { bands = bands.concat(pairUp(left, 0.035, minT)); explained = bandIndex(bands); }
   // pass 3: single-line drawings
   const totalLen = S.reduce((a, s) => a + s.len, 0) || 1;
   const rest = S.filter(s => !explained(s));
@@ -255,11 +358,34 @@ export function detectWalls(segs, { minT = 0.07, maxT = 0.42, minLen = 0.08, oth
     const s = [a[0] * p.ux + a[1] * p.uz, b[0] * p.ux + b[1] * p.uz].sort((x, y) => x - y);
     return { ...q, ux: p.ux, uz: p.uz, nx: p.nx, nz: p.nz, off: p.off, s0: s[0], s1: s[1] };
   };
+  // candidates for sameLine: near-parallel bands whose midpoint offset (in the bin's frame) is within the tolerance
+  // of this band's line, allowing 2·RAD·Δθ for measuring in the bin's frame instead of the band's own
+  const LB = angleBins();
+  bands.forEach((q, j) => {
+    const b = LB.add(angOf(q.ux, q.uz), q.ux, q.uz), qm = (q.s0 + q.s1) / 2;
+    const mx = q.ux * qm + q.nx * q.off - O[0], mz = q.uz * qm + q.nz * q.off - O[1];
+    b.items.push({ c: mx * b.nx + mz * b.nz, j });
+  });
+  for (const b of LB.bins.values()) b.items.sort((x, y) => x.c - y.c);
+  const lineCandidates = p => {
+    if (exhaustive) return bands.map((_, j) => j);
+    const pm = (p.s0 + p.s1) / 2, X = [p.ux * pm + p.nx * p.off - O[0], p.uz * pm + p.nz * p.off - O[1]];
+    const tol = Math.max(0.03, p.t * 0.35), out = [];
+    for (const [b, dth] of LB.near(angOf(p.ux, p.uz))) {
+      if (dth > PAR + ANG_W) continue;
+      const c = X[0] * b.nx + X[1] * b.nz, w = tol + 2 * RAD * dth + EPS, it = b.items;
+      let lo = 0, hi = it.length;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (it[m].c < c - w) lo = m + 1; else hi = m; }
+      for (let k = lo; k < it.length && it[k].c <= c + w; k++) out.push(it[k].j);
+    }
+    return out.sort((x, y) => x - y);
+  };
   const walls = [], used = new Set();
   for (let i = 0; i < bands.length; i++) {
     if (used.has(i)) continue;
     const line = [bands[i]]; used.add(i);
-    for (let j = i + 1; j < bands.length; j++) {
+    for (const j of lineCandidates(bands[i])) {
+      if (j <= i) continue;
       const r = bands[j];
       if (used.has(j)) continue;
       if (sameLine(bands[i], r)) { line.push(toFrame(bands[i], r)); used.add(j); }
