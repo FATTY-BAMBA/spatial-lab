@@ -73,7 +73,8 @@ export function normPrices(P) {
 // Check a list before saving: { ok, errors: [message] } (messages in the current language)
 export function checkPrices(P) {
   const errors = [];
-  const bad = Object.entries(P.finishes || {}).filter(([, v]) => !okPrice(int(v))).length + Object.values(P.furniture || {}).filter(v => !okPrice(int(v))).length + (P.lines || []).filter(l => !okPrice(int(l.price))).length;
+  const whole = v => v !== '' && v !== null && typeof v !== 'boolean' && okPrice(+v); // typed prices must already be whole NT$
+  const bad = Object.values(P.finishes || {}).filter(v => !whole(v)).length + Object.values(P.furniture || {}).filter(v => !whole(v)).length + (P.lines || []).filter(l => !whole(l.price)).length;
   if (bad) errors.push(t(`有 ${bad} 個單價不正確（應為 0 到 1,000 萬的整數）`, `${bad} unit price(s) are not valid (whole NT$ from 0 to 10,000,000)`));
   if (Object.values(P.waste || {}).some(v => !(Number.isFinite(+v) && +v >= 0 && +v <= 0.5))) errors.push(t('損耗應在 0% 到 50% 之間', 'Waste must be between 0% and 50%'));
   if ((P.lines || []).some(l => !str(l.name, 60))) errors.push(t('工程項目需要名稱', 'Every works line needs a name'));
