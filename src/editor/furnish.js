@@ -7,6 +7,9 @@ import { pointInPolygon, polygonArea, wallFrame, stairBox } from '../plan.js';
 import { dressLevel } from './dress.js';
 
 const G = 0.05; // grid (m)
+// rooms whose bounding box needs more grid cells than this (100 m × 100 m) are not furnished: that is not an interior
+// room but a drawing in the wrong units or a site outline, and the grid alone would take minutes and gigabytes
+export const MAX_GRID_CELLS = 4e6;
 const FREE = 0, HARD = 1, SOFT = 2, KEEP = 3; // SOFT = someone's clearance, KEEP = door swing / opening (no furniture)
 const TALL = new Set(['wardrobe', 'shelf', 'tallcab', 'fridge', 'tvwall']);
 
@@ -31,19 +34,44 @@ export function roomType(r) {
 }
 
 // --------------------------------------------------------------------------- room grid
+function gridCells(room) {
+  const xs = room.polygon.map(p => p[0]), zs = room.polygon.map(p => p[1]);
+  return Math.ceil((Math.max(...xs) - Math.min(...xs)) / G) * Math.ceil((Math.max(...zs) - Math.min(...zs)) / G);
+}
 function roomGrid(level, room) {
   const P = room.polygon, xs = P.map(p => p[0]), zs = P.map(p => p[1]);
   const x0 = Math.min(...xs), z0 = Math.min(...zs), nx = Math.ceil((Math.max(...xs) - x0) / G), nz = Math.ceil((Math.max(...zs) - z0) / G);
   const g = new Uint8Array(nx * nz).fill(HARD);
   const cx = i => x0 + (i + 0.5) * G, cz = j => z0 + (j + 0.5) * G;
   const walls = level.walls.filter(w => w.kind !== 'zone');
-  const segDist = (px, pz, w) => { const { ux, uz, len } = wallFrame(w); const t = Math.max(0, Math.min(len, (px - w.a[0]) * ux + (pz - w.a[1]) * uz)); return Math.hypot(px - (w.a[0] + ux * t), pz - (w.a[1] + uz * t)); };
-  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-    const px = cx(i), pz = cz(j);
-    if (!pointInPolygon([px, pz], P)) continue;
-    if (walls.some(w => segDist(px, pz, w) < (w.t || 0.12) / 2 + 0.02)) continue;
-    g[j * nx + i] = FREE;
+  // free = cell centre inside the room polygon and not on a wall. Row by row (scanline) and wall by wall over
+  // the cells near it: the same tests as pointInPolygon / point-to-wall distance per cell, without the
+  // cells × walls loop (a 72 m × 80 m mall room took 18 s).
+  const inside = new Uint8Array(nx * nz), xs2 = [];
+  for (let j = 0; j < nz; j++) {
+    const pz = cz(j); xs2.length = 0;
+    for (let a = 0, b = P.length - 1; a < P.length; b = a++) {
+      const [xi, zi] = P[a], [xj, zj] = P[b];
+      if ((zi > pz) !== (zj > pz)) xs2.push(((xj - xi) * (pz - zi)) / (zj - zi) + xi);
+    }
+    if (!xs2.length) continue;
+    xs2.sort((p, q) => p - q);
+    // inside when an odd number of crossings lie strictly to the right of the cell centre (as pointInPolygon)
+    let k = 0;
+    for (let i = 0; i < nx; i++) {
+      const px = cx(i);
+      while (k < xs2.length && !(px < xs2[k])) k++;
+      if ((xs2.length - k) % 2 === 1) inside[j * nx + i] = 1;
+    }
   }
+  for (const w of walls) {
+    const { ux, uz, len } = wallFrame(w), r = (w.t || 0.12) / 2 + 0.02;
+    const segDist = (px, pz) => { const t = Math.max(0, Math.min(len, (px - w.a[0]) * ux + (pz - w.a[1]) * uz)); return Math.hypot(px - (w.a[0] + ux * t), pz - (w.a[1] + uz * t)); };
+    const i0 = Math.max(0, Math.floor((Math.min(w.a[0], w.b[0]) - r - x0) / G) - 1), i1 = Math.min(nx - 1, Math.ceil((Math.max(w.a[0], w.b[0]) + r - x0) / G) + 1);
+    const j0 = Math.max(0, Math.floor((Math.min(w.a[1], w.b[1]) - r - z0) / G) - 1), j1 = Math.min(nz - 1, Math.ceil((Math.max(w.a[1], w.b[1]) + r - z0) / G) + 1);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (inside[j * nx + i] === 1 && segDist(cx(i), cz(j)) < r) inside[j * nx + i] = 2;
+  }
+  for (let k = 0; k < nx * nz; k++) if (inside[k] === 1) g[k] = FREE;
   // door swings and openings that touch this room
   const windows = [];
   for (const w of level.walls) for (const o of w.openings || []) {
@@ -83,6 +111,22 @@ function boxMark(R, b, val) {
   }
 }
 const ONLY_FREE = new Set([FREE]), CLEAR_OK = new Set([FREE, SOFT, KEEP]);
+// summed-area table of non-FREE cells: free(x0, x1, z0, z1) answers boxOK(R, box, ONLY_FREE) (same cell rounding and
+// bounds) in constant time. Valid until the grid changes.
+function busyTable(R) {
+  const W = R.nx + 1, S = new Int32Array(W * (R.nz + 1));
+  for (let j = 0; j < R.nz; j++) {
+    let row = 0;
+    for (let i = 0; i < R.nx; i++) { row += R.g[j * R.nx + i] !== FREE ? 1 : 0; S[(j + 1) * W + i + 1] = S[j * W + i + 1] + row; }
+  }
+  return {
+    free(x0, x1, z0, z1) {
+      const c = boxCells(R, { x0, x1, z0, z1 });
+      if (c.i0 < 0 || c.j0 < 0 || c.i1 >= R.nx || c.j1 >= R.nz || c.i1 < c.i0 || c.j1 < c.j0) return false;
+      return S[(c.j1 + 1) * W + c.i1 + 1] - S[c.j0 * W + c.i1 + 1] - S[(c.j1 + 1) * W + c.i0] + S[c.j0 * W + c.i0] === 0;
+    },
+  };
+}
 
 // --------------------------------------------------------------------------- wall-backed slots
 // Every straight run of free cells along a wall face, in four directions. n = direction into the room.
@@ -284,15 +328,17 @@ function furnishDining(R, out) {
   // table in the most open spot, long side along the room's long axis, chairs either side
   const area = polygonArea(R.P); if (area < 4) return;
   let best = null;
+  // boxOK(zone, ONLY_FREE) for every candidate in O(1): a summed-area table of the cells that are not FREE
+  const busy = busyTable(R);
   for (let j = 0; j < R.nz; j += 4) for (let i = 0; i < R.nx; i += 4) { // every 20 cm
     const x = R.x0 + (i + 0.5) * G, z = R.z0 + (j + 0.5) * G;
     for (const rot of [0, 90]) {
       const w = rot ? 0.9 : 1.6, d = rot ? 1.6 : 0.9, pad = 0.75;
-      const box = { x0: snap(x - w / 2), x1: snap(x + w / 2), z0: snap(z - d / 2), z1: snap(z + d / 2) };
-      const zone = { x0: box.x0 - (rot ? pad : 0.1), x1: box.x1 + (rot ? pad : 0.1), z0: box.z0 - (rot ? 0.1 : pad), z1: box.z1 + (rot ? 0.1 : pad) };
-      if (!boxOK(R, zone, ONLY_FREE)) continue;
+      const bx0 = snap(x - w / 2), bx1 = snap(x + w / 2), bz0 = snap(z - d / 2), bz1 = snap(z + d / 2);
+      const zx0 = bx0 - (rot ? pad : 0.1), zx1 = bx1 + (rot ? pad : 0.1), zz0 = bz0 - (rot ? 0.1 : pad), zz1 = bz1 + (rot ? 0.1 : pad);
+      if (!busy.free(zx0, zx1, zz0, zz1)) continue;
       const cxr = (R.x0 + R.nx * G / 2), czr = (R.z0 + R.nz * G / 2), score = -Math.hypot(x - cxr, z - czr);
-      if (!best || score > best.score) best = { x: (box.x0 + box.x1) / 2, z: (box.z0 + box.z1) / 2, rot, zone, score };
+      if (!best || score > best.score) best = { x: (bx0 + bx1) / 2, z: (bz0 + bz1) / 2, rot, zone: { x0: zx0, x1: zx1, z0: zz0, z1: zz1 }, score };
     }
   }
   if (!best) return;
@@ -339,6 +385,7 @@ export function autoFurnish(level, { replace = false, stairs = [], skipDrawn = f
     if (type === 'none') continue;
     if (level.furniture.some(f => f.drawn && pointInPolygon([f.x, f.z], room.polygon))) continue;
     if (!replace && level.furniture.some(f => !f.dress && pointInPolygon([f.x, f.z], room.polygon))) continue;
+    if (gridCells(room) > MAX_GRID_CELLS) continue;
     const R = roomGrid(level, room);
     for (const f of level.furniture) boxMark(R, rotBox(f), HARD);
     // stair flights (going up from here or arriving from below) plus a landing in front stay clear

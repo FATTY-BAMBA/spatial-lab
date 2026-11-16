@@ -153,7 +153,7 @@ dialog#firm::backdrop { background: rgba(8,6,4,.66); }
         <span class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e3c690" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span>
         <h2 id="u-h"></h2>
         <p id="u-p"></p>
-        <span class="fmt"><span>格局圖 JPG / PNG</span><span>PDF</span><span>DXF</span><span id="u-multi"></span></span>
+        <span class="fmt"><span id="u-img">格局圖 JPG / PNG</span><span>PDF</span><span>DXF</span><span>DWG</span><span id="u-multi"></span></span>
         <span class="row"><span class="btn go" id="u-b"></span><span class="alt" id="u-drag"></span></span>
       </label>
       <ol class="steps">
@@ -193,7 +193,7 @@ const $ = s => document.querySelector(s);
 const toast = m => { const e = $('#toast'); e.textContent = m; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (e.hidden = true), 2600); };
 document.title = t('我的專案 · Spatial Lab', 'My projects · Spatial Lab');
 $('#g-h').textContent = t('登入，開始用你的平面圖', 'Sign in to use your own plans');
-$('#g-p').textContent = t('上傳格局圖、DXF 或 PDF，幾秒內長成可走進去的 3D 空間：自動辨識房間、擺好家具、即時報價。專案會存在你的帳號，隨時回來修改或分享給客戶。', 'Upload a plan picture, DXF or PDF and walk it in 3D within seconds: rooms named, furniture placed, quote updated. Projects are saved to your account to revise or share with clients.');
+$('#g-p').textContent = t('上傳格局圖、PDF、DXF 或 DWG，幾秒內長成可走進去的 3D 空間：自動辨識房間、擺好家具、即時報價。專案會存在你的帳號，隨時回來修改或分享給客戶。', 'Upload a plan picture, PDF, DXF or DWG and walk it in 3D within seconds: rooms named, furniture placed, quote updated. Projects are saved to your account to revise or share with clients.');
 $('#in-t').textContent = t('使用 Google 登入', 'Sign in with Google');
 $('#g-s').textContent = t('想先看我們示範？回到首頁「預約示範」。', 'Prefer a walkthrough first? Use “Book a demo” on the home page.');
 $('#l-p').textContent = t('每個專案都會自動儲存。開啟分享後，客戶用連結就能看 3D、換風格、看報價（不能修改）。', 'Projects save automatically. Turn on sharing and clients can walk the 3D, switch styles and see the quote from a link (read-only).');
@@ -202,6 +202,7 @@ $('#u-p').textContent = t('591 格局圖、建案 DM、掃描或 CAD 都可以�
 $('#u-multi').textContent = t('多樓層', 'Multi-floor');
 $('#u-b').textContent = t('選擇檔案', 'Choose a file');
 $('#u-drag').textContent = t('或把檔案拖進來', 'or drop it here');
+$('#u-img').textContent = t('格局圖 JPG / PNG', 'Plan image JPG / PNG');
 // picked or dropped plan → editor imports it right away (handed over through IndexedDB)
 async function startWith(file) {
   if (!file) return;

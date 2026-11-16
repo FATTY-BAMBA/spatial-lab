@@ -2,6 +2,7 @@
 //   picture: extractPlanLines → wallsFromImage (floors) → detectRooms → tidyExteriorOpenings
 //            → [AI step replayed from a recording: room names + drawn furniture] → autoFurnish → dress
 //   DXF:     parseDXF → wall layer → detectWalls/closeCorners → detectRooms → autoFurnish
+//   DWG:     convertDWG (acad-ts, the editor's Worker code) → DXF text → the DXF path above
 // Returns the plan document and metrics used by the regression gate.
 import './node-env.mjs';
 import { readFileSync, existsSync } from 'node:fs';
@@ -19,6 +20,7 @@ const D = await import(join(REPO, 'src/editor/drawn.js'));
 const O = await import(join(REPO, 'src/editor/openings.js'));
 const X = await import(join(REPO, 'src/editor/dxf.js'));
 const IS = await import(join(REPO, 'src/editor/issues.js'));
+const DW = await import(join(REPO, 'src/editor/dwg.js'));
 
 function decode(path) {
   const buf = readFileSync(path);
@@ -28,12 +30,13 @@ function decode(path) {
 
 export async function runFixture(fx, { ai = true } = {}) {
   const t0 = performance.now();
-  const doc = fx.kind === 'dxf' ? fromDXF(fx.path) : fromImage(fx.path);
+  let conv = null;
+  const doc = fx.kind === 'dxf' ? fromDXF(readFileSync(fx.path)) : fx.kind === 'dwg' ? fromDXF((conv = await fromDWG(fx.path)).dxf) : fromImage(fx.path);
   const tGeo = performance.now() - t0;
   let aiInfo = null;
-  if (fx.kind !== 'dxf' && ai && existsSync(recordingPath(fx.id))) aiInfo = replayAI(doc, JSON.parse(readFileSync(recordingPath(fx.id), 'utf8')));
+  if (fx.kind === 'image' && ai && existsSync(recordingPath(fx.id))) aiInfo = replayAI(doc, JSON.parse(readFileSync(recordingPath(fx.id), 'utf8')));
   for (const L of doc.levels) F.autoFurnish(L, { replace: false, stairs: doc.stairs, skipDrawn: true });
-  return { doc, metrics: metricsOf(doc, { ms: Math.round(performance.now() - t0), msGeometry: Math.round(tGeo), ai: aiInfo }) };
+  return { doc, metrics: metricsOf(doc, { ms: Math.round(performance.now() - t0), msGeometry: Math.round(tGeo), ai: aiInfo, ...(conv ? { msConvert: conv.ms.read + conv.ms.write, dwgVersion: conv.version } : {}) }) };
 }
 
 function fromImage(path) {
@@ -50,8 +53,15 @@ function fromImage(path) {
   return doc;
 }
 
-function fromDXF(path) {
-  const d = X.parseDXF(X.decodeDXF(readFileSync(path)));
+// DWG → DXF text with the same pure converter the editor's Worker runs
+async function fromDWG(path) {
+  const b = readFileSync(path);
+  return DW.convertDWG(await DW.loadAcad(), b.buffer.slice(b.byteOffset, b.byteOffset + b.length));
+}
+
+// src: DXF bytes (decoded like the editor: code page / UTF-8 / Big5) or DXF text (from the DWG converter)
+function fromDXF(src) {
+  const d = X.parseDXF(typeof src === 'string' ? src : X.decodeDXF(src));
   const walls = X.wallsFromDXF(d, X.defaultWallLayers(d)); // the editor's default layer choice
   const L = { id: '1F', name: '1F', elevation: 0, height: 3, walls: walls.map((w, i) => ({ id: `d${i}`, openings: [], ...w })), rooms: [], furniture: [], voids: [] };
   G.detectRooms(L);
@@ -67,7 +77,11 @@ function replayAI(doc, rec) {
   let items = a.items || [];
   if (b) items = D.mergeItems(items, b.items || []);
   if (focus) { const same = (p, q) => p.kind === q.kind && Math.abs((p.box[0] + p.box[2]) - (q.box[0] + q.box[2])) < 30 && Math.abs((p.box[1] + p.box[3]) - (q.box[1] + q.box[3])) < 30; items = items.concat((focus.items || []).filter(it => (!focus.focus || focus.focus.includes(it.n)) && !items.some(x => same(x, it)))); }
-  for (const x of a.rooms || []) { const m = marks[x.n - 1]; if (m) Object.assign(m.r, { name: x.name, nameEn: x.nameEn, hasStairs: !!x.stairs, ...(x.floor && !m.r.wet ? { floor: x.floor === 'tile' ? 'stone' : x.floor } : {}) }); }
+  for (const x of a.rooms || []) {
+    const m = marks[x.n - 1]; if (!m) continue;
+    Object.assign(m.r, { name: x.name, nameEn: x.nameEn, hasStairs: !!x.stairs }, G.roomFlagsFromName(x.name, m.r.finish)); // as the editor's aiNameRooms
+    if (x.floor && !m.r.wet && !m.r.outdoor) m.r.floor = x.floor === 'tile' ? 'stone' : x.floor;
+  }
   const toPlan = (p, sh) => [(p[0] / S + sh[0]) * mpp, (p[1] / S + sh[1]) * mpp];
   const byL = new Map();
   for (const it of items) {

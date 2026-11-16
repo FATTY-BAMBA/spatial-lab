@@ -57,7 +57,7 @@ Draw your own plan and open it in 3D:
 - Rooms are **detected automatically** from closed walls, with m² / 坪; exterior walls are found and thickened automatically.
 - **家具 F**: furniture catalogue (sofa, beds, dining set, kitchen run, bath fixtures…), R to rotate.
 - **樓梯 T**: drag the stair footprint; the floor above is created with the exterior walls copied and the stairwell cut out.
-- **Trace a real plan**: *匯入平面圖照片* (photo/scan) → *比例* tool: click two points of a known dimension and type it. *匯入 DXF*: plan drawn as underlay with endpoint snapping; **自動辨識牆體** pairs parallel wall lines into walls, finds door/window/slider gaps (glazing lines → window), closes corners, and names rooms from the drawing's text. Try *開啟範例 → DXF 範例* (`samples/sample-2br-apartment.dxf`).
+- **Trace a real plan**: *匯入平面圖照片* (photo/scan) → *比例* tool: click two points of a known dimension and type it. *匯入 DXF*: plan drawn as underlay with endpoint snapping; **自動辨識牆體** pairs parallel wall lines into walls, finds door/window/slider gaps (glazing lines → window), closes corners, and names rooms from the drawing's text. Try *開啟範例 → DXF 範例* (`samples/sample-2br-apartment.dxf`). *DWG* (AutoCAD R12–2018 formats, i.e. files saved by AutoCAD 2018–2025 too): converted to DXF in the browser (acad-ts in a Web Worker; the file is not uploaded anywhere), then the same DXF import. A DXF or DWG dropped into an empty project (editor or 我的專案) now goes straight to walls, rooms and furniture with the progress screen (DWG adds a 轉檔 step); into a plan that already has walls it only becomes the underlay. Limit 50 MB.
 - Undo/redo, autosave in the browser, JSON download/open, **在 3D 中查看** builds spots, a door-aware camera tour and quantities automatically (`?p=custom`).
 
 ## Demo projects

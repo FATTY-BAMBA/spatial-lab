@@ -16,7 +16,8 @@ function detect() {
 export const lang = detect();
 export const isEn = lang === 'en';
 try { localStorage.setItem(KEY, lang); } catch { /* storage off */ }
-document.documentElement.lang = isEn ? 'en' : 'zh-Hant-TW';
+// (workers import the geometry modules, which import this file, and have no document)
+if (typeof document !== 'undefined') document.documentElement.lang = isEn ? 'en' : 'zh-Hant-TW';
 
 /** Contact page for demo requests, in the current language. */
 export const bookUrl = () => `https://primestrideai.com/${isEn ? 'en' : 'zh'}/contact?p=spatial-lab`;
