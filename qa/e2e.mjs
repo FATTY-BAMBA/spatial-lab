@@ -5,6 +5,8 @@
 //   4. a client share link: read-only (no edit, no sign-in, no product pitch)
 //   5. DWG (T-001): a .dwg dropped on 我的專案 → 轉檔 step → walls and rooms; the file never leaves the page; the UI keeps
 //      painting while it converts; a damaged .dwg shows the zh error; the converter is not loaded for a picture
+//   7. no CAD Worker (404, old browsers): a valid DWG and DXF still import on the page; a Worker that dies mid-import
+//      shows the clear error at once instead of waiting for the timeout
 //   6. big drawings (40k-line DWG, 72×80 m mall DXF): the whole import keeps every frame under 250 ms and ends in 20 s
 // Writes screenshots to qa/reports/e2e-*.png. Exit 1 on any failure.
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -156,6 +158,33 @@ for (const big of loadFixtures().filter(f => ['dwg-perf-40k', 'dxf-d10-mall-gf']
   if (!(st.walls > 0)) throw new Error('no walls');
   if (st.maxGap > 250) throw new Error(`frame gap ${st.maxGap} ms`);
   if (secs > 20) throw new Error(`took ${secs.toFixed(1)} s`);
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+const dxfFx = loadFixtures().find(f => f.id === 'dxf-sample-2br' && f.present);
+for (const cad of [dwgFx, dxfFx].filter(Boolean)) await step(`cad-worker.js missing (404): ${cad.id} still imports on the page`, async () => {
+  const { p, ctx } = await page();
+  await p.route('**/src/editor/cad-worker.js', r => r.fulfill({ status: 404, body: 'not found' }));
+  await p.goto(`${srv.url}/editor?new=1`); await p.waitForTimeout(800);
+  await p.setInputFiles('#file-dxf', cad.path);
+  await p.waitForSelector('#flow.done', { timeout: 60000 });
+  const st = await p.evaluate(() => ({ h: document.querySelector('#flow-h').textContent, sum: document.querySelector('#flow .sum').textContent, walls: window.__editor.doc.levels[0].walls.length, rooms: window.__editor.doc.levels[0].rooms.length }));
+  if (!(st.walls > 0 && st.rooms > 0)) throw new Error(`${st.h}: ${st.sum.slice(0, 80)} (walls ${st.walls}, rooms ${st.rooms})`);
+  results.push(`    fallback: ${st.walls} walls, ${st.rooms} rooms`);
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+if (dwgFx) await step('CAD Worker dies after its first progress message → clear zh error within seconds', async () => {
+  const { p, ctx } = await page();
+  await p.route('**/src/editor/cad-worker.js', r => r.fulfill({ contentType: 'text/javascript', body: `self.onmessage = () => { self.postMessage({ stage: 'convert', info: { version: 'AC1032', year: '2018', ms: { total: 5, read: 4, write: 1 } } }); setTimeout(() => { throw new Error('simulated out of memory'); }, 100); };` }));
+  await p.goto(`${srv.url}/editor?new=1`); await p.waitForTimeout(800);
+  const t0 = Date.now();
+  await p.setInputFiles('#file-dxf', dwgFx.path);
+  await p.waitForSelector('#flow.done', { timeout: 20000 });
+  const st = await p.evaluate(() => ({ sum: document.querySelector('#flow .sum').textContent, conv: document.querySelector('#flow li[data-k="convert"]').className }));
+  if (!/中斷/.test(st.sum)) throw new Error(`message: ${st.sum}`);
+  if (st.conv !== 'done') throw new Error(`轉檔 step ${st.conv}`);
+  results.push(`    ${((Date.now() - t0) / 1000).toFixed(1)} s · ${st.sum.slice(0, 60)}`);
   if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
 });
 
