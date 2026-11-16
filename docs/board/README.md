@@ -10,7 +10,7 @@ One file per task: `T-xxx-name.md`, with front matter `status` (todo · research
 | [T-002 Firm profile + branded proposal](T-002-branded-proposal.md) | P0 | todo | product-engineer |
 | [T-003 Price list + Excel quote](T-003-price-list-excel.md) | P0 | todo | product-engineer |
 | [T-004 Record AI for all image fixtures](T-004-record-fixtures.md) | P0 | blocked: fixtures repo | qa-engineer |
-| [T-005 Room/balcony split behind sliders](T-005-balcony-split.md) | P1 | todo | import-engineer |
+| [T-005 Room/balcony split behind sliders](T-005-balcony-split.md) | P1 | done | import-engineer |
 | [T-006 Hand-drawn watercolor plans](T-006-watercolor-plans.md) | P1 | todo | import-engineer |
 | [T-007 Client demo kit](T-007-demo-kit.md) | P0 | todo | product-engineer |
 | [T-008 Pricing plans + payments](T-008-payments.md) | P2 | research | researcher → product-engineer |
