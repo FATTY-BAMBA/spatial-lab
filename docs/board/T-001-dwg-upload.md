@@ -1,7 +1,7 @@
 ---
-status: research
+status: todo
 priority: P0
-owner: researcher → import-engineer
+owner: import-engineer
 depends: []
 ---
 # T-001 DWG upload
@@ -16,6 +16,8 @@ functions — e.g. LibreDWG compiled to WebAssembly in the browser (licence: GPL
 ODA File Converter on a small container, Autodesk Platform Services, commercial conversion APIs (CloudConvert, ConvertAPI…).
 For each: fidelity on AutoCAD 2013–2025 files, Big5/CJK text, speed, cost per file, privacy (client drawings leave the
 browser?), what the owner must sign up for.
+
+Research: docs/research/T-001-dwg.md — recommendation: convert in the browser with acad-ts 3.7.0 (MIT, vendored, 254 KB gzip, Web Worker): NT$0 per file, the drawing never leaves the browser, and no accounts are needed. Tested it on R2000–R2018 DWGs, where it matched AutoCAD's DXF. Fallback if real fixtures fail: LibreDWG wasm in a Vercel function (also free). Owner: add ≥2 DWG+DXF fixture pairs to the private fixtures repo.
 
 **Acceptance criteria**
 - `.dwg` accepted in the editor import and the projects drop zone; progress screen shows a 轉檔 step.
