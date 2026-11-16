@@ -1,5 +1,5 @@
 ---
-status: review
+status: building
 priority: P1
 owner: import-engineer
 depends: []
@@ -46,3 +46,32 @@ Import time (median of 3, same machine): sanrui-e 805 → 730 ms, sanrui-d 663 �
 dxf-d12 1066 → 1010 ms (no change, within noise). Unit 19/19, regress OK, e2e all passed.
 
 For the validator: baseline not updated. The sanrui-e gain (rooms 3 → 4, furnishedRooms 3 → 4) is ready to lock in.
+
+## Validation (validator, 2026-11-16) — verdict: **ship after fixes**
+
+**Evidence.** `npm --prefix qa run all` green on 4e91fa9: unit 19/19, regress 33/33 no regressions (▲ sanrui-e rooms
+3 → 4, furnishedRooms 3 → 4; sanrui-d roomArea 96.4 → 95.3), e2e 4/4. Room-by-room diff main vs branch on identical
+walls: only sanrui-e and sanrui-d change; the other 31 (all 23 DXF incl. door-gap and open-room ones d10/d12/d15, the
+2- and 3-floor 透天 A8/A3) are identical; room ids/names stable across a re-detect. Shapes match the drawings: sanrui-e
+bedroom ends on the window line, the balcony runs along the south facade under bedroom + living (as drawn);
+sanrui-d bedroom 3 ends on the east exterior wall. Quote: interior flooring 27.6 → 23.7 坪 (balcony no longer priced
+as oak). Reverting geometry.js fails tests 1–2; dropping the "beyond is walled" guard fails test 3. detectRooms
+median (same machine, interleaved): sanrui-e 1.3 → 3.1 ms, sanrui-d 1.7 → 4.2, A8 3.7 → 6.5, dxf-d10 7.0 → 9.7,
+dxf-d12 6.3 → 7.2 ms; others ±0 — fine per commit. No DOM use, no private data in the diff, no Supabase/cost change.
+Journey walked locally (cloud stubbed) zh + en, 1280 px + 390 px, AI down: 4 rooms, 陽台 1 / Balcony 1 outdoor,
+survives a re-commit, 3D opens, no page errors.
+
+**Fix required (blocking).** The cut-off part is born `finish: 'balcony'`, but the AI naming step
+(`src/editor/editor.js`, room loop after "apply names", the line `r.outdoor = /陽台|庭院/.test(name); if (r.outdoor)
+r.finish = 'balcony';`) only ever sets that finish, never clears it. When the AI names the part anything indoor, the
+room ends up `outdoor: false, finish: 'balcony'`: balcony tiles in 3D, the 地坪類型 field shows 陽台（戶外）, and
+`plan.js` quote basis (`finish === 'floor'`) leaves it out of the flooring. Reproduced on sanrui-e with an AI stub that
+names every room 臥室: `次臥 4 | in | balcony`. "AI has the last word on outdoor" is only half true until this is fixed.
+1. When the AI's name is not outdoor and `r.finish === 'balcony'`, set `r.finish = 'floor'`. Put the name → flags rule
+   in a pure helper (e.g. `roomFlagsFromName` in `src/editor/geometry.js`) and use it there (and at the drawn-label
+   rename, `/陽台|露台|balcony/` line, so both agree; add 露台 to the AI regex while there).
+2. Unit test: a cut balcony renamed 臥室 → `outdoor` false and `finish` 'floor'; renamed 陽台/露台 → outdoor + balcony.
+
+**Non-blocking notes.** A single balcony is named 陽台 1 (existing numbering rule); fine for now, the AI renames it.
+After the fix, re-request validation; the baseline (sanrui-e 3 → 4 rooms, 3 → 4 furnished; sanrui-d roomArea 95.3)
+is ready to lock in then.
