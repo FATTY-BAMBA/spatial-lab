@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#e9e6df">
+<title>設計提案書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&display=swap">
+<style>
+:root {
+  --desk: #e9e6df; --paper: #ffffff; --ink: #1f1c18; --ink-2: #5a544b; --ink-3: #8b8478; --rule: #e3ded5; --rule-2: #cfc8bc;
+  --brand: #8a6a3f; --on-brand: #fff; --tint: rgba(138,106,63,.08);
+  --display: "Noto Serif TC", "Noto Serif CJK TC", "Songti TC", serif;
+  --body: "Noto Sans TC", "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--desk); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+[hidden] { display: none !important; }
+a { color: inherit; }
+button, select { font: inherit; color: inherit; }
+
+/* toolbar (screen only) */
+.tools { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px max(16px, env(safe-area-inset-left)); background: rgba(233,230,223,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule-2); }
+.tools .who { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; }
+.tools .who img { height: 28px; max-width: 96px; object-fit: contain; }
+.tools .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tools .sp { flex: 1; }
+.tools label { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; }
+.tools select { border: 1px solid var(--rule-2); background: #fff; border-radius: 8px; padding: 6px 8px; font-size: 13.5px; max-width: 46vw; }
+.btn { border: 1px solid var(--rule-2); background: #fff; border-radius: 999px; padding: 7px 14px; text-decoration: none; white-space: nowrap; cursor: pointer; font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--ink-2); }
+.btn.go { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+.lang-switch { display: inline-flex; padding: 2px; border-radius: 999px; border: 1px solid var(--rule-2); background: #fff; }
+.lang-switch a { padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; text-decoration: none; color: var(--ink-2); }
+.lang-switch a[aria-current="true"] { background: var(--ink); color: #fff; }
+.note { max-width: 794px; margin: 14px auto 0; padding: 10px 14px; border-radius: 10px; background: #fff8e8; border: 1px solid #ecd9a8; font-size: 13px; color: #5d4a1d; }
+.note a { font-weight: 700; }
+
+/* the document: A4 sheets on the desk */
+#doc { padding: 20px 16px 48px; }
+.sheet { background: var(--paper); max-width: 794px; margin: 0 auto 20px; padding: 44px 48px; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 30px rgba(40,30,10,.08); position: relative; }
+.state { max-width: 520px; margin: 18vh auto; text-align: center; color: var(--ink-2); }
+.state b { display: block; font-family: var(--display); font-size: 22px; color: var(--ink); margin-bottom: 8px; }
+.state i { display: inline-block; width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid var(--rule-2); border-top-color: var(--ink); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.mast { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid var(--brand); }
+.mast .firm { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mast .firm img { max-height: 46px; max-width: 160px; object-fit: contain; }
+.mast .firm .ini { width: 44px; height: 44px; border-radius: 10px; background: var(--brand); color: var(--on-brand); display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 17px; flex: none; }
+.mast .firm b { font-family: var(--display); font-size: 18px; font-weight: 900; line-height: 1.25; }
+.mast .kind { text-align: right; font-size: 11px; letter-spacing: .14em; color: var(--ink-3); white-space: nowrap; }
+.mast .kind b { display: block; font-family: var(--display); letter-spacing: .06em; font-size: 16px; color: var(--ink); }
+
+.cover .hero { margin: 22px 0 0; aspect-ratio: 16 / 10; background: #f2efe9 center / cover no-repeat; border-radius: 4px; overflow: hidden; position: relative; }
+.cover .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover .hero img.plan { object-fit: contain; background: #f6f5f1; }
+.cover .hero figcaption { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,.88); color: var(--ink-2); font-size: 11px; padding: 3px 8px; border-radius: 4px; }
+.cover h1 { font-family: var(--display); font-weight: 900; font-size: 34px; line-height: 1.2; margin: 26px 0 6px; overflow-wrap: anywhere; }
+.cover .sub { color: var(--ink-2); font-size: 15px; margin: 0; }
+.facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 24px 0 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.facts div { padding: 12px 12px 12px 0; }
+.facts div + div { padding-left: 14px; border-left: 1px solid var(--rule); }
+.facts dt { font-size: 11.5px; color: var(--ink-3); }
+.facts dd { margin: 2px 0 0; font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+.reach { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 22px; font-size: 12.5px; color: var(--ink-2); }
+.reach b { color: var(--ink-3); font-weight: 500; margin-right: 4px; }
+.reach a { text-decoration: none; }
+
+h2 { font-family: var(--display); font-weight: 900; font-size: 20px; margin: 0 0 4px; display: flex; align-items: baseline; gap: 10px; }
+h2 small { font-family: var(--body); font-weight: 500; font-size: 12px; color: var(--ink-3); letter-spacing: .06em; }
+.lede { color: var(--ink-2); font-size: 13px; margin: 0 0 14px; }
+section.part + section.part { margin-top: 32px; }
+.gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gallery figure { margin: 0; break-inside: avoid; }
+.gallery img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; border-radius: 3px; background: #f2efe9; }
+.gallery figcaption { font-size: 12px; color: var(--ink-2); margin-top: 5px; display: flex; justify-content: space-between; gap: 8px; }
+.gallery figcaption span { color: var(--ink-3); }
+.empty { border: 1px dashed var(--rule-2); border-radius: 6px; padding: 18px; color: var(--ink-3); font-size: 13px; text-align: center; }
+.plans { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+.plans.two { grid-template-columns: 1fr 1fr; }
+.plans.three { grid-template-columns: repeat(3, 1fr); }
+.plans figure { margin: 0; break-inside: avoid; }
+.plans img { width: 100%; max-height: 330px; object-fit: contain; display: block; background: #f6f5f1; border-radius: 3px; }
+.plans figcaption { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--ink-3); font-size: 11.5px; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--rule-2); }
+td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr { break-inside: avoid; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.muted, .muted { color: var(--ink-3); }
+tfoot td { font-weight: 700; border-bottom: 0; border-top: 1px solid var(--ink); }
+.swatches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 18px; margin: 0 0 6px; padding: 0; list-style: none; }
+.swatches li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.swatches i { width: 26px; height: 26px; border-radius: 4px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); }
+.swatches span { color: var(--ink-3); font-size: 12px; flex: none; min-width: 3.5em; }
+.swatches b { font-weight: 500; overflow-wrap: anywhere; }
+.totals { margin: 0 0 0 auto; width: min(340px, 100%); font-size: 13.5px; }
+.totals div { display: flex; justify-content: space-between; padding: 5px 0; gap: 12px; }
+.totals dt { color: var(--ink-2); } .totals dd { margin: 0; font-variant-numeric: tabular-nums; }
+.totals .sub { border-top: 1px solid var(--ink); font-weight: 700; }
+.totals .grand { border-top: 2px solid var(--brand); font-weight: 700; font-size: 18px; padding-top: 8px; }
+.totals .grand dt { color: var(--ink); }
+.basis { font-size: 11px; color: var(--ink-3); margin: 12px 0 0; line-height: 1.7; }
+.contact { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; margin-top: 30px; padding-top: 18px; border-top: 2px solid var(--brand); break-inside: avoid; }
+.contact .card b { font-family: var(--display); font-size: 16px; display: block; margin-bottom: 6px; }
+.contact .card p { margin: 2px 0; font-size: 12.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.contact .card p span { color: var(--ink-3); display: inline-block; min-width: 4.5em; }
+.sign { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-content: end; }
+.sign div { border-top: 1px solid var(--ink); padding-top: 4px; font-size: 11.5px; color: var(--ink-3); margin-top: 46px; }
+.link3d { margin-top: 18px; font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+.link3d a { color: var(--brand); font-weight: 700; }
+.powered { text-align: center; font-size: 11px; color: var(--ink-3); margin: 6px auto 0; max-width: 794px; }
+.powered a { text-decoration: none; }
+.sheet > .powered { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; }
+.pageno { display: none; }
+
+@media (max-width: 640px) {
+  #doc { padding: 12px 0 32px; }
+  .sheet { padding: 26px 16px; margin-bottom: 12px; box-shadow: none; }
+  .cover h1 { font-size: 26px; }
+  .facts { grid-template-columns: 1fr 1fr; }
+  .facts div:nth-child(3) { padding-left: 0; border-left: 0; }
+  .facts div:nth-child(n+3) { border-top: 1px solid var(--rule); }
+  .gallery, .plans.two, .swatches, .contact { grid-template-columns: 1fr; }
+  .plans.three { grid-template-columns: 1fr 1fr; }
+  .mast .firm b { font-size: 15px; }
+  .mast .kind b { font-size: 13px; }
+  .tools select { max-width: 52vw; }
+  .tools .who span { max-width: 38vw; }
+  table { font-size: 12.5px; }
+  .q td:nth-child(2), .q th:nth-child(2) { display: none; }
+}
+
+/* print: A4 portrait, the cover alone on page 1 */
+@media print {
+  @page { size: A4 portrait; margin: 12mm 12mm 14mm; }
+  html, body { background: #fff; font-size: 11.5px; }
+  .tools, .note, .noprint { display: none !important; }
+  #doc { padding: 0; }
+  .sheet { box-shadow: none; max-width: none; margin: 0; padding: 0; break-after: page; }
+  .sheet:last-of-type { break-after: auto; }
+  .cover { min-height: 262mm; display: flex; flex-direction: column; }
+  .cover .reach { margin-top: auto; padding-top: 14px; }
+  .cover .hero { aspect-ratio: 16 / 10.5; }
+  .sheet > .powered { position: static; margin-top: 10px; }
+  .gallery { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .gallery figcaption { font-size: 10px; }
+  .plans img { max-height: 290px; }
+  section.part + section.part { margin-top: 22px; }
+  td { padding: 5px 8px 5px 0; }
+  a { text-decoration: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="tools" id="tools" hidden>
+  <span class="who" id="who"></span>
+  <span class="sp"></span>
+  <label><span id="style-l">報價風格</span><select id="style"></select></label>
+  <a class="btn" id="open3d" href="/">3D</a>
+  <button type="button" class="btn go" id="print">列印 / 存成 PDF</button>
+</div>
+<div class="note" id="note" hidden></div>
+<main id="doc" aria-live="polite"><div class="state"><i aria-label="載入中"></i></div></main>
+<script type="module" src="src/proposal-page.js"></script>
+</body>
+</html>

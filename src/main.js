@@ -66,6 +66,26 @@ async function boot() {
     if (cue) cue.textContent = t('往下捲動，看這個家從平面圖長出來', 'Scroll to watch this home rise from the plan');
     const start = document.getElementById('hero-start'); if (start) { start.classList.replace('btn-ghost', 'btn-brass'); }
     if (cloudName) document.title = `${cloudName} · PrimeStride Spatial Lab`;
+    // 提案書: the printable proposal of this project
+    const doc = document.getElementById('doc-link');
+    if (doc) { doc.href = Cloud.proposalUrl(shareTok ? { token: shareTok } : { id: cloudId }); doc.hidden = false; }
+    // the design firm's brand (公司資料): the client link carries it; the owner sees the same from their own profile
+    const brandWith = async firm => {
+      const { normFirm, onColor, initials } = await import('./firm.js');
+      const F = normFirm(firm); if (!F) return;
+      const a = document.querySelector('.bar .brand');
+      if (a) {
+        a.classList.add('firm'); a.setAttribute('aria-label', F.name); a.textContent = '';
+        if (F.logo) { const im = new Image(); im.src = F.logo; im.alt = ''; a.append(im); }
+        else a.append(Object.assign(document.createElement('span'), { className: 'ini', textContent: initials(F.name), style: `background:${F.color};color:${onColor(F.color)}` }));
+        a.append(Object.assign(document.createElement('b'), { textContent: F.name }));
+      }
+      if (sharedView && lede) lede.textContent = t(`${F.name} 為你準備的 3D 提案。往下捲動，看平面圖長成空間；或直接走進去，換風格、看即時報價。`, `A 3D proposal prepared for you by ${F.name}. Scroll to watch the plan become a space, or walk straight in, switch styles and see the live quote.`);
+      const copy = document.querySelector('.hero-copy');
+      if (copy && !copy.querySelector('.powered')) copy.append(Object.assign(document.createElement('p'), { className: 'powered', innerHTML: 'Powered by <a href="https://spatial.primestrideai.com" target="_blank" rel="noopener">PrimeStride Spatial Lab</a>' }));
+      document.title = `${cloudName || t('3D 提案', '3D proposal')} · ${F.name}`;
+    };
+    (sharedView ? Promise.resolve(cloudRow.firm) : Cloud.getFirm()).then(brandWith).catch(e => console.warn('firm', e));
   }
   // account link: 登入 → 我的專案 once signed in (checked lazily so the page never waits on it)
   const acct = document.getElementById('acct-link');

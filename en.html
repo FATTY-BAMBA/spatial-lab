@@ -602,7 +602,15 @@ body.shared-view #acct-link { display: none !important; }
 .pp-bar .pp-book { color: var(--brass-hi); font-weight: 700; text-decoration: none; padding: 11px 6px; white-space: nowrap; align-self: center; }
 .pp-bar .pp-book:hover { color: var(--text); }
 @media (max-width: 860px) { .act-book { display: none; } }
+/* a saved project branded with the design firm (公司資料): their logo and name in the bar, ours only as "Powered by" */
+.brand.firm img { height: 30px; max-width: 132px; object-fit: contain; background: #fff; border-radius: 7px; padding: 3px 6px; flex: none; }
+.brand.firm .ini { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 14px; flex: none; }
+.brand.firm b { overflow: hidden; text-overflow: ellipsis; max-width: 28vw; }
+.powered { margin: 18px 0 0; font-size: 12px; color: var(--text-3); }
+.powered a { color: var(--text-2); text-decoration: none; }
+@media (max-width: 860px) { .brand.firm img { height: 28px; max-width: 96px; } #doc-link { padding: 8px 9px; } }
 </style>
+<script>/* ?share=…&view=proposal → the printable proposal page */ (function () { var q = new URLSearchParams(location.search); if (q.get('view') === 'proposal' && (q.get('share') || q.get('id'))) { q.delete('view'); location.replace('/proposal?' + q.toString()); } })();</script>
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -622,6 +630,7 @@ body.shared-view #acct-link { display: none !important; }
     <button type="button" id="export-open" class="act" title="Export" aria-haspopup="dialog" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 10V2M5 5l3-3 3 3M2.5 9v4.5h11V9"/></svg><span class="lbl">Export</span></button>
     <a id="acct-link" class="act act-acct" href="/projects"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.8-2.8 3-4.2 5.5-4.2s4.7 1.4 5.5 4.2"/></svg><span class="lbl">Sign in</span></a>
     <a class="act act-book" href="https://primestrideai.com/en/contact?p=spatial-lab" target="_blank" rel="noopener" data-book>Book a demo</a>
+    <a id="doc-link" class="act" href="/proposal" title="Proposal PDF" hidden><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13M6.5 8.5h4M6.5 11h4"/></svg><span class="lbl">Proposal PDF</span></a>
     <button type="button" id="proposal-top" class="act primary"><span class="lbl">Proposal</span></button>
   </div>
 </header>
