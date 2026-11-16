@@ -7,6 +7,7 @@ import { t, isEn, unitLabel, localizeData, langSwitch } from './i18n.js';
 import { drawLevel } from './drawing.js';
 import { styleList, pickStyle, proposalData, money } from './proposal-doc.js';
 import { normFirm, onColor, contactLines, initials } from './firm.js';
+import { applyPrices } from './prices.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -39,6 +40,8 @@ async function boot() {
   const own = row.doc.project || {}, typeLabel = (isEn ? own.typeLabelEn : own.typeLabel) || '';
   localizeData(catalog);
   const styles = styleList(plan, catalog);
+  // the firm's own 價目表 (after the catalogue options are in plan.finishes); none → the sample price book
+  if (firm && firm.prices) applyPrices(plan, firm.prices);
   const renders = row.renders || [];
   let styleId = pickStyle(styles, renders, params.get('style'));
   const F = normFirm(firm);
@@ -58,6 +61,21 @@ async function boot() {
   const o3 = $('#open3d'); o3.href = view3d; o3.textContent = t('開啟 3D 導覽', 'Open the 3D');
   $('#print').textContent = t('列印 / 存成 PDF', 'Print / save as PDF');
   $('#print').addEventListener('click', printNow);
+  // 報價單 as Excel: the designer's editable copy (owner preview only, not on the client's link)
+  if (!token) {
+    const xl = Object.assign(document.createElement('button'), { type: 'button', id: 'xlsx', className: 'btn', textContent: t('Excel 報價單', 'Excel quote'), title: t('下載 Excel 報價單（可編輯）', 'Download the quotation as an editable Excel file') });
+    $('#print').before(xl);
+    xl.addEventListener('click', async () => {
+      try {
+        const [{ quoteXlsx }, { XLSX_TYPE }] = await Promise.all([import('./quote-xlsx.js'), import('./xlsx.js')]);
+        const st = styles.find(s => s.id === styleId) || styles[0];
+        const x = quoteXlsx({ plan, chosen: { ...plan.defaultFinishes, ...st.finishes }, firm: F, project: name, client: row.client || '', style: st.name });
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([x.bytes], { type: XLSX_TYPE })), download: x.filename });
+        document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        window.__qaXlsx = x.totals;
+      } catch (e) { console.warn('xlsx', e); alert(t('無法產生 Excel 報價單', 'Could not create the Excel quotation')); }
+    });
+  }
   $('#tools').append(langSwitch());
   $('#tools').hidden = false;
   if (!token) {
@@ -119,13 +137,14 @@ async function boot() {
       <section class="part"><h2>${t('報價摘要', 'Quote summary')}<small>QUOTATION</small></h2>
         <table class="q"><thead><tr><th>${t('項目', 'Item')}</th><th>${t('品項', 'Selection')}</th><th class="num">${t('數量', 'Qty')}</th><th class="num">${t('單價', 'Unit price')}</th><th class="num">${t('複價', 'Amount')}</th></tr></thead>
           <tbody>${Q.finish.filter(l => l.total > 0).map(l => `<tr><td>${esc(l.group)}</td><td>${esc(l.name)}</td><td class="num">${l.qty.toFixed(1)} ${esc(unitLabel(l.unit))}</td><td class="num">${money(l.unitPrice)}</td><td class="num">${money(l.total)}</td></tr>`).join('')}
+          ${Q.works.map(l => `<tr data-works><td>${esc(l.name)}</td><td>${esc(l.spec || '')}</td><td class="num">${l.unit === '式' ? l.qty : l.qty.toFixed(1)} ${esc(unitLabel(l.unit))}</td><td class="num">${money(l.unitPrice)}</td><td class="num">${money(l.total)}</td></tr>`).join('')}
           <tr><td>${t('家具', 'Furniture')}</td><td>${t(`暫估預算（${Q.furniture} 件）`, `Allowance (${Q.furniture} pcs)`)}</td><td class="num">1 ${unitLabel('式')}</td><td class="num"></td><td class="num">${money(Q.allowance)}</td></tr></tbody></table>
         <dl class="totals" data-total="${Q.total}" data-grand="${Q.grand}">
           <div class="sub"><dt>${t('小計（未稅）', 'Subtotal (excl. tax)')}</dt><dd>NT$ ${money(Q.total)}</dd></div>
-          <div><dt>${t(`營業稅 ${Math.round(Q.taxRate * 100)}%`, `Business tax ${Math.round(Q.taxRate * 100)}%`)}</dt><dd>NT$ ${money(Q.tax)}</dd></div>
-          <div class="grand"><dt>${t('合計（含稅）', 'Total (incl. tax)')}</dt><dd>NT$ ${money(Q.grand)}</dd></div>
+          ${Q.taxRate ? `<div><dt>${t(`營業稅 ${Math.round(Q.taxRate * 100)}%`, `Business tax ${Math.round(Q.taxRate * 100)}%`)}</dt><dd>NT$ ${money(Q.tax)}</dd></div>` : `<div><dt>${t('營業稅', 'Business tax')}</dt><dd>${t('不另計', 'not added')}</dd></div>`}
+          <div class="grand"><dt>${Q.taxRate ? t('合計（含稅）', 'Total (incl. tax)') : t('合計', 'Total')}</dt><dd>NT$ ${money(Q.grand)}</dd></div>
         </dl>
-        <p class="basis">${t('本報價為初步估算，實際金額以正式報價單與現場丈量為準。', 'This is a preliminary estimate; the formal quotation and site measurements prevail.')} ${esc(Q.basis.priceBook)} · ${t('價格基準', 'prices as of')} ${esc(Q.basis.priceDate)} · ${esc(Q.basis.labour)} · ${t('已含損耗', 'waste included')}<br>${esc(Q.basis.notes.join(t('；', '; ')))}</p>
+        <p class="basis">${t('本報價為初步估算，實際金額以正式報價單與現場丈量為準。', 'This is a preliminary estimate; the formal quotation and site measurements prevail.')} ${esc(Q.basis.priceBook)}${Q.basis.priceDate ? ` · ${t('價格基準', 'prices as of')} ${esc(Q.basis.priceDate)}` : ''} · ${esc(Q.basis.labour)} · ${t('已含損耗', 'waste included')}<br>${esc(Q.basis.notes.join(t('；', '; ')))}</p>
       </section>
       <div class="contact">${contact}<div class="sign"><div>${t('業主確認', 'Client')}</div><div>${t('設計師', 'Designer')}</div></div></div>
       ${shareLink ? `<p class="link3d">${t('線上 3D 導覽：', 'Walk it in 3D: ')}<a href="${esc(shareLink)}">${esc(shareLink)}</a></p>` : ''}

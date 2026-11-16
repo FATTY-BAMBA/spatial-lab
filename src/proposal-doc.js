@@ -37,8 +37,9 @@ export function roomRows(plan) {
 export function quoteSummary(plan, style) {
   const q = buildQuote(plan, { ...plan.defaultFinishes, ...(style ? style.finishes : {}) });
   const finish = q.lines.filter(l => l.finish).map(l => ({ group: l.group, name: l.name, qty: r1(l.qty), unit: l.unit, unitPrice: l.unitPrice, total: l.total }));
-  const furniture = q.lines.filter(l => !l.finish).reduce((n, l) => n + l.qty, 0);
-  return { finish, furniture, allowance: q.allowance, total: q.total, tax: q.tax, grand: q.grand, taxRate: q.basis.taxRate, basis: q.basis };
+  const works = q.lines.filter(l => l.labour).map(l => ({ group: l.group, name: l.name, spec: l.spec, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, total: l.total }));
+  const furniture = q.lines.filter(l => l.furniture).reduce((n, l) => n + l.qty, 0);
+  return { finish, works, furniture, allowance: q.allowance, total: q.total, tax: q.tax, grand: q.grand, taxRate: q.basis.taxRate, basis: q.basis };
 }
 
 export function finishRows(plan, style) {

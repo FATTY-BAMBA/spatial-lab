@@ -21,6 +21,7 @@ const PROJECTS = { apartment: 'data/apartment.json', townhouse: 'data/house.json
 const $ = s => document.querySelector(s);
 function toast(msg, ms = 5000) { const n = document.createElement('div'); n.className = 'cloud-miss'; n.setAttribute('role', 'status'); n.textContent = msg; document.body.appendChild(n); setTimeout(() => n.remove(), ms); }
 const fmt = n => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function boot() {
@@ -35,7 +36,7 @@ async function boot() {
   document.querySelector('.bar .actions')?.prepend(langSwitch());
   if (isEn) document.title = 'PrimeStride Spatial Lab: from floor plan to a signable proposal';
   const params = new URLSearchParams(location.search);
-  let customPlan = null, sharedView = false, cloudName = '', cloudRow = null, Cloud = null;
+  let customPlan = null, sharedView = false, cloudName = '', cloudRow = null, Cloud = null, firmP = Promise.resolve(null);
   if (params.get('p') === 'custom') { try { customPlan = JSON.parse(localStorage.getItem('spatial.custom') || 'null'); } catch {} }
   // saved projects: ?id= (the owner, signed in) or ?share= (anyone with the link, read-only)
   const cloudId = params.get('id'), shareTok = params.get('share');
@@ -92,7 +93,9 @@ async function boot() {
       if (copy && !copy.querySelector('.powered')) copy.append(Object.assign(document.createElement('p'), { className: 'powered', innerHTML: 'Powered by <a href="https://spatial.primestrideai.com" target="_blank" rel="noopener">PrimeStride Spatial Lab</a>' }));
       document.title = `${cloudName || t('3D 提案', '3D proposal')} · ${F.name}`;
     };
-    (sharedView ? Promise.resolve(cloudRow.firm) : Cloud.getFirm()).then(brandWith).catch(e => console.warn('firm', e));
+    // the firm's profile also carries its 價目表 (prices), used by the quote below
+    firmP = (sharedView ? Promise.resolve(cloudRow.firm || null) : Cloud.getFirm()).catch(e => { console.warn('firm', e); return null; });
+    firmP.then(brandWith).catch(e => console.warn('firm', e));
   }
   // account link: 登入 → 我的專案 once signed in (checked lazily so the page never waits on it)
   const acct = document.getElementById('acct-link');
@@ -191,6 +194,9 @@ async function boot() {
   for (const L of plan.levels) for (const r of L.rooms) roomsById[r.id] = { ...r, level: L.id, levelName: L.name };
 
   // ---------------- finishes + quote ----------------
+  // a saved project is priced from the design firm's own 價目表 when it has one (else the sample price book)
+  const firm = await firmP;
+  if (firm && firm.prices) { try { (await import('./prices.js')).applyPrices(plan, firm.prices); } catch (e) { console.warn('prices', e); } }
   const chosen = { ...plan.defaultFinishes };
   try { Object.assign(chosen, JSON.parse(localStorage.getItem(finKey) || '{}')); } catch {}
   for (const [g, o] of Object.entries(chosen)) world.applyFinish(g, o);
@@ -253,24 +259,40 @@ async function boot() {
       if (l.group !== group) {
         group = l.group;
         const tr = document.createElement('tr'); tr.className = 'grp';
-        tr.innerHTML = `<th colspan="4">${l.finish ? t('材質 Finishes', 'Finishes') : l.group}</th>`;
+        tr.innerHTML = `<th colspan="4">${l.finish ? t('材質 Finishes', 'Finishes') : esc(l.group)}</th>`;
         tb.appendChild(tr);
       }
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${l.finish ? `<b>${l.group}</b> ` : ''}${l.name}</td>
-        <td class="num"${l.waste ? ` title="${t('淨量', 'Net')} ${l.net.toFixed(2)} + ${t('損耗', 'waste')} ${Math.round(l.waste * 100)}%"` : ''}>${l.unit === '件' ? l.qty : l.qty.toFixed(l.unit === 'm' ? 2 : 1)} ${unitLabel(l.unit)}${l.waste ? `<small class="w">${t('含損耗', 'incl. waste')} ${Math.round(l.waste * 100)}%</small>` : ''}${l.status === 'allowance' ? `<small class="w">${t('暫估', 'allowance')}</small>` : ''}</td>
+      tr.innerHTML = `<td>${l.finish ? `<b>${esc(l.group)}</b> ` : ''}${esc(l.name)}${l.spec ? `<small class="w">${esc(l.spec)}</small>` : ''}</td>
+        <td class="num"${l.waste ? ` title="${t('淨量', 'Net')} ${l.net.toFixed(2)} + ${t('損耗', 'waste')} ${Math.round(l.waste * 100)}%"` : ''}>${l.unit === '件' || l.unit === '式' ? l.qty : l.qty.toFixed(l.unit === 'm' ? 2 : 1)} ${unitLabel(l.unit)}${l.waste ? `<small class="w">${t('含損耗', 'incl. waste')} ${Math.round(l.waste * 100)}%</small>` : ''}${l.status === 'allowance' ? `<small class="w">${t('暫估', 'allowance')}</small>` : ''}</td>
         <td class="num">${fmt(l.unitPrice)}</td><td class="num">${fmt(l.total)}</td>`;
       tb.appendChild(tr);
     }
-    for (const [k, v, cls] of [[t('小計（未稅）', 'Subtotal (excl. tax)'), total, ''], [`${t('營業稅', 'Business tax')} ${Math.round(basis.taxRate * 100)}%`, tax, ''], [t('合計（含稅）', 'Total (incl. tax)'), grand, 'sum']]) {
+    const foot = basis.taxRate ? [[t('小計（未稅）', 'Subtotal (excl. tax)'), total, ''], [`${t('營業稅', 'Business tax')} ${Math.round(basis.taxRate * 100)}%`, tax, ''], [t('合計（含稅）', 'Total (incl. tax)'), grand, 'sum']] : [[t('合計（營業稅不另計）', 'Total (business tax not added)'), total, 'sum']];
+    for (const [k, v, cls] of foot) {
       const tr = document.createElement('tr'); tr.className = 'foot ' + cls;
       tr.innerHTML = `<td colspan="3">${k}</td><td class="num">${fmt(v)}</td>`; tb.appendChild(tr);
     }
-    $('#quote-basis').innerHTML = `${t('參考價 · 未稅', 'Reference prices · excl. tax')} · ${basis.labour} · ${t('損耗已計入', 'waste included')} · ${t('價格基準', 'prices as of')} ${basis.priceDate.replace('-', '/')} <button type="button" class="basis-i" aria-expanded="false" title="${t('計價依據', 'Pricing basis')}">ⓘ</button><span class="basis-more" hidden>${basis.priceBook}<br>${basis.notes.join('<br>')}<br>${t('含稅合計', 'Total incl. tax')} NT$ ${fmt(grand)}</span>`;
+    const own = cloudId && !sharedView ? `<br><a href="/projects#prices">${basis.firm ? t('編輯價目表 →', 'Edit the price list →') : t('設定你的價目表 →', 'Set up your price list →')}</a>` : '';
+    $('#quote-basis').innerHTML = `${t('參考價 · 未稅', 'Reference prices · excl. tax')} · ${esc(basis.labour)} · ${t('損耗已計入', 'waste included')}${basis.priceDate ? ` · ${t('價格基準', 'prices as of')} ${esc(basis.priceDate.replace('-', '/'))}` : ''} <button type="button" class="basis-i" aria-expanded="false" title="${t('計價依據', 'Pricing basis')}">ⓘ</button><span class="basis-more" hidden>${esc(basis.priceBook)}<br>${basis.notes.map(esc).join('<br>')}<br>${basis.taxRate ? `${t('含稅合計', 'Total incl. tax')} NT$ ${fmt(grand)}` : t('營業稅不另計', 'Business tax not added')}${own}</span>`;
     $('#quote-basis .basis-i').onclick = e => { const m = $('#quote-basis .basis-more'); m.hidden = !m.hidden; e.currentTarget.setAttribute('aria-expanded', String(!m.hidden)); };
   }
   renderFinishes();
   renderQuote(false);
+  // 報價單 as Excel (the designer's editable copy; not offered on a client's share link)
+  const xl = $('#quote-xlsx');
+  if (xl) {
+    if (sharedView) xl.hidden = true;
+    xl.addEventListener('click', async () => {
+      try {
+        const [{ quoteXlsx }, { XLSX_TYPE }, { normFirm }] = await Promise.all([import('./quote-xlsx.js'), import('./xlsx.js'), import('./firm.js')]);
+        const st = styleId ? styles.find(x => x.id === styleId) : null;
+        const x = quoteXlsx({ plan, chosen, firm: normFirm(firm), project: cloudName || plan.project.name || '', client: (cloudRow && cloudRow.client) || '', style: st ? st.name : t('自訂組合', 'Custom mix') });
+        download(new Blob([x.bytes], { type: XLSX_TYPE }), x.filename);
+        window.__qaXlsx = x.totals;
+      } catch (e) { console.warn('xlsx', e); toast(t('無法產生 Excel 報價單', 'Could not create the Excel quotation')); }
+    });
+  }
   $('#quote-toggle').addEventListener('click', e => {
     const open = $('#quote-lines').hidden;
     $('#quote-lines').hidden = !open;
