@@ -191,3 +191,19 @@ follow-ups.
   failed step no longer leaves a WebGL page running.
 - Gate (idle machine, with N4): unit 55/55 · regress 51, no regressions · e2e 21/21, normal timings (Explore 65 s,
   Excel viewer step 61 s).
+
+## Rebase on main (2026-11-16, product-engineer)
+
+Rebased onto origin/main 642a63a (T-007 merged in 94843d8), on top of the validator's round 2 (2012e1a, B1 928daf8,
+harness 7ef7415). Conflicts: `qa/e2e.mjs` only (step filter + both new step blocks) and the board row (kept main's).
+- One step filter: `QA_ONLY=<regex>` (T-007's `E2E_ONLY` substring filter dropped; its note in T-007-demo-kit.md updated);
+  the validator's `openCtx` close-in-finally kept; T-007's demo steps and T-003's price-list steps both kept.
+- `src/main.js` merged cleanly: T-007's per-project keys (`stateKey`, `finKey`) and T-003's firm prices / Excel button
+  coexist; `src/ai.js` is unchanged from main.
+- `docs/demo.md`: the 「下一版（開發中）」 line is replaced by the real flow — the day before, fill 我的專案 → 價目表 and test
+  the download; at 6:00–7:30 open ⓘ (shows the firm's price-list name) and press 「Excel 報價單」 (designer only, not on
+  the client link); 提案書 mentions the Excel button next to 列印; question 3 and the English summary updated; a
+  fallback if the migration is not live yet. The O1 neutral wording on pricing is unchanged.
+- Gate, run alone on an idle box: unit 55/55 · regress OK, no regressions · e2e 23/23 (T-007 demo journey: 原始提案
+  1,985,327 → 侘寂風 2,761,505; T-003: viewer 未稅 2,113,323 = xlsx, 含稅 2,218,989 = 提案書 = proposal xlsx).
+- Still not merged; migration `20261116150000_spatial_firm_prices.sql` still not applied (needs the owner's approval).
