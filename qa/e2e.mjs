@@ -46,11 +46,15 @@ const browser = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8', 
 const results = []; let failed = 0;
 // QA_ONLY=<regex>: run only the matching steps, e.g. QA_ONLY='demo journey|價目表' (plans the skipped steps would make
 // come from the DXF sample)
+// every context a step opens (page()); closed after the step even when it fails, so a failed step cannot leave a
+// software-WebGL page running that slows every later step
+const openCtx = new Set();
 async function step(name, fn) {
   if (process.env.QA_ONLY && !new RegExp(process.env.QA_ONLY).test(name)) return; // e.g. QA_ONLY='公司資料|價目表' while iterating
   const t0 = Date.now();
   try { await fn(); results.push(`✓ ${name} (${((Date.now() - t0) / 1000).toFixed(1)} s)`); }
   catch (e) { failed++; results.push(`✗ ${name}: ${String(e.message || e).split('\n')[0]}`); }
+  finally { for (const c of openCtx) await c.close().catch(() => {}); openCtx.clear(); }
 }
 // The cloud stub keeps its state in localStorage so a test can hand it to the next page: qa-doc (plan), qa-firm
 // (公司資料), qa-renders (AI renders), qa-projects (我的專案 list).
@@ -79,6 +83,7 @@ const cloudStub = (doc = null, share = false) => `
   export const savePrices = async pr => { const f = ls('qa-firm', null) || { name: '' }; f.prices = pr; localStorage.setItem('qa-firm', JSON.stringify(f)); return pr; };`;
 async function page({ doc = false, share = false, viewport = { width: 1280, height: 800 }, store = {} } = {}) {
   const ctx = await browser.newContext({ viewport });
+  openCtx.add(ctx);
   if (Object.keys(store).length) await ctx.addInitScript(st => { for (const [k, v] of Object.entries(st)) localStorage.setItem(k, v); }, store);
   const p = await ctx.newPage(); p.errors = [];
   p.on('pageerror', e => p.errors.push(String(e)));
