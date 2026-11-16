@@ -27,6 +27,10 @@
 - [ ] 示範帳號的**公司資料**填好：公司名稱、Logo（PNG 透明底最好）、電話、LINE、Email、地址、統一編號、品牌色。
       最有效的是填**客戶公司**的名稱與 Logo（先徵得對方同意，示範後改回），讓他們看到分享連結和提案書上是自己的品牌；
       沒有同意就用一個中性的示範品牌。
+- [ ] 我的專案 → **價目表**：填價目表名稱與價格基準月份；材質單價（地坪、牆面每坪或每 m²，檯面、櫥櫃每公尺）、
+      損耗、要用的**工程項目**打勾（例如保護工程、垃圾清運）。客戶事先給過價目表就照它輸入幾個主要項目；沒有就保留預設單價。
+      儲存後打開備用專案 3D，按「查看清單」確認單價已換掉，再按一次「Excel 報價單」確認能下載、能用 Excel 打開。
+      （若對話框顯示「價目表即將開放」並且不能儲存，代表資料庫還沒更新：示範時跳過 Excel 那一段，只講報價清單。）
 - [ ] 我的專案清單整理乾淨：只留備用專案與 1 個示範專案，刪掉測試用的。
 - [ ] 在備用專案以外，**不要**按「核准此方案」或切換風格做實驗（瀏覽器會記住每個專案的選擇）。
 
@@ -58,14 +62,15 @@
 | **4:30–6:00** 風格 | 回「探索」，右側「風格」點 **侘寂風**，再點 **奶油風** | 「一鍵換整套材質、布料、燈光，價錢跟著變。」 | 畫面掃過去換風格，總價跳動 |
 | | 對某個風格按 **A/B** | 「客戶猶豫兩個風格時，直接左右對比，差價寫在下面。」 | 分割畫面＋差價 |
 | **6:00–7:30** 報價 | 按「查看清單」 | 「地坪、牆面、檯面都是從圖算出來的，含損耗，未稅、5% 營業稅、含稅分開列。」 | 數量是算出來的，不是估的 |
-| | | 「下一版（開發中）：用你們自己的價目表，直接匯出可以編輯的 Excel 報價單。」 | 這是**即將推出**，不要點任何按鈕 |
+| | 點報價下方的 ⓘ | 「單價用的是貴公司自己的價目表，在『我的專案 → 價目表』設定，材質、工程項目、家具都可以改。」 | ⓘ 裡寫的是**貴公司的價目表名稱**，不是示範價目表 |
+| | 按「Excel 報價單」（報價區中間的按鈕） | 「一鍵下載 Excel 報價單：依工種和房間分組，項目、規格、數量、單位、單價、複價，小計、營業稅、含稅總計都在。數量乘單價都是公式，你在 Excel 改數量，總價會跟著變。」 | 下載的檔案用 Excel 打開：抬頭是貴公司名稱與聯絡方式；這個按鈕只有設計師看得到，業主的分享連結上沒有 |
 | **7:30–10:00** AI 效果圖 | 右上「✦ AI 效果圖」→ **✦ 一鍵產生提案圖** | 「它會自動找客廳、餐廳、主臥最好的角度拍下來，送去出實景圖，大約 30–40 秒。」 | 先看到 3D 畫面，再一張張變成實景 |
 | | 等待時切回 ② 分頁或聊天 | 「牆、門窗、家具位置都鎖住，只換材質和光線，所以不會畫出一個不存在的窗。」 | 幾何是合約，不是 AI 亂畫 |
 | | 圖出來後拖中間的滑桿 | 「左邊即時 3D，右邊效果圖，同一個角度。」 | 前後對比 |
 | **10:00–11:30** 分享 | 切 ① 我的專案 → 專案卡「分享」→「複製」→ 用 LINE 傳到客戶手機 | 「業主拿到的是唯讀連結，可以自己走、自己換風格看價錢，但改不到你的圖。」 | 手機打開是**貴公司的 Logo 和名稱**，下面只有小小的 Powered by |
 | | 請客戶在自己手機上點「開始導覽」 | 「不用裝 App，LINE 點開就能看。」 | 他自己在手機上操作 |
 | **11:30–13:00** 提案書 | 3D 右上「提案書」（文件圖示，不是旁邊的「提案」）或切 ④ 分頁 | 「這是給業主的提案書：效果圖、平面、坪數表、材質、報價、簽名欄。」 | 封面有業主名稱、日期、坪數；報價未稅／含稅 |
-| | 按「列印／存成 PDF」 | 「A4 直式，直接存 PDF 傳給業主或印出來簽。」 | 列印預覽是乾淨的 A4 |
+| | 按「列印／存成 PDF」 | 「A4 直式，直接存 PDF 傳給業主或印出來簽。要改報價就按旁邊的『Excel 報價單』，拿去你們自己的報價流程。」 | 列印預覽是乾淨的 A4；Excel 報價單只在設計師自己的提案書預覽上出現 |
 | **13:00–15:00** 收尾 | 停在提案書 | 「如果貴公司每個月接 N 個案子，每案省下兩三天出 3D 和效果圖的時間。我們想用貴公司接下來 2–3 個真案子試用。」→ 進入「要問客戶的問題」 | 下一步是**具體的試用** |
 
 > 價格與方案：**不要在現場報價格**（定價由 Abdoulie 決定，研究中）。被問到就說：「試用的方式和費用，我整理好再跟您確認。」（試用是否收費等 Abdoulie 決定。）
@@ -96,7 +101,7 @@
 2. 一個案子通常幾層？有沒有透天、夾層？
 
 **報價**
-3. 有沒有自己的**價目表**？是 Excel 嗎？可以給我一份（可遮掉價格）讓我們照格式做？（對應開發中的價目表與 Excel 報價單）
+3. 有沒有自己的**價目表**？是 Excel 嗎？可以給我一份（可遮掉價格）讓我們照格式做？（可以直接輸入到「我的專案 → 價目表」，報價、提案書和 Excel 報價單就用他們的單價）
 4. 報價單是含工帶料還是分開？報價時要不要分「未稅／含稅」？
 
 **提案**
@@ -120,8 +125,9 @@
 A 15-minute founder-led demo for a Taiwan design-firm owner, using the client's own plans:
 upload (picture/PDF/DXF/DWG) → progress screen → 3D walk with m²/坪 → one-click style switch and A/B with live
 quote (未稅 / 5% tax / 含稅) → ✦ one-click AI renders (≈30–40 s) → read-only, firm-branded share link opened on the
-client's own phone via LINE → printable A4 提案書 → close on a 2–3 project pilot. The firm's own price list and Excel
-quote (T-003) are mentioned as "coming", never clicked. Prices are not quoted on site (owner decision).
+client's own phone via LINE → printable A4 提案書 → close on a 2–3 project pilot. The quote uses the firm's own price list
+(我的專案 → 價目表, set the day before; ⓘ under the total names it) and 「Excel 報價單」 downloads an editable 報價單
+with live formulas — designer only, not on the client's share link (T-003; skip it if the price-list migration is not live). Prices are not quoted on site (owner decision).
 
 Preparation is what makes it flawless: get 2–3 of the client's plans days ahead, rehearse them locally with
 `node qa/rehearse.mjs <file>` (AI stubbed, nothing committed), then import 1–2 for real on the live site as a prepared

@@ -44,7 +44,7 @@ share link 1.4–2.0 s, 提案書 0.6–1.0 s. Upload → first renders, with th
   approved").
 - The one failure is the 40k-line DWG frame-gap step (400 ms > 250 ms), which this branch does not touch. It fails only
   while other worktrees' tests share this 2-CPU box (load 2.5–4.8 during the run); run alone
-  (`E2E_ONLY="big drawing"`) it passes: d10 3.2 s, 40k DWG 6.8 s. Validator: rerun the gate on a quiet box / CI.
+  (`QA_ONLY="big drawing"`, was `E2E_ONLY` before the T-003 rebase) it passes: d10 3.2 s, 40k DWG 6.8 s. Validator: rerun the gate on a quiet box / CI.
 
 ## Bugs and rough edges found
 
