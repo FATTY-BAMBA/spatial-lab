@@ -85,3 +85,12 @@ is ready to lock in then.
 - Unit: a cut balcony renamed 臥室 → indoor + `floor`; renamed 陽台/露台/後陽台 → outdoor + `balcony`; tile/floor kept.
 - `npm --prefix qa run all`: unit 22/22, regress 33 ran, no regressions (▲ sanrui-e rooms 3 → 4, furnished 3 → 4;
   591-A3 with recorded AI unchanged), e2e 4/4. Baseline not touched.
+
+## Validation round 2 (validator, 2026-11-16) — verdict: **ship**
+
+f9ccbb3: `roomFlagsFromName` is pure and used by AI naming, the DXF label rename and the QA replay. Gate green: unit
+22/22, regress 33/33 no regressions (metrics differ from the baseline only on sanrui-e rooms 3 → 4, openRooms 2 → 3,
+furnished 3 → 4 and sanrui-d roomArea 96.4 → 95.3), e2e 4/4. Round-1 repro (sanrui-e, AI stub naming every room 臥室):
+the cut part now ends `次臥 4 | indoor | floor` and is in the flooring quote (27.6 坪). AI down, zh + en, 1280 + 390 px:
+陽台 1 / Balcony 1 outdoor, survives a re-commit, flooring 23.7 坪, 3D opens, no page errors. Baseline accepted in
+7408ad0 (metric fields of those two fixtures only; timing fields kept from the old baseline).
