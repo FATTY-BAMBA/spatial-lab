@@ -31,9 +31,9 @@ export function writeReport(path, { summary, results, baseline, docs, fixtures }
     const m = results[fx.id] || {}, b = baseline[fx.id];
     if (m.missing) return `<section class="card miss"><h3>${esc(fx.id)}</h3><p>missing — private fixtures not synced</p></section>`;
     if (m.error) return `<section class="card err"><h3>${esc(fx.id)}</h3><pre>${esc(m.error)}</pre></section>`;
-    const keys = ['floors', 'walls', 'rooms', 'openRooms', 'furnishedRooms', 'furniture', 'drawn', 'decor', 'issues', 'ms'];
+    const keys = ['floors', 'walls', 'rooms', 'openRooms', 'furnishedRooms', 'furniture', 'drawn', 'decor', 'issues', 'ms', ...(m.msConvert != null ? ['msConvert', 'dwgVersion'] : [])];
     const doc = docs[fx.id];
-    return `<section class="card"><h3>${esc(fx.id)} <small>${esc(fx.note || '')}</small></h3>
+    return `<section class="card"><h3>${esc(fx.id)} <small>${esc(fx.note || '')}${m.pair ? ` · ${m.pair.same ? 'matches' : '<b style="color:var(--dn)">differs from</b>'} DXF twin ${esc(m.pair.id)}` : ''}</small></h3>
       <table><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr><tr>${keys.map(k => `<td>${m[k] ?? '–'}${delta(k, m, b)}</td>`).join('')}</tr></table>
       <div class="levels">${doc ? doc.levels.map(L => `<figure><figcaption>${esc(L.id)}</figcaption>${svgLevel(L)}</figure>`).join('') : ''}</div></section>`;
   }).join('\n');

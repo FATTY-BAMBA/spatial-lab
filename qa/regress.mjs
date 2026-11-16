@@ -48,6 +48,16 @@ for (const [id, m] of Object.entries(results)) {
   if (b.ms && m.ms > Math.max(1500, b.ms * 3)) warns.push(`${id}: slower ${b.ms} → ${m.ms} ms`);
 }
 
+// DWG/DXF twins: the same drawing must give the same plan whichever format the designer uploads (T-001: within 10%)
+for (const fx of fixtures) {
+  if (!fx.pair) continue;
+  const m = results[fx.id], t = results[fx.pair];
+  if (!m || !t || m.missing || t.missing || m.error || t.error) continue;
+  const off = ['walls', 'rooms', 'roomArea'].filter(k => Math.abs(m[k] - t[k]) > 0.1 * Math.max(t[k], 1));
+  if (off.length) fails.push(`${fx.id} vs its DXF twin ${fx.pair}: ${off.map(k => `${k} ${t[k]} → ${m[k]}`).join(', ')} (> 10%)`);
+  m.pair = { id: fx.pair, same: !off.length };
+}
+
 mkdirSync(join(QA, 'reports'), { recursive: true });
 const summary = { at: new Date().toISOString(), ran: Object.values(results).filter(r => !r.missing).length, missing: Object.values(results).filter(r => r.missing).length, fails, warns, gains };
 writeFileSync(join(QA, 'reports', 'latest.json'), JSON.stringify({ summary, results }, null, 1));
@@ -58,7 +68,7 @@ console.log(pad('fixture', 22), pad('floors', 7), pad('walls', 6), pad('rooms', 
 for (const [id, m] of Object.entries(results)) {
   if (m.missing) { console.log(pad(id, 22), '— missing (private fixtures not synced)'); continue; }
   if (m.error) { console.log(pad(id, 22), 'ERROR', m.error.slice(0, 90)); continue; }
-  console.log(pad(id, 22), pad(m.floors, 7), pad(m.walls, 6), pad(m.rooms, 6), pad(m.openRooms, 5), pad(m.furnishedRooms, 8), pad(m.drawn, 6), pad(m.issues, 7), m.ms);
+  console.log(pad(id, 22), pad(m.floors, 7), pad(m.walls, 6), pad(m.rooms, 6), pad(m.openRooms, 5), pad(m.furnishedRooms, 8), pad(m.drawn, 6), pad(m.issues, 7), m.ms, m.msConvert != null ? `(DWG ${m.dwgVersion}: convert ${m.msConvert} ms${m.pair ? `, ${m.pair.same ? '=' : '≠'} DXF twin` : ''})` : '');
 }
 console.log(`\nran ${summary.ran}, missing ${summary.missing}`);
 for (const g of gains) console.log('  ▲', g);
