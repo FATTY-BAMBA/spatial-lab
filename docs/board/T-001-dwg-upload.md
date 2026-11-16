@@ -162,3 +162,10 @@ The steps tick in order: 轉檔 2.0 s → 讀取 2.6 s → 牆 4.7 s → 房間 
   - Unit: 40/40 pass.
   - Regress: 51 fixtures, 0 regressions, all baseline metrics unchanged.
   - E2E: 11/11 pass.
+
+### T-001b validation (2026-11-16, validator): **ship**
+- Diff reviewed. The Worker now gets `buf.slice(0)`, so the page keeps the bytes for its fallback. A load error before the first message falls back to the page once; an error or messageerror after that gives `crashed` at once. Not retrying on the page after a crash is the right call: the same drawing would freeze or crash the tab. The cost is a second copy of the file while it imports (≤ 50 MB more).
+- Gate (`QA_FIXTURES=…`): unit 40/40, regress 51 fixtures with 0 regressions, e2e 11/11. Crash card in 0.2 s; perf steps' longest frame 67 ms (d10) and 133 ms (big_40k).
+- My `fallback-t001.mjs` (`cad-worker.js` → 404 or a syntax error): d05 DXF 6 walls / 3 rooms; lib_example_2018 DWG 38 walls / 6 rooms in both cases, same as with the Worker. Round 2 showed a "damaged file" error here.
+- The new unit tests fail on the old code (buffer-intact and no-rerun asserts). No references to the removed code are left outside docs. Baseline unchanged.
+- Remaining (not blocking): a real out-of-memory kill may not fire `error` in every browser; that case still ends at the 180 s timeout.
