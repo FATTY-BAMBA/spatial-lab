@@ -6,7 +6,7 @@ One file per task: `T-xxx-name.md`, with front matter `status` (todo · research
 
 | Task | Priority | Status | Owner |
 |---|---|---|---|
-| [T-001 DWG upload](T-001-dwg-upload.md) | P0 | done (merged e57ddab; live check pending; done (T-001b merged 5b578be, live verified)) | import-engineer |
+| [T-001 DWG upload](T-001-dwg-upload.md) | P0 | done — merged e57ddab + T-001b 5b578be, live verified | import-engineer |
 | [T-002 Firm profile + branded proposal](T-002-branded-proposal.md) | P0 | todo | product-engineer |
 | [T-003 Price list + Excel quote](T-003-price-list-excel.md) | P0 | todo | product-engineer |
 | [T-004 Record AI for all image fixtures](T-004-record-fixtures.md) | P0 | blocked: fixtures repo | qa-engineer |
