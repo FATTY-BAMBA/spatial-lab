@@ -168,3 +168,26 @@ Chinese download names survive (a POSIX locale made Chrome name every download "
   WebGL page running and cascade. The 10 s branding wait is tight under software WebGL.
 - N5 `src/prices-ui.js:35`: `<input type=month>` is a plain text box in desktop Firefox and Safari, and a value that
   isn't YYYY-MM is silently dropped. Add `placeholder="2026-11"` or validate.
+
+## Validation round 2 (validator, 2026-11-16)
+
+**Verdict: ship.** B1 is fixed (928daf8). O1 (opening the xlsx in Excel and Google Sheets) is pending with the owner
+and does not block this verdict; do it before telling designers about the Excel button. N1–N3 and N5 remain optional
+follow-ups.
+
+- Diff b959fc3..928daf8: `money()` in `src/plan.js` (half away from zero, `toFixed(6)` absorbs binary error) is now used
+  for finish lines, works lines and tax in `buildQuote`, and for the cached tax in `src/quote-xlsx.js`. It is exact
+  here: line amounts are whole cents (2-decimal quantity × whole NT$), tax bases are multiples of 0.05, and neither
+  ever sits within 1e-6 of .5 unless it is .5. The unit test and e2e `checkXlsx` use the same rule. No raw
+  `Math.round` on money is left in `src/`.
+- Sweep against exact decimal half-up: 0 mismatches over 1.2 M quantity × price cases at prices
+  150/250/350/450/650/850/1,250/1,650/2,850/4,800/6,000/13 (round 1 had 4,790 mismatches in 380 k), and 0 over 714 k
+  tax cases.
+- Main vs round 1 vs round 2 over 53 plans × 6 styles (318 quotes, 5,202 lines): 0 lines, totals or grand totals
+  changed against round 1. The fixture prices never produce a .5 amount: sample prices are multiples of 100 and works
+  lines are off. Every line and tax equals exact half-up. No line moved against main beyond the stated 0.01-quantity
+  rounding. e2e totals unchanged: 1,985,327; 2,113,323 / 105,666 / 2,218,989.
+- N4 done (separate commit): `qa/e2e.mjs` registers each `page()` context and closes them in `step()`'s `finally`, so a
+  failed step no longer leaves a WebGL page running.
+- Gate (idle machine, with N4): unit 55/55 · regress 51, no regressions · e2e 21/21, normal timings (Explore 65 s,
+  Excel viewer step 61 s).
