@@ -22,7 +22,12 @@ depends: [T-002]
 
 ## Status (2026-11-16, product-engineer) — review
 
-Branch `agent/T-003-price-list-excel`. Gate: see "QA" below.
+Branch `agent/T-003-price-list-excel`. Gate green locally (`QA_FIXTURES` synced): unit 54/54 (7 new in
+`qa/unit/prices.test.mjs`) · regress OK, no regressions · e2e 20/20 (4 new). Numbers from the e2e (DXF/591 sample with
+floor 4,800 → 6,000, one furniture row +1,000, 保護工程 on): viewer 未稅 NT$ 2,113,323 = xlsx subtotal; 稅 105,666;
+含稅 2,218,989 = 提案書 = proposal xlsx; 106 rows. The T-002 proposal figure moved from 1,985,259 to 1,985,327 (+68)
+because of the 0.01 quantity rounding. e2e: `QA_ONLY=<regex>` runs a subset; the browser runs with a UTF-8 locale so
+Chinese download names survive (a POSIX locale made Chrome name every download "download").
 
 **Shipped**
 - 我的專案 → **價目表** (header button, `/projects#prices`): name, 價格基準 month, 營業稅 (外加 5% / 不另計), 計價方式, and
