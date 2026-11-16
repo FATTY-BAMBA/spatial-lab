@@ -209,3 +209,11 @@ the owner still has to review the script, decide O1 and do the NT$4 live render 
   explicit replace, so it's acceptable. 新專案 / upload from 我的專案 start a new doc and a new id.
 - Still open from round 1: N1 (T-003 conflict), N2 (update the script once T-003 is live), N5 (phone failure state),
   N7 (T-013 recordings from the private dir).
+
+## Merged (2026-11-16)
+
+Merged to `main` in 94843d8 after validation round 2 (ship). Live check from a browser: `src/main.js` on
+spatial.primestrideai.com contains the legacy-key cleanup, the editor says 不到 1 秒, `docs/` is not served (404), the demo
+apartment loads with no failed requests and not approved. Status stays `review` until the owner reviews `docs/demo.md`,
+decides O1 (pilot pricing) and runs the NT$4 live render check. Follow-ups N9 (toast when 在 3D 中查看 falls back to the
+local preview), N10 (old `spatial.finishes` on the demo apartment) and N1/N2 (script update after T-003) are open.
