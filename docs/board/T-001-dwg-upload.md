@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 priority: P0
 owner: import-engineer
 depends: []
@@ -144,3 +144,5 @@ The steps tick in order: 轉檔 2.0 s → 讀取 2.6 s → 牆 4.7 s → 房間 
 **Open (owner):**
 - The private fixtures repo doesn't exist yet, so CI shows the 18 `dwg/` fixtures as missing until they're pushed (the files are in the validator's scratch `qa-fixtures/dwg/`).
 - No real client DWG yet. The Chinese DWG has no DXF twin. Big5 in R2004 DWGs is unverified.
+
+**Merged** to main as `e57ddab` (2026-11-16); unit 37/38 on main without fixtures (1 skipped: DWG fixtures not synced). Live check: orchestrator.
