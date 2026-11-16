@@ -211,7 +211,7 @@ async function cloudFlush() {
   for (let i = 0; i < 50 && cloud.busy; i++) await new Promise(r => setTimeout(r, 200));
   return (await cloudSave()) && !!cloud.id;
 }
-function go3D() { if (cloud.id) location.href = `/?id=${encodeURIComponent(cloud.id)}#explore`; else open3D(true); }
+function go3D() { if (cloud.id) location.href = `/?id=${encodeURIComponent(cloud.id)}#explore`; else open3D(true, !!cloud.user); }
 
 // ---------------------------------------------------------------- import progress (picture → 3D)
 // Shown while a plan picture becomes a model: each step ticks off with what it found; at the end a short
@@ -269,7 +269,7 @@ const flow = {
     }
     this.step('save', 'active');
     const saved = await cloudFlush().catch(() => false);
-    this.step('save', saved ? 'done' : 'skip', saved ? t('已儲存', 'saved') : t('未登入：只存在這台電腦', 'not signed in: this browser only'));
+    this.step('save', saved ? 'done' : 'skip', saved ? t('已儲存', 'saved') : cloud.user ? t('未能儲存到帳號：先存在這台電腦', 'not saved to your account: this browser only') : t('未登入：只存在這台電腦', 'not signed in: this browser only'));
     this.finish();
   },
   finish() {
@@ -1281,16 +1281,16 @@ $('#btn-3d').addEventListener('click', () => view3D());
 async function view3D(explore = false) {
   if (!doc.levels[0].rooms.length) { toast(t('還沒有封閉的房間：先畫出外牆和隔間。', 'No closed rooms yet. Draw the exterior walls and partitions first.')); return; }
   if (cloud.user && await cloudFlush().catch(() => false)) { location.href = `/?id=${encodeURIComponent(cloud.id)}${explore ? '#explore' : ''}`; return; }
-  open3D(explore);
+  open3D(explore, !!cloud.user); // signed in but not saved: the preview says what it lacks (no AI renders, 提案書, share)
 }
-async function open3D(explore = false) {
+async function open3D(explore = false, unsaved = false) {
   if (!doc.levels[0].rooms.length) { toast(t('還沒有封閉的房間：先畫出外牆和隔間。', 'No closed rooms yet. Draw the exterior walls and partitions first.')); return; }
   // each plan handed to the preview carries its own id, so its style and 核准 stay apart from other plans' (main.js)
   if (!doc.localId) { doc.localId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; try { localStorage.setItem(STORE, JSON.stringify(doc)); } catch {} }
   const base = await (await fetch('data/apartment.json')).json();
   const full = completePlan(doc, base); full.localId = doc.localId;
   try { localStorage.setItem('spatial.custom', JSON.stringify(full)); } catch { toast(t('瀏覽器儲存空間不足', 'Not enough browser storage')); return; }
-  location.href = `index.html?p=custom${explore ? '#explore' : ''}`;
+  location.href = `index.html?p=custom${unsaved ? '&unsaved=1' : ''}${explore ? '#explore' : ''}`;
 }
 
 // A DXF or DWG file picked or dropped. Into an empty project it goes straight to walls, rooms and furniture with the
@@ -1339,7 +1339,7 @@ async function importCADFile(f) {
   commit('import', { redetect: false });
   flow.step('save', 'active');
   const saved = await cloudFlush().catch(() => false);
-  flow.step('save', saved ? 'done' : 'skip', saved ? t('已儲存', 'saved') : t('未登入：只存在這台電腦', 'not signed in: this browser only'));
+  flow.step('save', saved ? 'done' : 'skip', saved ? t('已儲存', 'saved') : cloud.user ? t('未能儲存到帳號：先存在這台電腦', 'not saved to your account: this browser only') : t('未登入：只存在這台電腦', 'not signed in: this browser only'));
   flow.finish();
 }
 function cadFail(msg) { if (flow.on) flow.fail(msg); toast(msg); }

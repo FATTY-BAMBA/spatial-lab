@@ -370,6 +370,39 @@ body.comparing #panel, body.comparing #spots, body.comparing .tod, body.comparin
 .xp-note { margin: 8px 2px 0; font-size: 12.5px; color: var(--text-3); line-height: 1.65; }
 .xp-note b { color: var(--text-2); font-weight: 500; }
 .xp-status { margin: 6px 2px 0; font-size: 12.5px; color: var(--brass-hi); min-height: 1em; }
+/* 分享 (T-010): link, QR, 複製, LINE, 停止分享 */
+.sh { max-height: calc(100dvh - var(--top) - var(--bar-h) - 12px); overflow-y: auto; }
+#share-open.on { color: var(--brass-hi); }
+.sh-wait, .sh-scan, .sh-off p { margin: 4px 2px 10px; font-size: 13px; color: var(--text-2); }
+.sh-scan { text-align: center; font-size: 12.5px; color: var(--text-3); }
+.sh-qr { width: min(200px, 100%); margin: 0 auto 6px; background: #fff; border-radius: 10px; padding: 6px; }
+.sh-qr svg { display: block; width: 100%; height: auto; }
+.sh-row { display: flex; gap: 6px; }
+.sh-url { flex: 1; min-width: 0; font: inherit; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border: 1px solid var(--hair); border-radius: 8px; padding: 7px 9px; }
+.sh .sh-row button, .sh .sh-btns button, .sh .sh-off button { display: inline-flex; width: auto; margin: 0; padding: 7px 12px; font-weight: 700; font-size: 13px; }
+.sh-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sh-line { display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 12px; background: #06c755; color: #fff; font-weight: 700; font-size: 13px; text-decoration: none; }
+.sh-line:hover { background: #05b34c; }
+.sh .sh-btns .sh-stop { margin-left: auto; background: none; color: var(--text-3); font-weight: 500; }
+/* T-011: the designer's pick on the client's link */
+.sc-pick { font-style: normal; font-size: 11px; font-weight: 700; color: var(--on-brass); background: var(--brass); padding: 1px 6px; border-radius: 5px; }
+.pres-back { display: block; width: 100%; margin: 0 0 8px; border: 1px dashed var(--brass); background: none; color: var(--brass-hi); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.pres-back:hover { background: rgba(201, 162, 106, 0.1); }
+.pres-back[hidden] { display: none; }
+/* phones in a project view: the bar keeps the tabs, 分享 and 提案; the rest is in the ⋯ menu (phoneMenu in main.js) */
+.xp.more { width: 220px; padding: 8px; }
+.more .act { display: flex; width: 100%; padding: 10px 12px; }
+.more .act .lbl { display: inline; }
+.more .lang-switch { margin: 6px 4px 2px; }
+.more .lang-switch a[aria-current="true"] { display: inline; }
+@media (max-width: 480px) {
+  body.project-view:not(.shared-view) .bar .brand { display: none; }
+  body.project-view .bar { gap: 6px; }
+}
+@media (max-width: 400px) {
+  body.project-view .tabs button { padding: 6px 8px; font-size: 13px; }
+  body.project-view .act.primary { padding: 8px 10px; }
+}
 
 /* ---------- film ---------- */
 #film { position: fixed; inset: 0; z-index: 80; background: rgba(10, 8, 6, 0.95); display: grid; place-items: center; padding: calc(var(--top) + 56px) var(--gutter-r) calc(var(--bottom) + 24px) var(--gutter-l); }

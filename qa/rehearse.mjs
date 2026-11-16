@@ -40,7 +40,9 @@ const cloudStub = share => `
   export const saveProject = async ({ doc }) => { localStorage.setItem('qa-doc', JSON.stringify(doc)); return '11111111-2222-3333-4444-555555555555'; };
   export const loadProject = async () => ({ id: 'p', name: '演練專案', client: '王小姐', share_token: null, doc: JSON.parse(localStorage.getItem('qa-doc')), renders });
   export const sharedProject = async () => ({ name: '演練專案', client: '王小姐', updated_at: '2026-11-16T08:00:00Z', doc: JSON.parse(localStorage.getItem('qa-doc')), renders, firm: ls('qa-firm', null) });
-  export const renameProject = async () => {}; export const deleteProject = async () => {}; export const setShare = async () => 'tok';
+  export const renameProject = async () => {}; export const deleteProject = async () => {}; export const setShare = async (id, on) => (on ? 'qa-share-token-0123456789' : null);
+  // T-011: the designer's style goes into the plan, so the client link in step 5 opens on it (as in production)
+  export const savePresented = async (id, pr) => { const d = JSON.parse(localStorage.getItem('qa-doc')); d.presented = pr; localStorage.setItem('qa-doc', JSON.stringify(d)); return pr; };
   export const setClient = async () => {};
   export const putImage = async (p, b) => URL.createObjectURL(b); export const removeImages = async () => {};
   export const getRenders = async () => renders.slice(); export const setRenders = async (id, l) => { renders = l; };

@@ -67,10 +67,16 @@ const cloudStub = (doc = null, share = false) => `
   export const client = async () => ({});
   export const currentUser = async () => ${share ? 'null' : 'U'}; export const accessToken = async () => ${share ? 'null' : "'qa-token'"};
   export const onAuth = async () => {}; export const signIn = async () => {}; export const signOut = async () => {};
-  export const listProjects = async () => ls('qa-projects', []); export const saveProject = async () => '11111111-2222-3333-4444-555555555555';
-  export const loadProject = async () => ({ id: 'p', name: 'QA 專案', client: '王小姐', share_token: null, doc: ${doc ? 'JSON.parse(localStorage.getItem("qa-doc"))' : 'null'}, renders });
+  export const listProjects = async () => ls('qa-projects', []);
+  export const saveProject = async () => { if (localStorage.getItem('qa-savefail')) throw new Error('qa: save failed'); return '11111111-2222-3333-4444-555555555555'; };
+  // per project id: the presented style (T-011) and the share token (T-010), so projects never see each other's
+  const docOf = id => { const d = ${doc ? 'JSON.parse(localStorage.getItem("qa-doc"))' : 'null'}; const pr = ls('qa-presented.' + id, null); if (d && pr) d.presented = pr; return d; };
+  export const loadProject = async id => ({ id, name: 'QA 專案', client: '王小姐', share_token: ls('qa-share.' + id, null), doc: docOf(id), renders });
+  window.__qaPresentedCalls = 0; window.__qaShareCalls = [];
+  export const savePresented = async (id, pr) => { window.__qaPresentedCalls++; if (localStorage.getItem('qa-presentfail')) throw new Error('qa: offline'); localStorage.setItem('qa-presented.' + id, JSON.stringify(pr)); return pr; };
   export const sharedProject = async () => ({ name: 'QA 分享專案', client: '王小姐', updated_at: '2026-11-16T08:00:00Z', doc: JSON.parse(localStorage.getItem('qa-doc')), renders, firm: ls('qa-firm', null) });
-  export const renameProject = async () => {}; export const deleteProject = async () => {}; export const setShare = async () => 'tok';
+  export const renameProject = async () => {}; export const deleteProject = async () => {};
+  export const setShare = async (id, on) => { window.__qaShareCalls.push(on); if (localStorage.getItem('qa-sharefail')) throw new Error('qa: offline'); const tok = on ? 'qa-share-token-0123456789' : null; localStorage.setItem('qa-share.' + id, JSON.stringify(tok)); return tok; };
   export const setClient = async (id, c) => { window.__qaClient = c; };
   export const putImage = async (p, b) => URL.createObjectURL(b); export const removeImages = async () => {};
   export const getRenders = async () => renders.slice(); export const setRenders = async (id, l) => { renders = l; };
@@ -390,6 +396,181 @@ await step('3D opens with site storage blocked', async () => {
 
 // ---------- T-003: 價目表 → quote → Excel 報價單 ----------
 const money = s => +String(s).replace(/[^\d.-]/g, '');
+
+// ---------- T-011: the designer's chosen style is saved with the project ----------
+// owner picks 侘寂風 → saved on the project → the client's link opens in 侘寂風 with the same total → 提案書 quotes it →
+// the client switching style changes nothing saved (and can go back to the designer's pick); a custom mix travels too.
+// Pages open in 平面圖 (#plan): a style switch then applies without the animated 3D wipe, which takes ~40 s per switch in
+// software GL on a busy box (the wipe itself is covered by the demo journey step)
+const readView = p => p.evaluate(() => ({ style: document.querySelector('#style-now').textContent, total: document.querySelector('#quote-total').textContent }));
+const openView = async (p, url) => { await p.goto(url); await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 }); await p.waitForTimeout(300); return readView(p); };
+const pickStyleCard = (p, re) => p.evaluate(src => [...document.querySelectorAll('#styles .style-card')].find(c => new RegExp(src).test(c.querySelector('.sc-name').textContent)).querySelector('.sc-main').click(), re);
+if (docJSON && firmJSON) await step('T-011 style saved with the project: owner 侘寂風 → client link + 提案書 same style and total; client switch saves nothing', async () => {
+  const A = 'aaaaaaaa-2222-3333-4444-555555555555';
+  const { p, ctx } = await page({ doc: true, viewport: { width: 960, height: 600 }, store: { 'qa-doc': docJSON, 'qa-firm': firmJSON } });
+  let st = await openView(p, `${srv.url}/?id=${A}&q=lite#plan`);
+  if (st.style !== '原始提案') throw new Error(`owner opened on ${st.style}`);
+  await pickStyleCard(p, '侘寂');
+  await p.waitForFunction(() => document.querySelector('#style-now').textContent === '侘寂風', null, { timeout: 60000 });
+  await p.waitForFunction(id => { try { return JSON.parse(localStorage.getItem('qa-presented.' + id)).style === 'wabi'; } catch { return false; } }, A, { timeout: 15000 })
+    .catch(async () => { throw new Error(`not saved on the project: ${await p.evaluate(id => localStorage.getItem('qa-presented.' + id), A)}`); });
+  await p.waitForTimeout(600);
+  const owner = await readView(p);
+  const saved = await p.evaluate(id => localStorage.getItem('qa-presented.' + id), A);
+  const docWith = JSON.stringify({ ...JSON.parse(docJSON), presented: JSON.parse(saved) });
+  // the client's phone: opens in the designer's style with the same total
+  const c = await page({ doc: true, share: true, viewport: { width: 360, height: 780 }, store: { 'qa-doc': docWith, 'qa-firm': firmJSON } });
+  st = await openView(c.p, `${srv.url}/?share=${TOKEN}&q=lite#plan`);
+  if (st.style !== '侘寂風' || st.total !== owner.total) throw new Error(`client sees ${JSON.stringify(st)}, designer saw ${JSON.stringify(owner)}`);
+  // the client switches to 原始提案 on the phone: nothing is saved anywhere, and 設計師的提案 brings the pick back
+  await pickStyleCard(c.p, '原始提案');
+  await c.p.waitForFunction(() => document.querySelector('#style-now').textContent === '原始提案', null, { timeout: 60000 });
+  const after = await c.p.evaluate(() => ({ calls: window.__qaPresentedCalls, keys: Object.keys(localStorage).filter(k => k.startsWith('qa-presented')), back: (() => { const b = document.querySelector('#presented-back'); return !!b && !b.hidden && getComputedStyle(b).display !== 'none'; })() }));
+  if (after.calls || after.keys.length) throw new Error(`the client's switch was saved: ${JSON.stringify(after)}`);
+  if (!after.back) throw new Error('no way back to the designer\'s pick');
+  await c.p.evaluate(() => document.querySelector('#presented-back').click());
+  await c.p.waitForFunction(() => document.querySelector('#style-now').textContent === '侘寂風', null, { timeout: 60000 });
+  await c.p.evaluate(() => document.querySelector('#panel-toggle').click()); await c.p.waitForTimeout(500);
+  await c.p.screenshot({ path: join(OUT, 'e2e-11-client-style-phone.png'), timeout: 120000 });
+  // 提案書 from the client link quotes 侘寂風 with the designer's total
+  await c.p.goto(`${srv.url}/proposal?share=${TOKEN}`);
+  await c.p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 30000 });
+  const pp = await c.p.evaluate(() => ({ style: document.querySelector('#style').value, total: +document.querySelector('.totals').dataset.total, facts: document.querySelector('.facts').textContent }));
+  if (pp.style !== 'wabi' || pp.total !== money(owner.total) || !pp.facts.includes('侘寂風')) throw new Error(`提案書 quotes ${JSON.stringify(pp)}, designer saw ${owner.total}`);
+  if (c.p.errors.length) throw new Error(c.p.errors[0]);
+  // a custom mix (one finish changed) is saved too: the client and 提案書 get exactly those finishes and that total
+  await p.evaluate(() => { document.querySelector('.ptabs [data-tab="finishes"]').click(); const f = [...document.querySelectorAll('#finishes fieldset')][0]; [...f.querySelectorAll('input')].find(i => !i.checked).click(); });
+  await p.waitForFunction(() => document.querySelector('#style-now').textContent === '自訂組合', null, { timeout: 30000 });
+  await p.waitForFunction(id => { try { return JSON.parse(localStorage.getItem('qa-presented.' + id)).style === null; } catch { return false; } }, A, { timeout: 15000 });
+  await p.waitForTimeout(600);
+  const mix = await readView(p), mixSaved = await p.evaluate(id => localStorage.getItem('qa-presented.' + id), A);
+  const c2 = await page({ doc: true, share: true, viewport: { width: 960, height: 600 }, store: { 'qa-doc': JSON.stringify({ ...JSON.parse(docJSON), presented: JSON.parse(mixSaved) }), 'qa-firm': firmJSON } });
+  st = await openView(c2.p, `${srv.url}/?share=${TOKEN}&q=lite&lang=en#plan`);
+  if (st.style !== 'Custom mix' || st.total !== mix.total) throw new Error(`custom mix: client sees ${JSON.stringify(st)}, designer saw ${JSON.stringify(mix)}`);
+  await c2.p.goto(`${srv.url}/proposal?share=${TOKEN}`);
+  await c2.p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 30000 });
+  const pm = await c2.p.evaluate(() => ({ total: +document.querySelector('.totals').dataset.total, opt: document.querySelector('#style').selectedOptions[0].textContent }));
+  if (pm.total !== money(mix.total)) throw new Error(`提案書 custom mix ${JSON.stringify(pm)}, designer saw ${mix.total}`);
+  // the same designer on another computer (no local choices) opens the project in the saved mix
+  const o2 = await page({ doc: true, viewport: { width: 960, height: 600 }, store: { 'qa-doc': docJSON, 'qa-firm': firmJSON, [`qa-presented.${A}`]: mixSaved } });
+  st = await openView(o2.p, `${srv.url}/?id=${A}&q=lite#plan`);
+  if (st.style !== '自訂組合' || st.total !== mix.total) throw new Error(`owner elsewhere sees ${JSON.stringify(st)}`);
+  results.push(`    侘寂風 NT$ ${owner.total} = client = 提案書 · custom mix NT$ ${mix.total} = client (en) = 提案書 = owner on another computer`);
+  for (const x of [p, c2.p, o2.p]) if (x.errors.length) throw new Error(x.errors[0]);
+});
+
+// the save fails (offline): the designer is told the client link still shows the previous choice
+if (docJSON) await step('T-011 style save fails → the designer is told; the choice is kept on this computer', async () => {
+  const A = 'aaaaaaaa-2222-3333-4444-555555555555';
+  const { p } = await page({ doc: true, viewport: { width: 360, height: 780 }, store: { 'qa-doc': docJSON, 'qa-presentfail': '1' } });
+  await openView(p, `${srv.url}/?id=${A}&q=lite`);
+  await pickStyleCard(p, '侘寂');
+  await p.waitForFunction(() => [...document.querySelectorAll('.cloud-miss')].some(n => /客戶/.test(n.textContent)), null, { timeout: 20000 });
+  const n = await p.evaluate(() => { const e = [...document.querySelectorAll('.cloud-miss')].find(n => /客戶/.test(n.textContent)), r = e.getBoundingClientRect(); return { text: e.textContent, l: r.left, r: r.right }; });
+  if (n.l < 0 || n.r > 360) throw new Error(`message off screen at 360 px: ${JSON.stringify(n)}`);
+  results.push(`    ${n.text}`);
+  if (p.errors.length) throw new Error(p.errors[0]);
+});
+
+// ---------- T-010: share from the 3D viewer + QR code ----------
+async function qrText(p, sel) {
+  const { PNG } = createRequire(import.meta.url)('pngjs'), jsQR = createRequire(import.meta.url)('jsqr');
+  const png = PNG.sync.read(await p.locator(sel).screenshot());
+  const r = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
+  return r ? r.data : null;
+}
+// the top bar on a phone: every visible item on screen and none overlapping (brand, tabs, actions)
+const barFits = p => p.evaluate(() => {
+  const els = [...document.querySelectorAll('.bar .brand, .bar .tabs, .bar .actions > *')].filter(e => !e.hidden && getComputedStyle(e).display !== 'none');
+  const r = els.map(e => { const q = e.getBoundingClientRect(); return { id: e.id || e.className.split(' ')[0], l: Math.round(q.left), r: Math.round(q.right) }; });
+  const bad = r.filter((x, i) => x.l < 0 || x.r > innerWidth || (i && x.l < r[i - 1].r - 1));
+  return bad.length ? `bar does not fit ${innerWidth} px: ${r.map(x => `${x.id} ${x.l}-${x.r}`).join(', ')}` : '';
+});
+if (docJSON) await step('T-010 share from the 3D: 分享 → link + QR (decoded) + 複製 + LINE + 停止分享; reuses the token; 360 px; English; not on the client link', async () => {
+  const A = 'aaaaaaaa-2222-3333-4444-555555555555', link = `${srv.url}/?share=${TOKEN}`;
+  const { p, ctx } = await page({ doc: true, viewport: { width: 1280, height: 800 }, store: { 'qa-doc': docJSON } });
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: srv.url });
+  await openView(p, `${srv.url}/?id=${A}&q=lite`);
+  if (!(await p.isVisible('#share-open'))) throw new Error('no 分享 button for the owner');
+  await p.evaluate(() => document.querySelector('#share-open').click());
+  await p.waitForSelector('#share:not([hidden]) .sh-qr svg', { timeout: 15000 });
+  const s1 = await p.evaluate(() => ({ url: document.querySelector('#share .sh-url').value, line: document.querySelector('#share .sh-line').href, calls: window.__qaShareCalls.slice(), h: document.querySelector('#share .sh-h').textContent }));
+  if (s1.url !== link) throw new Error(`link ${s1.url}`);
+  if (JSON.stringify(s1.calls) !== '[true]') throw new Error(`setShare calls ${JSON.stringify(s1.calls)}`);
+  if (!s1.line.startsWith('https://line.me/R/share?text=') || !decodeURIComponent(s1.line.split('text=')[1]).includes(link)) throw new Error(`LINE link ${s1.line}`);
+  const q1 = await qrText(p, '#share .sh-qr');
+  if (q1 !== link) throw new Error(`QR decodes to ${q1}`);
+  await p.evaluate(() => document.querySelector('#share .sh-copy').click());
+  await p.waitForFunction(() => /已複製/.test(document.querySelector('#share .sh-status').textContent), null, { timeout: 5000 });
+  const clip = await p.evaluate(() => navigator.clipboard.readText());
+  if (clip !== link) throw new Error(`clipboard ${clip}`);
+  await p.screenshot({ path: join(OUT, 'e2e-12-share-desktop.png') });
+  // 停止分享 → link gone; 重新開啟 makes a new one
+  await p.evaluate(() => document.querySelector('#share .sh-stop').click());
+  await p.waitForFunction(() => document.querySelector('#share .sh-on').hidden && !document.querySelector('#share .sh-off').hidden, null, { timeout: 5000 });
+  const off = await p.evaluate(() => ({ calls: window.__qaShareCalls.slice(), text: document.querySelector('#share .sh-off').textContent }));
+  if (JSON.stringify(off.calls) !== '[true,false]' || !/已停止分享/.test(off.text)) throw new Error(`stop: ${JSON.stringify(off)}`);
+  await p.evaluate(() => document.querySelector('#share .sh-again').click());
+  await p.waitForFunction(() => !document.querySelector('#share .sh-on').hidden, null, { timeout: 5000 });
+  // reopened later: the project already has a token → shown at once, no new token
+  await openView(p, `${srv.url}/?id=${A}&q=lite`);
+  await p.setViewportSize({ width: 360, height: 780 }); await p.waitForTimeout(300);
+  const btn = await p.evaluate(() => { const r = document.querySelector('#share-open').getBoundingClientRect(); return { l: r.left, r: r.right, w: r.width, vis: getComputedStyle(document.querySelector('#share-open')).display !== 'none' }; });
+  if (!btn.vis || btn.l < 0 || btn.r > 360 || btn.w < 32) throw new Error(`分享 button at 360 px: ${JSON.stringify(btn)}`);
+  { const e = await barFits(p); if (e) throw new Error(`owner: ${e}`); }
+  // 提案書, 我的專案 and the language are in the ⋯ menu on a phone
+  await p.evaluate(() => document.querySelector('#more-open').click());
+  const menu = await p.evaluate(() => { const m = document.querySelector('#more'), r = m.getBoundingClientRect(); return { open: !m.hidden, doc: !!m.querySelector('#doc-link[href*="/proposal"]'), acct: !!m.querySelector('#acct-link'), lang: !!m.querySelector('.lang-switch a[lang="en"]'), l: r.left, r: r.right }; });
+  if (!menu.open || !menu.doc || !menu.acct || !menu.lang || menu.l < 0 || menu.r > 360) throw new Error(`⋯ menu at 360 px: ${JSON.stringify(menu)}`);
+  await p.evaluate(() => document.querySelector('#more-open').click());
+  await p.evaluate(() => document.querySelector('#share-open').click());
+  await p.waitForSelector('#share:not([hidden]) .sh-qr svg', { timeout: 15000 });
+  const s2 = await p.evaluate(() => { const r = document.querySelector('#share').getBoundingClientRect(), q = document.querySelector('#share .sh-qr').getBoundingClientRect(); return { calls: window.__qaShareCalls.slice(), l: r.left, r: r.right, b: r.bottom, h: innerHeight, sw: document.documentElement.scrollWidth, qr: q.width }; });
+  if (s2.calls.length) throw new Error(`token not reused: setShare ${JSON.stringify(s2.calls)}`);
+  if (s2.l < 0 || s2.r > 360 || s2.sw > 360 || s2.b > s2.h) throw new Error(`share panel at 360 px: ${JSON.stringify(s2)}`);
+  if (s2.qr < 150) throw new Error(`QR only ${s2.qr} px on a phone`);
+  if ((await qrText(p, '#share .sh-qr')) !== link) throw new Error('phone QR does not decode to the link');
+  await p.screenshot({ path: join(OUT, 'e2e-12-share-phone.png') });
+  // English
+  await openView(p, `${srv.url}/?id=${A}&q=lite&lang=en`);
+  await p.evaluate(() => document.querySelector('#share-open').click());
+  await p.waitForSelector('#share:not([hidden]) .sh-qr svg', { timeout: 15000 });
+  { const e = await barFits(p); if (e) throw new Error(`owner (English): ${e}`); }
+  const en = await p.evaluate(() => ({ h: document.querySelector('#share .sh-h').textContent, copy: document.querySelector('#share .sh-copy').textContent, stop: document.querySelector('#share .sh-stop').textContent, title: document.querySelector('#share-open').title }));
+  if (/[一-鿿]/.test(JSON.stringify(en))) throw new Error(`English share panel: ${JSON.stringify(en)}`);
+  if (p.errors.length) throw new Error(p.errors[0]);
+  // the client's read-only view has no 分享 button
+  const c = await page({ doc: true, share: true, viewport: { width: 360, height: 780 }, store: { 'qa-doc': docJSON } });
+  await openView(c.p, `${link}&q=lite`);
+  if (await c.p.evaluate(() => { const b = document.querySelector('#share-open'); return !!b && !b.hidden && getComputedStyle(b).display !== 'none'; })) throw new Error('分享 button on the client link');
+  { const e = await barFits(c.p); if (e) throw new Error(`client: ${e}`); }
+  if (c.p.errors.length) throw new Error(c.p.errors[0]);
+});
+
+// ---------- T-007 follow-ups ----------
+// N9: signed in, the save fails → 在 3D 中查看 opens the local preview and says so (no AI 效果圖 / 提案書 there)
+if (docJSON) await step('N9 editor 在 3D 中查看 when the save fails → local preview with a message', async () => {
+  const { p } = await page({ doc: true, viewport: { width: 360, height: 780 }, store: { 'qa-doc': docJSON, 'spatial.editor.doc': docJSON, 'qa-savefail': '1' } });
+  await p.goto(`${srv.url}/editor`);
+  await p.waitForFunction(() => window.__editor && window.__editor.doc.levels[0].rooms.length > 0, null, { timeout: 30000 });
+  await p.evaluate(() => document.querySelector('#btn-3d').click());
+  await p.waitForURL(/[?&]p=custom/, { timeout: 30000 });
+  await p.waitForFunction(() => [...document.querySelectorAll('.cloud-miss')].some(n => /尚未儲存到帳號/.test(n.textContent)), null, { timeout: 90000 });
+  const n = await p.evaluate(() => { const e = [...document.querySelectorAll('.cloud-miss')].find(n => /尚未儲存/.test(n.textContent)), r = e.getBoundingClientRect(); return { text: e.textContent, l: r.left, r: r.right, url: location.search }; });
+  if (n.l < 0 || n.r > 360) throw new Error(`message off screen: ${JSON.stringify(n)}`);
+  if (/unsaved/.test(n.url)) throw new Error(`flag left in the address (a reload would repeat it): ${n.url}`);
+  results.push(`    ${n.text}`);
+  if (p.errors.length) throw new Error(p.errors[0]);
+});
+// N10: the old un-keyed spatial.finishes (written by main for every plan) no longer turns the demo apartment into 自訂組合
+await step('N10 demo apartment ignores the old shared spatial.finishes → 原始提案', async () => {
+  const { p } = await page({ viewport: { width: 960, height: 600 }, store: { 'spatial.finishes': JSON.stringify({ floor: 'oak', paint: 'sage' }) } });
+  const st = await openView(p, `${srv.url}/?p=apartment&q=lite`);
+  const left = await p.evaluate(() => localStorage.getItem('spatial.finishes'));
+  if (st.style !== '原始提案') throw new Error(`demo apartment opened as ${st.style}`);
+  if (left != null) throw new Error('old spatial.finishes not removed');
+  if (p.errors.length) throw new Error(p.errors[0]);
+});
 let pricedFirm = null, furnKey = null;
 if (docJSON && firmJSON) await step('價目表: designer changes a finish price, a furniture price and adds a works line (phone)', async () => {
   const { p, ctx } = await page({ viewport: { width: 360, height: 780 }, store: { 'qa-firm': firmJSON } });
