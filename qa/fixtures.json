@@ -501,6 +501,16 @@
     "cjk"
    ],
    "note": "synthetic R2018 DWG: layer A-牆面, text 主臥室 (one line)"
+  },
+  {
+   "id": "dwg-perf-40k",
+   "file": "dwg/big_40k.dwg",
+   "kind": "dwg",
+   "tags": [
+    "dwg",
+    "perf"
+   ],
+   "note": "synthetic R2018 DWG: 40,000 short lines + 2,000 texts on one wall layer (speed; e2e checks the page keeps painting)"
   }
  ]
 }

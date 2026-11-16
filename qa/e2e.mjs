@@ -5,6 +5,7 @@
 //   4. a client share link: read-only (no edit, no sign-in, no product pitch)
 //   5. DWG (T-001): a .dwg dropped on 我的專案 → 轉檔 step → walls and rooms; the file never leaves the page; the UI keeps
 //      painting while it converts; a damaged .dwg shows the zh error; the converter is not loaded for a picture
+//   6. big drawings (40k-line DWG, 72×80 m mall DXF): the whole import keeps every frame under 250 ms and ends in 20 s
 // Writes screenshots to qa/reports/e2e-*.png. Exit 1 on any failure.
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -69,7 +70,7 @@ await step('projects page (signed in): upload panel + empty state', async () => 
 let docJSON = null;
 if (fx) await step(`upload ${fx.id} → progress → summary${rec ? ' (recorded AI)' : ' (no recording: generic AI stub)'}`, async () => {
   const { p, ctx } = await page();
-  const acad = []; p.on('request', r => { if (/acad-ts|dwg-worker/.test(r.url())) acad.push(r.url()); });
+  const acad = []; p.on('request', r => { if (/acad-ts|dwg-worker|cad-worker/.test(r.url())) acad.push(r.url()); });
   await p.goto(`${srv.url}/editor?new=1`); await p.waitForTimeout(800);
   await p.setInputFiles('#file-img', fx.path);
   await p.waitForSelector('#flow.done', { timeout: 120000 });
@@ -137,6 +138,24 @@ if (dwgFx) await step(`DWG ${dwgFx.id} dropped on 我的專案 → 轉檔 → wa
   if (!(st.walls > 0 && st.rooms > 0)) throw new Error(`walls ${st.walls}, rooms ${st.rooms}`);
   if (sent.length) throw new Error(`requests left the page: ${sent.slice(0, 3).join(', ')}`);
   results.push(`    轉檔 ${st.conv} · ${st.walls} walls, ${st.rooms} rooms · longest frame gap after 轉檔 started ${st.maxGap} ms`);
+  if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
+});
+
+// the page must keep painting through the whole import of a big drawing (it all runs in the CAD Worker)
+for (const big of loadFixtures().filter(f => ['dwg-perf-40k', 'dxf-d10-mall-gf'].includes(f.id) && f.present)) await step(`big drawing ${big.id}: no frame over 250 ms, done within 20 s`, async () => {
+  const { p, ctx } = await page();
+  await p.goto(`${srv.url}/editor?new=1`); await p.waitForTimeout(800);
+  await p.evaluate(() => { window.__gaps = []; let last = performance.now(); const f = now => { window.__gaps.push(now - last); last = now; if (!document.querySelector('#flow.done')) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+  const t0 = Date.now();
+  await p.setInputFiles('#file-dxf', big.path);
+  await p.waitForSelector('#flow.done', { timeout: 60000 });
+  const secs = (Date.now() - t0) / 1000;
+  const st = await p.evaluate(() => ({ maxGap: Math.round(Math.max(0, ...window.__gaps)), frames: window.__gaps.length, steps: [...document.querySelectorAll('#flow li')].map(l => `${l.dataset.k}:${l.className}`), walls: window.__editor.doc.levels[0].walls.length, rooms: window.__editor.doc.levels[0].rooms.length }));
+  results.push(`    ${secs.toFixed(1)} s · longest frame ${st.maxGap} ms over ${st.frames} frames · ${st.walls} walls, ${st.rooms} rooms`);
+  if (st.steps.some(c => !/:(done|skip)$/.test(c))) throw new Error(`steps ${st.steps.join(',')}`);
+  if (!(st.walls > 0)) throw new Error('no walls');
+  if (st.maxGap > 250) throw new Error(`frame gap ${st.maxGap} ms`);
+  if (secs > 20) throw new Error(`took ${secs.toFixed(1)} s`);
   if (p.errors.length) throw new Error(p.errors[0]); await ctx.close();
 });
 
