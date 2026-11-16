@@ -114,7 +114,14 @@ export function detectRooms(level) {
   const perim = q => q.reduce((s, p, i) => { const n = q[(i + 1) % q.length]; return s + Math.hypot(n[0] - p[0], n[1] - p[1]); }, 0);
   const polys = faces.filter(q => { const A = polygonArea(q); return A >= 0.25 && 2 * A / perim(q) >= 0.26; });
   // spaces whose walls don't fully close (a living room open to the carport, an archway, a missing wall end) are rooms too
-  const opened = new Set(openAreas(level.walls, polys));
+  const opened = new Set(), outside = new Set();
+  // an open room that crosses the facade (a bedroom + its balcony behind an undetected slider) is cut on the facade line
+  const open0 = openAreas(level.walls, polys);
+  for (const q of open0) {
+    const cut = splitAtFacade(q, level.walls, outer, open0);
+    for (const p of cut.keep) opened.add(p);
+    for (const p of cut.outdoor) { opened.add(p); outside.add(p); }
+  }
   for (const q of opened) polys.push(q);
   const prev = level.rooms || [];
   const used = new Set();
@@ -124,7 +131,9 @@ export function detectRooms(level) {
     if (old) used.add(old.id);
     const area = polygonArea(poly);
     const biggest = polys.every(q => polygonArea(q) <= area + 1e-6);
-    const base = old || { id: `r${String(level.id || '').replace(/\W/g, '')}${Date.now().toString(36)}${i}`, name: biggest && area > 15 ? '客廳' : area > 7 ? '臥室' : '房間', nameEn: biggest && area > 15 ? 'Living' : area > 7 ? 'Bedroom' : 'Room', finish: 'floor' };
+    const base = old || (outside.has(poly)
+      ? { id: `r${String(level.id || '').replace(/\W/g, '')}${Date.now().toString(36)}${i}`, name: '陽台', nameEn: 'Balcony', finish: 'balcony', outdoor: true }
+      : { id: `r${String(level.id || '').replace(/\W/g, '')}${Date.now().toString(36)}${i}`, name: biggest && area > 15 ? '客廳' : area > 7 ? '臥室' : '房間', nameEn: biggest && area > 15 ? 'Living' : area > 7 ? 'Bedroom' : 'Room', finish: 'floor' });
     const room = { ...base, polygon: poly, labelAt: old && old.labelPinned ? old.labelAt : c };
     if (opened.has(poly)) room.open = true; else delete room.open; // walls don't fully close it (found by openAreas)
     return room;
@@ -246,6 +255,101 @@ function openAreasRaw(walls, roomPolys, R) {
   }
   return res;
 }
+// ---------------------------------------------------------------- facade cut (T-005)
+// An open room often runs out through an undetected glass slider onto its balcony (or leaks a sliver past the building
+// line through a gap in the side wall). The facade tells where the room ends: when an exterior wall (one side in a
+// closed room, the other outside them all) ends at the open room's edge and its line runs on across the room to a wall
+// or the building's extent, cut the room on that line. The cut is kept only when the part inside is walled like a room
+// and the part beyond is not (a stepped facade, where the room really does stick out, is walled all round and stays
+// whole). The part beyond becomes an outdoor balcony, or is dropped when it is a sliver.
+// `others`: all open rooms of the floor. Returns { keep: [poly], outdoor: [poly] } (keep = [poly] when nothing is cut).
+export function splitAtFacade(poly, walls, outer, others = [], depth = 0) {
+  const none = { keep: [poly], outdoor: [] };
+  if (!outer || depth > 3) return none;
+  const real = (walls || []).filter(w => w.kind !== 'ignore' && w.kind !== 'zone' && Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) > 0.05);
+  if (real.length < 3) return none;
+  const rx = real.flatMap(w => [w.a[0], w.b[0]]), rz = real.flatMap(w => [w.a[1], w.b[1]]);
+  const fx0 = Math.min(...rx), fx1 = Math.max(...rx), fz0 = Math.min(...rz), fz1 = Math.max(...rz);
+  const nearReal = (p, extra = 0.3) => real.some(w => projClamp(p, w.a, w.b) <= (w.t || 0.12) / 2 + extra);
+  const nearFrame = p => Math.min(Math.abs(p[0] - fx0), Math.abs(p[0] - fx1), Math.abs(p[1] - fz0), Math.abs(p[1] - fz1)) <= 0.3;
+  // share of a ring's edges (all but the cut edge, which starts at index `skip`) that runs along a real wall
+  const walled = (ring, skip) => {
+    let n = 0, hit = 0;
+    for (let i = 0; i < ring.length; i++) {
+      if (i === skip) continue;
+      const a = ring[i], b = ring[(i + 1) % ring.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]), k = Math.max(1, Math.round(L / 0.1));
+      for (let s = 0; s < k; s++) { const t = (s + 0.5) / k; n++; if (nearReal([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t])) hit++; }
+    }
+    return n ? hit / n : 0;
+  };
+  const effW = q => { const A = polygonArea(q); let P = 0; for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; P += Math.hypot(b[0] - a[0], b[1] - a[1]); } return P ? 2 * A / P : 0; };
+  const A0 = polygonArea(poly);
+  let best = null;
+  for (const w of real) {
+    const { ux, uz, len } = wallFrame(w);
+    if (len < 1.0) continue;
+    // exterior: a closed room on one side, outside them all on the other (same probe as the ext marking)
+    const m = [(w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2], nrm = [-uz, ux];
+    const in1 = pointInPolygon([m[0] + nrm[0] * 0.15, m[1] + nrm[1] * 0.15], outer), in2 = pointInPolygon([m[0] - nrm[0] * 0.15, m[1] - nrm[1] * 0.15], outer);
+    if (in1 === in2) continue;
+    const inSide = in1 ? 1 : -1; // inside the building = +normal side
+    // … and its outer face looks onto open air: no other room there, and no wall right behind it (an undetected
+    // kitchen or a corridor behind an "exterior" wall means the wall is inside the building after all)
+    const oN = [-nrm[0] * inSide, -nrm[1] * inSide];
+    let blocked = 0;
+    for (const f of [0.25, 0.5, 0.75]) {
+      const p = [w.a[0] + (w.b[0] - w.a[0]) * f, w.a[1] + (w.b[1] - w.a[1]) * f];
+      const q0 = [p[0] + oN[0] * 0.3, p[1] + oN[1] * 0.3], q1 = [p[0] + oN[0] * 3, p[1] + oN[1] * 3];
+      if ((others || []).some(o => o !== poly && pointInPolygon(q0, o)) || real.some(o => o !== w && segIntersect(q0, q1, o.a, o.b))) blocked++;
+    }
+    if (blocked >= 2) continue;
+    for (const [E, d] of [[w.b, [ux, uz]], [w.a, [-ux, -uz]]]) {
+      // the wall's line run on from its end E: crossings with the room's edges
+      const far = [E[0] + d[0] * 6, E[1] + d[1] * 6], back = [E[0] - d[0] * 0.4, E[1] - d[1] * 0.4];
+      const hits = [];
+      for (let i = 0; i < poly.length; i++) {
+        const h = segIntersect(back, far, poly[i], poly[(i + 1) % poly.length]);
+        if (h) hits.push({ s: -0.4 + h[0] * 6.4, i, p: [back[0] + (far[0] - back[0]) * h[0], back[1] + (far[1] - back[1]) * h[0]] });
+      }
+      hits.sort((x, y) => x.s - y.s);
+      if (hits.length < 2) continue;
+      // the line must enter the room right at the wall end and leave it again within slider/opening range
+      const h1 = hits[0], h2 = hits.find(h => h.s > h1.s + 0.05);
+      if (!h2 || h1.s > 0.4 || h1.i === h2.i) continue;
+      const chord = h2.s - h1.s;
+      if (chord < 0.6 || chord > 5) continue;
+      const mid = [(h1.p[0] + h2.p[0]) / 2, (h1.p[1] + h2.p[1]) / 2];
+      if (!pointInPolygon(mid, poly)) continue;
+      // it ends at a wall or at the building's extent, and crosses no wall on the way
+      if (!nearReal(h2.p) && !nearFrame(h2.p)) continue;
+      const c0 = [h1.p[0] + d[0] * 0.1, h1.p[1] + d[1] * 0.1], c1 = [h2.p[0] - d[0] * 0.1, h2.p[1] - d[1] * 0.1];
+      if (real.some(o => o !== w && segIntersect(c0, c1, o.a, o.b))) continue;
+      // split the ring at the two crossings
+      const A = [h1.p], B = [h2.p];
+      for (let k = (h1.i + 1) % poly.length; ; k = (k + 1) % poly.length) { A.push(poly[k]); if (k === h2.i) break; }
+      A.push(h2.p);
+      for (let k = (h2.i + 1) % poly.length; ; k = (k + 1) % poly.length) { B.push(poly[k]); if (k === h1.i) break; }
+      B.push(h1.p);
+      const side = q => { const c = labelPoint(q); return Math.sign((c[0] - E[0]) * nrm[0] + (c[1] - E[1]) * nrm[1]); };
+      const sA = side(A), sB = side(B);
+      if (!sA || sA === sB) continue;
+      const inner = sA === inSide ? A : B, beyond = inner === A ? B : A;
+      // the cut edge is the last edge of each ring (h2 → h1 in A, h1 → h2 in B)
+      const iIn = inner.length - 1, iBe = beyond.length - 1;
+      const aIn = polygonArea(inner), aBe = polygonArea(beyond);
+      if (aIn < 4 || effW(inner) < 0.9) continue;
+      const wIn = walled(inner, iIn), wBe = walled(beyond, iBe);
+      if (wIn < 0.6 || wBe > 0.85 || wBe >= wIn) continue;
+      const sliver = aBe < 2 || effW(beyond) < 0.45;
+      const score = aBe; // the largest piece cut off first
+      if (!best || score > best.score) best = { score, inner: inner.map(p => [+p[0].toFixed(3), +p[1].toFixed(3)]), beyond: beyond.map(p => [+p[0].toFixed(3), +p[1].toFixed(3)]), sliver, aIn, aBe };
+    }
+  }
+  if (!best || best.aIn + best.aBe < A0 * 0.9) return none;
+  const rest = splitAtFacade(best.inner, walls, outer, others.map(o => (o === poly ? best.inner : o)), depth + 1);
+  return { keep: rest.keep, outdoor: rest.outdoor.concat(best.sliver ? [] : [best.beyond]) };
+}
+
 // square min (erode) / max (dilate) filter of a 0/1 grid, radius r cells, via running sums along rows then columns
 function boxFilter(M, nx, nz, r, erode) {
   const tmp = new Uint16Array(nx * nz), outM = new Uint8Array(nx * nz), w = 2 * r + 1;
