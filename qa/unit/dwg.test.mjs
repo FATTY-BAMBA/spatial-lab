@@ -11,6 +11,7 @@ import { REPO } from '../lib/node-env.mjs';
 import { FIXTURES_DIR } from '../lib/fixtures.mjs';
 import { G, X, F, level } from './helpers.mjs';
 const DW = await import(join(REPO, 'src/editor/dwg.js'));
+const CI = await import(join(REPO, 'src/editor/cadimport.js'));
 const A = await DW.loadAcad();
 
 // 8 m × 5 m flat split in two (4 m + 4 m), 15 cm walls drawn as pairs of lines in mm, on layer A-牆面
@@ -124,4 +125,25 @@ test('a 72 m × 80 m hall (mall plan size) furnishes in well under 2 s', () => {
   assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0} ms`);
   const kinds = L.furniture.filter(f => !f.dress).map(f => f.kind);
   assert.ok(kinds.includes('table') && kinds.length >= 5, kinds.join(','));
+});
+
+test('runCAD (the worker job): DWG → walls → rooms named from the drawing → furniture, stages in order', async () => {
+  const stages = [];
+  const r = await CI.runCAD(planDWG(A.ACadVersion.AC1032), { dwg: true, onStage: (k, info) => stages.push([k, info]) });
+  assert.deepEqual(stages.map(s => s[0]), ['convert', 'read', 'walls', 'rooms', 'furniture']);
+  assert.equal(stages[0][1].version, 'AC1032');
+  assert.deepEqual(r.wallLayers, ['A-牆面']);
+  assert.deepEqual(r.level.rooms.map(x => x.name).sort(), ['主臥室', '客廳'].sort());
+  assert.equal(r.level.rooms.find(x => x.name === '主臥室').nameEn, 'Master Bedroom');
+  assert.equal(r.counts.named, 2);
+  assert.ok(r.level.furniture.some(f => f.kind === 'bed'), r.level.furniture.map(f => f.kind).join(','));
+  // the result crosses the worker boundary: it must survive structured cloning
+  assert.deepEqual(structuredClone(r).level.walls, r.level.walls);
+});
+
+test('runCAD: underlay only (plan: false), and typed errors for an unreadable DXF / a drawing without lines', async () => {
+  const r = await CI.runCAD(planDWG(A.ACadVersion.AC1027), { dwg: true, plan: false });
+  assert.equal(r.level, null); assert.equal(r.d.segs.length, 10);
+  await assert.rejects(CI.runCAD(new TextEncoder().encode('  0\nSECTION\n  2\nENTITIES\n  0\nENDSEC\n  0\nEOF\n').buffer), e => e.code === 'no-lines');
+  await assert.rejects(CI.runCAD(new ArrayBuffer(10), { dwg: true }), e => e.code === 'not-dwg');
 });
