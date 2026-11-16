@@ -105,3 +105,58 @@ response; e2e of the status line with the endpoint stubbed.
   $2 input, $12 text output per M tokens: https://ai.google.dev/gemini-api/docs/pricing
 - The free-tier image error (429 RESOURCE_EXHAUSTED, `generate_content_free_tier_requests`, quotaValue "0"):
   https://discuss.ai.google.dev/t/bug-paid-tier-1-account-getting-free-tier-requests-limit-0-on-image-generation-models-gemini-2-5-flash-image-gemini-3-pro-image-preview/123906
+
+## Validation (validator, 2026-11-17)
+
+**Verdict: ship.** Nothing blocking. Owner decision and follow-ups below. Not merged here (left to the orchestrator).
+
+Evidence (6df1e9f, base d3d37ae):
+- **Gate** `npm --prefix qa run all`: unit 66/66 (11 new in `health.test.mjs`), regress 51 fixtures "OK: no
+  regressions" (import pipeline untouched, baseline unchanged, no baseline update), e2e 24/24 incl. step 12 (1.6 s).
+- **Auth**: `signedInUser` sends the bearer to Supabase `GET /auth/v1/user`, which checks the JWT signature and session on
+  the server. Having a header is not enough. A 401 comes before any provider call or cache read (unit test). `SB_ANON` is the public
+  anon key that `vision.js` and `render.js` already use.
+- **Secrets**: keys go only in the `x-api-key` / `x-goog-api-key` headers, never in a URL, a response or a log (no `console.*`).
+  The response holds only `{code, model}` per provider. Provider error text is matched by regex and then dropped. Every
+  unit response is checked for the key strings and Google project or quota text. The diff has no secrets, client data or plans.
+- **Refactor**: `api/_models.js` returns the same `claude-sonnet-5-5` default and the same five Gemini ids in the same order,
+  with `RENDER_MODEL`/`VISION_MODEL` first. `render.js` still builds `MODELS` at module load and `vision.js` still reads at request time.
+  All three modules load under Node. The Vercel build succeeded for 6df1e9f, so the `_models.js` bundle is fine. `.vercelignore` does not exclude it.
+- **Mapping vs docs**: the Anthropic Errors page confirms 401/402/403/404/429/5xx/529, and that a spend limit set by the account is 400 (caught by regex).
+  Gemini `models.get` 404 makes the check try the next model, same as `render.js`. I could not reach the Anthropic retrieve page from here. The
+  `lifecycle === 'retired'` check does no harm if the field is missing.
+- **Tests exercise the change**: fetch is stubbed for every case, and the stub throws on any URL it doesn't know, so no real API is called.
+  Removing any branch of the code mapping, the 1-token body, the rate limit or the cache makes a named assertion fail. The e2e step
+  fails if the panel or the auto-open is removed.
+- **Cost / abuse**: the probe is about 10 input tokens and at most 1 output token per provider (Gemini thinking counts toward
+  `maxOutputTokens`), well under NT$0.01 in practice, so "不到 NT$0.5" is conservative. Limits are per instance, so parallel
+  requests across instances or cold starts can get around them. Even so, any free Google account spends far less here than through the existing
+  `/api/render` (NT$4 a call, no rate limit) or `/api/vision`. This adds no new kind of abuse.
+- **UI** (local server, cloud and `/api/health` stubbed; the preview and live hosts are blocked by this sandbox's egress proxy):
+  a plain `/projects` visit makes no call and the panel stays closed. Signed out plus `?check` makes no call. `?check` and `#check` open the panel.
+  Checked zh and en at 1280 px and 360 px with ok/ok, ready/ready, no-key/bad-key, no-credit/unknown, ready/free-tier, down/timeout,
+  500 and 404: no horizontal scroll and no page errors. The buttons are disabled while a request runs, so a double-click sends one POST.
+  The copy is clear Traditional Chinese.
+- **docs/demo.md**: correct. It replaces the NT$4 test render with `?check` → 確認額度, gives a fix for each red answer and keeps the NT$4
+  render as the fallback for 無法確認額度.
+
+**Owner decision**
+- The task scope says "for the owner account", but the footer link 「檢查 AI 服務狀態」 shows for **every** signed-in designer.
+  A client firm pressing 確認額度 would see 「Google 專案是免費方案…請到 Google AI Studio 開啟付費」 and the model ids, which is
+  platform wording, not something a designer can act on. Options: keep it as is; show the panel only on `?check` (hide the footer
+  link); or add a `HEALTH_EMAILS` allow-list (one new Vercel env var). Recommendation: hide the footer link now, and add the allow-list
+  when paying firms come on.
+
+**Follow-ups (non-blocking)**
+1. Anthropic 429 for a usage tier's *monthly spend cap* maps to `quota` 「幾分鐘後再試」, but that error doesn't clear. If the message
+   says spend cap, map it to `no-credit`.
+2. After merge (needs real keys): confirm the Gemini image model answers a text-only `responseModalities: ['TEXT']` request. If it
+   gives 400, the panel shows 無法確認額度 and the NT$4 render stays the check.
+3. With 20 confirms an hour per instance, one account can block the confirm on that instance for up to 1 h (1 a minute × 20 min).
+   The NT$4 render is the fallback. Accepted for now.
+4. Separate task: rate-limit `/api/render` and `/api/vision` per account. Their spend exposure is bigger than this endpoint's.
+5. Nit: the en summary "backup project’s" shows a gap before the curly apostrophe at 360 px (CJK font). Use a straight `'`.
+6. Edge case: `render.js` also tries the next model on a 400 "not found|not supported|imageSize|imageConfig", but health
+   tries it only on a 404 or when `generateContent` is missing. The two can report different models in that case only.
+
+**Live check after merge (owner, signed in)**: open `/projects?check` and press 確認額度 once. Both rows should read 可用（已確認額度）.
