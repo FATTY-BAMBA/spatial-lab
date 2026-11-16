@@ -34,16 +34,23 @@ export async function signIn(next = '/projects') {
 }
 export async function signOut() { const sb = await client(); await sb.auth.signOut(); }
 
+// `client` (業主名稱) arrived with the firm-profile migration; until it is applied the query falls back without it
+const noColumn = e => e && (e.code === '42703' || /column .* does not exist/i.test(e.message || ''));
 export async function listProjects() {
   const sb = await client();
-  const { data, error } = await sb.from('spatial_projects').select('id,name,thumb,share_token,updated_at').order('updated_at', { ascending: false });
+  const q = cols => sb.from('spatial_projects').select(cols).order('updated_at', { ascending: false });
+  let { data, error } = await q('id,name,client,thumb,share_token,updated_at');
+  if (noColumn(error)) ({ data, error } = await q('id,name,thumb,share_token,updated_at'));
   if (error) throw error; return data;
 }
 export async function loadProject(id) {
   const sb = await client();
-  const { data, error } = await sb.from('spatial_projects').select('id,name,doc,renders,share_token,updated_at').eq('id', id).single();
+  const q = cols => sb.from('spatial_projects').select(cols).eq('id', id).single();
+  let { data, error } = await q('id,name,client,doc,renders,share_token,updated_at');
+  if (noColumn(error)) ({ data, error } = await q('id,name,doc,renders,share_token,updated_at'));
   if (error) throw error; return data;
 }
+export async function setClient(id, name) { const sb = await client(); const { error } = await sb.from('spatial_projects').update({ client: (name || '').trim().slice(0, 120) || null }).eq('id', id); if (error) throw error; }
 // Insert (no id) or update; returns the id
 export async function saveProject({ id, name, doc, thumb }) {
   const sb = await client();
@@ -82,3 +89,39 @@ export async function getRenders(id) {
   const sb = await client(); const { data, error } = await sb.from('spatial_projects').select('renders').eq('id', id).single(); if (error) throw error; return data.renders || [];
 }
 export const shareUrl = token => `${location.origin}/?share=${encodeURIComponent(token)}`;
+// the printable proposal (提案書): ?share= for the client, ?id= for the owner's own preview
+export const proposalUrl = ({ token, id }) => `${location.origin}/proposal?${token ? `share=${encodeURIComponent(token)}` : `id=${encodeURIComponent(id)}`}`;
+
+// 公司資料: one firm profile per account (table spatial_firms, owner-only). Clients see its public fields through
+// spatial_shared(token).firm. Returns null when there is none yet (or the table is not there yet).
+export const FIRM_FIELDS = ['name', 'logo', 'phone', 'line_id', 'email', 'address', 'tax_id', 'color'];
+export async function getFirm() {
+  const sb = await client();
+  const { data, error } = await sb.from('spatial_firms').select(FIRM_FIELDS.join(',')).maybeSingle();
+  if (error) { console.warn('firm', error.message); return null; }
+  return data;
+}
+export async function saveFirm(firm) {
+  const sb = await client();
+  const u = await currentUser(); if (!u) throw new Error('not signed in');
+  const row = { owner: u.id };
+  for (const k of FIRM_FIELDS) { const v = typeof firm[k] === 'string' ? firm[k].trim() : firm[k]; row[k] = v || null; }
+  row.name = row.name || '';
+  const { error } = await sb.from('spatial_firms').upsert(row, { onConflict: 'owner' });
+  if (error) throw error; return row;
+}
+// logos live in their own public bucket under <user id>/; a new file name each time so caches never show the old one
+const LOGOS = 'spatial-logos';
+const logoUrl = path => `${SB_URL}/storage/v1/object/public/${LOGOS}/${path}`;
+export async function putLogo(blob) {
+  const sb = await client();
+  const u = await currentUser(); if (!u) throw new Error('not signed in');
+  const ext = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png';
+  const path = `${u.id}/logo-${Date.now().toString(36)}.${ext}`;
+  const { error } = await sb.storage.from(LOGOS).upload(path, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
+  if (error) throw error; return logoUrl(path);
+}
+export async function removeLogo(url) {
+  const pre = logoUrl(''); if (!url || !url.startsWith(pre)) return;
+  const sb = await client(); await sb.storage.from(LOGOS).remove([url.slice(pre.length)]).catch(() => {});
+}
