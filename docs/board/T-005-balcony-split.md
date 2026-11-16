@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 priority: P1
 owner: import-engineer
 depends: []
@@ -94,3 +94,12 @@ furnished 3 → 4 and sanrui-d roomArea 96.4 → 95.3), e2e 4/4. Round-1 repro (
 the cut part now ends `次臥 4 | indoor | floor` and is in the flooring quote (27.6 坪). AI down, zh + en, 1280 + 390 px:
 陽台 1 / Balcony 1 outdoor, survives a re-commit, flooring 23.7 坪, 3D opens, no page errors. Baseline accepted in
 7408ad0 (metric fields of those two fixtures only; timing fields kept from the old baseline).
+
+## Shipped (2026-11-16)
+
+Merged to `main` in 6251f96. An open room that runs out through an undetected slider is cut on the facade line; the
+part beyond is 陽台 / Balcony (outdoor, out of the flooring quote), a sliver is dropped; a room's name sets
+outdoor/finish both ways. sanrui-e 3 → 4 rooms (bedroom 14.7 m² + balcony 11.8 m²), furnished 3 → 4; sanrui-d
+−1.1 m² sliver; other 31 fixtures identical; detectRooms +0–3 ms. Deploy: Vercel status on 6251f96 is "success / Deployment has completed". The
+live content check (geometry.js on spatial.primestrideai.com contains `roomFlagsFromName`) could not be run from the
+validator sandbox (domain not on its egress allowlist); still to do once from a browser.
