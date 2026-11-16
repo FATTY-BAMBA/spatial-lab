@@ -79,7 +79,7 @@ export function checkPrices(P) {
   if (Object.values(P.waste || {}).some(v => !(Number.isFinite(+v) && +v >= 0 && +v <= 0.5))) errors.push(t('損耗應在 0% 到 50% 之間', 'Waste must be between 0% and 50%'));
   if ((P.lines || []).some(l => !str(l.name, 60))) errors.push(t('工程項目需要名稱', 'Every works line needs a name'));
   if ((P.lines || []).length > MAX_LINES) errors.push(t(`工程項目最多 ${MAX_LINES} 項`, `At most ${MAX_LINES} works lines`));
-  if (JSON.stringify(P).length > 60000) errors.push(t('價目表太大', 'The price list is too large'));
+  if (new TextEncoder().encode(JSON.stringify(P)).length > 60000) errors.push(t('價目表太大', 'The price list is too large')); // the column allows 64 KB
   return { ok: !errors.length, errors };
 }
 
