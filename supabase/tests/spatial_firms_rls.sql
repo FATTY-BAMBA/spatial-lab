@@ -51,7 +51,7 @@ begin
   select * into r from public.spatial_shared('qa-rls-token-0123456789');
   if r.name is distinct from 'A 的專案' or r.client is distinct from '王小姐' then raise exception 'spatial_shared row wrong'; end if;
   if r.firm ->> 'name' is distinct from 'A 設計' or r.firm ->> 'tax_id' is distinct from '22099131' then raise exception 'spatial_shared firm wrong: %', r.firm; end if;
-  if exists (select 1 from jsonb_object_keys(r.firm) k where k not in ('name', 'logo', 'phone', 'line_id', 'email', 'address', 'tax_id', 'color')) then raise exception 'spatial_shared leaks firm fields: %', r.firm; end if;
+  if exists (select 1 from jsonb_object_keys(r.firm) k where k not in ('name', 'logo', 'phone', 'line_id', 'email', 'address', 'tax_id', 'color', 'prices')) then raise exception 'spatial_shared leaks firm fields: %', r.firm; end if;
   if r.firm ? 'owner' then raise exception 'owner id leaked'; end if;
   select count(*) into n from public.spatial_shared('short'); if n <> 0 then raise exception 'short token accepted'; end if;
   raise notice 'spatial_firms RLS: all checks passed';

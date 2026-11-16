@@ -95,11 +95,24 @@ export const proposalUrl = ({ token, id }) => `${location.origin}/proposal?${tok
 // 公司資料: one firm profile per account (table spatial_firms, owner-only). Clients see its public fields through
 // spatial_shared(token).firm. Returns null when there is none yet (or the table is not there yet).
 export const FIRM_FIELDS = ['name', 'logo', 'phone', 'line_id', 'email', 'address', 'tax_id', 'color'];
+// 價目表 (spatial_firms.prices) arrived with the price-list migration; until it is applied the firm loads without it
+let pricesColumn = null;
+export const pricesAvailable = () => pricesColumn !== false;
 export async function getFirm() {
   const sb = await client();
-  const { data, error } = await sb.from('spatial_firms').select(FIRM_FIELDS.join(',')).maybeSingle();
+  const q = cols => sb.from('spatial_firms').select(cols).maybeSingle();
+  let { data, error } = await q([...FIRM_FIELDS, 'prices'].join(','));
+  if (noColumn(error)) { pricesColumn = false; ({ data, error } = await q(FIRM_FIELDS.join(','))); } else if (!error) pricesColumn = true;
   if (error) { console.warn('firm', error.message); return null; }
   return data;
+}
+// Save the price list only (the firm row is created when there is none yet; its name stays empty until 公司資料)
+export async function savePrices(prices) {
+  if (pricesColumn === false) throw new Error('prices column missing');
+  const sb = await client();
+  const u = await currentUser(); if (!u) throw new Error('not signed in');
+  const { error } = await sb.from('spatial_firms').upsert({ owner: u.id, prices }, { onConflict: 'owner' });
+  if (error) throw error; return prices;
 }
 export async function saveFirm(firm) {
   const sb = await client();

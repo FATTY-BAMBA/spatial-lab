@@ -125,6 +125,51 @@ dialog#firm::backdrop { background: rgba(8,6,4,.66); }
 .card .client:focus { outline: none; border-color: var(--brass); color: var(--text); }
 .card .row2 .alt { font-size: 12.5px; white-space: nowrap; }
 @media (max-width: 560px) { .fm-b { grid-template-columns: 1fr; } #firm-open span { display: none; } }
+/* 價目表 */
+dialog#prices { width: min(720px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid var(--hair-2); border-radius: 16px; background: var(--panel); color: var(--text); }
+dialog#prices::backdrop { background: rgba(8,6,4,.66); }
+.fld select, .fld textarea, .fld input[type=month] { background: var(--panel-2); border: 1px solid var(--hair-2); border-radius: 9px; padding: 9px 11px; color: var(--text); font-size: 14px; width: 100%; font-family: inherit; }
+.fld textarea { resize: vertical; line-height: 1.6; }
+.pl-off { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(201,162,106,.1); border: 1px solid rgba(201,162,106,.35); color: var(--text-2); font-size: 13px; line-height: 1.6; }
+.pl-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--hair); min-height: 38px; }
+.pl-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; color: var(--text-2); white-space: nowrap; }
+.pl-tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--brass); font-weight: 700; }
+.pl-panel { min-width: 0; }
+.pl-panel .muted, .pl-g .muted { color: var(--text-3); font-size: 12.5px; line-height: 1.6; margin: 0 0 10px; }
+.pl-g { margin: 0 0 16px; }
+.pl-g header { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px solid var(--hair-2); color: var(--text-2); font-size: 12.5px; }
+.pl-g header b { color: var(--text); font-size: 14px; margin-right: auto; }
+.pl-g header select, .pl-g header input { background: var(--panel-2); border: 1px solid var(--hair-2); border-radius: 7px; padding: 4px 6px; color: var(--text); font-size: 13px; }
+.pl-g header input { width: 64px; }
+.pl-g table { width: 100%; border-collapse: collapse; }
+.pl-g td { padding: 5px 0; border-bottom: 1px solid var(--hair); font-size: 13.5px; vertical-align: middle; }
+.pl-g td small { display: block; color: var(--text-3); font-size: 11.5px; }
+.pl-g td.num, .pl-line .num { text-align: right; white-space: nowrap; color: var(--text-3); font-size: 12.5px; }
+.pl-p { width: 104px; background: var(--panel-2); border: 1px solid var(--hair-2); border-radius: 7px; padding: 5px 7px; color: var(--text); font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+.pl-p:focus, .pl-g header input:focus, .pl-line input:focus { outline: none; border-color: var(--brass); }
+[aria-invalid] { border-color: #f0a08f !important; background: rgba(240,160,143,.12) !important; }
+.pl-g .u { display: inline-block; min-width: 2.6em; text-align: left; padding-left: 4px; }
+.pl-lines { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.pl-line { display: grid; grid-template-columns: 26px 1fr auto auto 34px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--hair); }
+.pl-line .nm { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pl-line input[type=text] { background: var(--panel-2); border: 1px solid var(--hair-2); border-radius: 7px; padding: 5px 8px; color: var(--text); font-size: 13.5px; width: 100%; }
+.pl-line input[data-f=spec] { font-size: 12px; color: var(--text-2); }
+.pl-line select { background: var(--panel-2); border: 1px solid var(--hair-2); border-radius: 7px; padding: 5px 4px; color: var(--text); font-size: 13px; }
+.pl-line input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--brass); }
+.pl-line .rm { padding: 5px 9px; color: var(--text-3); background: none; border-color: transparent; }
+.pl-err { margin: 0; color: #f0a08f; font-size: 13px; } .pl-err:empty { display: none; }
+.fm-f .spacer { flex: 1; }
+@media (max-width: 560px) {
+  .pl-line { grid-template-columns: 26px 1fr 34px; }
+  .pl-line .nm { grid-column: 2 / 4; grid-row: 1; }
+  .pl-line .rm { grid-column: 3; grid-row: 2; }
+  .pl-line select { grid-column: 2; grid-row: 2; justify-self: start; }
+  .pl-line .num { grid-column: 2; grid-row: 2; justify-self: end; }
+  .pl-p { width: 92px; }
+  #prices-open span { display: none; }
+  header { gap: 8px; } .brand span { display: none; }
+}
+@media (max-width: 420px) { .brand b { display: none; } }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 9; }
 </style>
 </head>
@@ -133,6 +178,7 @@ dialog#firm::backdrop { background: rgba(8,6,4,.66); }
   <a class="brand" href="/" aria-label="回到 Spatial Lab"><svg width="24" height="24" viewBox="0 0 26 26" fill="none" stroke="#c9a26a" stroke-width="1.6" aria-hidden="true"><path d="M8 24H2V2h22v22H14"/><path d="M8 24v-6a6 6 0 0 1 6 6" stroke-width="1.2"/><path d="M15 2v9h9" stroke-width="1.2"/></svg><b>PrimeStride</b><span>Spatial Lab</span></a>
   <span class="spacer"></span>
   <button type="button" class="btn" id="firm-open" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 14.5h12M3 14.5V4l5-2.5L13 4v10.5M6 7h1M9 7h1M6 10h1M9 10h1"/></svg><span></span></button>
+  <button type="button" class="btn" id="prices-open" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 1.5h10v13H3zM5.5 4.5h5M5.5 7.5h5M5.5 10.5h3"/></svg><span></span></button>
   <span class="who" id="who"></span>
   <button type="button" class="btn" id="out" hidden></button>
 </header>
@@ -189,6 +235,7 @@ dialog#firm::backdrop { background: rgba(8,6,4,.66); }
 import { t, isEn } from './src/i18n.js';
 import * as C from './src/cloud.js';
 import { checkFirm, normFirm, onColor, initials, DEFAULT_COLOR } from './src/firm.js';
+import { setupPriceList } from './src/prices-ui.js';
 const $ = s => document.querySelector(s);
 const toast = m => { const e = $('#toast'); e.textContent = m; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (e.hidden = true), 2600); };
 document.title = t('我的專案 · Spatial Lab', 'My projects · Spatial Lab');
@@ -277,7 +324,7 @@ $('#fl-name').textContent = t('公司名稱', 'Firm name');
 $('#fl-logo').textContent = 'Logo';
 $('#logo-up').textContent = t('上傳 Logo', 'Upload logo');
 $('#logo-rm').textContent = t('移除', 'Remove');
-$('#logo-hint').textContent = t('PNG（透明背景最佳）、JPG 或 WebP，2 MB 以內；會自動縮成適合的大小。', 'PNG (transparent works best), JPG or WebP, up to 2 MB; resized automatically.');
+$('#logo-hint').textContent = t('PNG（透明背景最佳）、JPG 或 WebP，8 MB 以內；上傳前會自動縮成適合的大小。', 'PNG (transparent works best), JPG or WebP, up to 8 MB; resized automatically before upload.');
 $('#fl-phone').textContent = t('電話', 'Phone');
 $('#fl-tax').textContent = t('統一編號（選填）', 'Tax ID 統一編號 (optional)');
 $('#fl-addr').textContent = t('地址', 'Address');
@@ -293,8 +340,8 @@ const F = () => Object.fromEntries(['name', 'phone', 'line_id', 'email', 'addres
 let logoPreview = '';
 function preview() {
   const f = F(), col = /^#[0-9a-f]{6}$/i.test(f.color) ? f.color : DEFAULT_COLOR, name = f.name || t('你的公司名稱', 'Your firm name');
-  const mark = logoPreview ? `<img src="${logoPreview}" alt="">` : `<span class="ini" style="background:${col};color:${onColor(col)}">${initials(name)}</span>`;
-  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const mark = logoPreview ? `<img src="${esc(logoPreview)}" alt="">` : `<span class="ini" style="background:${col};color:${onColor(col)}">${esc(initials(name))}</span>`;
   $('#pv-bar').innerHTML = `${mark}<b>${esc(name)}</b>`;
   $('#pv-mast').innerHTML = `${mark}<b>${esc(name)}</b><span>${t('設計提案書', 'PROPOSAL')}</span>`;
   $('#pv-mast').style.setProperty('--pv', col);
@@ -347,18 +394,24 @@ form.addEventListener('submit', async e => {
     const old = firm && firm.logo;
     let logo = logoGone ? '' : old || '';
     if (logoBlob) logo = await C.putLogo(logoBlob);
-    firm = await C.saveFirm({ ...f, logo });
+    firm = { ...(firm || {}), ...(await C.saveFirm({ ...f, logo })) };
     if (old && old !== logo) C.removeLogo(old);
     closeFirm(); $('#nudge').hidden = !!normFirm(firm);
     toast(t('已儲存公司資料：分享連結與提案書會顯示你的品牌', 'Firm profile saved: share links and proposals now carry your brand'));
   } catch (err) { console.warn('firm save', err); toast(t('公司資料儲存失敗，請稍後再試', 'Could not save the firm profile; try again shortly')); }
   save.disabled = false; save.textContent = t('儲存', 'Save');
 });
+// ---------- 價目表 (price list): the firm's own unit prices for every quote ----------
+const priceList = setupPriceList({ C, toast, getFirm: () => firm, setFirm: f => { firm = f; } });
+$('#prices-open').querySelector('span').textContent = t('價目表', 'Price list');
+$('#prices-open').title = t('價目表：材質、工程與家具單價', 'Price list: finish, works and furniture prices');
+$('#prices-open').addEventListener('click', () => priceList.open());
 async function loadFirm() {
   firm = await C.getFirm().catch(() => null);
-  $('#firm-open').hidden = false;
+  $('#firm-open').hidden = false; $('#prices-open').hidden = false;
   $('#nudge').hidden = !!normFirm(firm);
   if (location.hash === '#firm') openFirm();
+  if (location.hash === '#prices') priceList.open();
 }
 
 C.onAuth(() => render());

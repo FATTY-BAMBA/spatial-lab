@@ -597,6 +597,7 @@ html[lang="en"] .hero h1 { letter-spacing: -0.01em; font-size: clamp(34px, 4.6vw
 .hero-book .or { color: var(--text-3); }
 body.project-view .hero-cta [data-film], body.project-view .hero-book, body.project-view .projects, body.project-view .hero-tag, body.project-view .act-book, body.project-view #cap-outro [data-film], body.project-view #cap-outro [data-book] { display: none !important; }
 body.shared-view #acct-link { display: none !important; }
+body.shared-view #quote-xlsx { display: none !important; }
 .cloud-miss { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 50; background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 14px; }
 .act-acct { color: var(--text); }
 .pp-bar .pp-book { color: var(--brass-hi); font-weight: 700; text-decoration: none; padding: 11px 6px; white-space: nowrap; align-self: center; }
@@ -723,6 +724,7 @@ body.shared-view #acct-link { display: none !important; }
     <div id="quote-lines" hidden><table><tbody></tbody></table></div>
     <div class="quote-actions">
       <button type="button" id="quote-toggle" aria-expanded="false">View line items</button>
+      <button type="button" id="quote-xlsx" title="Download the quotation as Excel">Excel quote</button>
       <button type="button" id="proposal-open" class="primary">Create proposal</button>
     </div>
   </div>
