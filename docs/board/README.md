@@ -12,6 +12,10 @@ One file per task: `T-xxx-name.md`, with front matter `status` (todo · research
 | [T-004 Record AI for all image fixtures](T-004-record-fixtures.md) | P0 | blocked: fixtures repo | qa-engineer |
 | [T-005 Room/balcony split behind sliders](T-005-balcony-split.md) | P1 | done | import-engineer |
 | [T-006 Hand-drawn watercolor plans](T-006-watercolor-plans.md) | P1 | todo | import-engineer |
-| [T-007 Client demo kit](T-007-demo-kit.md) | P0 | todo | product-engineer |
+| [T-007 Client demo kit](T-007-demo-kit.md) | P0 | review — validation B1–B3 fixed (8c0a0f7), gate green; awaiting owner (script, O1 pilot pricing, NT$4 live render) | product-engineer |
 | [T-008 Pricing plans + payments](T-008-payments.md) | P2 | research | researcher → product-engineer |
 | [T-009 Viewer performance + visual QA](T-009-viewer-qa.md) | P1 | todo | viewer-engineer + qa-engineer |
+| [T-010 Share from the viewer + QR code](T-010-share-from-viewer.md) | P1 | todo | product-engineer |
+| [T-011 Save the chosen style with the project](T-011-project-style.md) | P1 | todo | product-engineer + viewer-engineer |
+| [T-012 AI health check before a demo](T-012-ai-health-check.md) | P1 | todo | product-engineer |
+| [T-013 The demo client's own plans in the fixtures](T-013-client-plans.md) | P0 | todo — needs the owner (client plans) | owner → qa-engineer |

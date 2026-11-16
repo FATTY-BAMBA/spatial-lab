@@ -6,5 +6,6 @@ See `AGENTS.md` → "QA commands" for how to run it. In short: `npm install`, `n
 - `regress.mjs` — every fixture vs `baseline.json`; report `reports/index.html`
 - `unit/` — node:test unit tests (synthetic plans)
 - `e2e.mjs` — browser journeys with cloud + AI stubbed
+- `rehearse.mjs` — the client-demo journey timed step by step on any plan (`npm run rehearse -- <fixture-id|file> …`); not part of the gate. See `docs/demo-rehearsal.md`
 - `fixtures.json` — the fixture list (files live in the private repo `spatial-lab-fixtures`)
 - `recordings/` — recorded AI answers per fixture (replayed, so tests never call AI)

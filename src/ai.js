@@ -129,14 +129,15 @@ export async function setupAI({ projectKey, styles, currentStyle, onStyle, onWal
     try {
       jobs = await cloud.generateSet((i, frame, room) => { imgA.src = frame; imgB.removeAttribute('src'); setSplit(1); root.querySelector('.ai-room').textContent = room ? room.name : ''; });
       if (!jobs.length) { say(t('找不到可以拍的房間', 'No rooms to shoot')); setTimeout(() => say(''), 5000); return; }
-      let done = 0, failed = 0, first = null;
+      let done = 0, failed = 0, first = null, why = '';
       say(t(`AI 正在生成 ${jobs.length} 張效果圖，約 30–50 秒…`, `AI is rendering ${jobs.length} views, about 30–50 s…`));
       await Promise.all(jobs.map(j => j.then(rec => {
         const sh = shotOf(rec); manifest.shots.unshift(sh); done++; first = first || sh; renderThumbs();
         say(t(`已完成 ${done} / ${jobs.length}`, `${done} of ${jobs.length} done`));
-      }).catch(e => { failed++; console.warn('render', e); say(e && e.message ? e.message : t('部分效果圖失敗', 'Some renders failed')); })));
-      root.classList.remove('generating'); say(failed ? t(`${done} 張完成，${failed} 張失敗`, `${done} done, ${failed} failed`) : '');
-      if (failed) setTimeout(() => say(''), 6000);
+      }).catch(e => { failed++; console.warn('render', e); why = e && e.message ? e.message : ''; say(why || t('部分效果圖失敗', 'Some renders failed')); })));
+      // keep the reason with the count, so a failed set says what to do next
+      root.classList.remove('generating'); say(failed ? t(`${done} 張完成，${failed} 張失敗。`, `${done} done, ${failed} failed. `) + why : '');
+      if (failed) setTimeout(() => say(''), 9000);
       if (first) open(first.id); else if (!shot) load(false);
     } catch (e) { console.warn('render set', e); say(e && e.message ? e.message : t('生成失敗，請稍後再試', 'Render failed; try again later')); setTimeout(() => say(''), 7000); }
     finally { busy = false; root.classList.remove('generating'); genBtn.disabled = setBtn.disabled = false; }
