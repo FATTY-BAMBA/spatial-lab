@@ -68,3 +68,25 @@ the firm profile cannot be saved (toast), share links work unbranded.
 - Apply the migration, run the RLS script, then a live check on the preview (save a profile, open a share link + 提案書).
 - QR code to the 3D on the printed proposal (needs a small vendored QR lib) — follow-up.
 - Viewer's old 方案比較 one-page print still carries PrimeStride branding (owner-side tool); align in a follow-up.
+
+## Validation (2026-11-16, validator) — **blocked on migration approval**
+
+- Merged origin/main (T-005, T-001, T-001b) into the branch; conflicts in `qa/e2e.mjs` (both suites kept) and the board.
+- Gate on the merged branch: unit 47/47 · regress OK, no regressions · e2e 16/16 (T-002: 5/5 + the earlier steps;
+  PDF 3 A4 pages, 未稅 NT$ 1,985,259 / 含稅 NT$ 2,084,522, 10 rooms). Tests would fail without the change (they assert
+  the firm bar, the 提案書 DOM numbers, A4 MediaBox, 360 px width, English labels).
+- SQL reviewed line by line against the live DB: only `spatial_*` objects + `spatial-logos` bucket/policies (names do not
+  clash with `spatial renders *`); RLS on with four owner-only policies, anon revoked; `spatial_touch()` exists;
+  `spatial_shared` keeps `security definer`, `search_path ''`, returns the current 4 columns (name, doc, renders,
+  updated_at) + client + firm (whitelisted public fields, no owner id); grants match today's (anon, authenticated,
+  service_role); additive, down block present. **Sound.**
+- `apply_migration spatial_firms` was **cancelled at the confirmation prompt** — nothing ran; not retried.
+  Not merged. To finish: apply the migration (owner approval), run `supabase/tests/spatial_firms_rls.sql`,
+  `get_advisors security`, check `spatial_shared('<real token>')` still returns name/renders, then merge.
+
+Non-blocking notes (follow-ups, not fixes for this merge):
+- The client-facing quote basis line names the sample price book ("PrimeStride 示範價目表 v0") — fine until T-003.
+- 公司資料 logo hint says "2 MB 以內" but files up to 8 MB are accepted (shrunk before upload); align the hint.
+- `projects.html` preview puts `initials(name)` into innerHTML unescaped (own-profile only, self-XSS); escape it.
+
+Owner decision: client wording 「本報價為初步估算，實際金額以正式報價單與現場丈量為準」 (sign-off).
