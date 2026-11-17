@@ -322,7 +322,7 @@ if (docJSON) await step('demo journey: style → quote, ✦ 一鍵產生提案�
   });
   const open = async id => {
     await p.goto(`${srv.url}/?id=${id}&q=lite#explore`); // lite: no post-processing, so the software-GL captures stay quick
-    await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
+    await p.waitForFunction(() => document.body.classList.contains('ready') && !!window.__spatial, null, { timeout: 90000 });
     return p.evaluate(() => ({ style: document.querySelector('#style-now').textContent, total: document.querySelector('#quote-total').textContent, approved: !!window.__spatial.proposal.approval }));
   };
   let st = await open(A);
@@ -383,7 +383,7 @@ if (docJSON) await step('editor 在 3D 中查看: saved → the project; unsaved
     await p.waitForFunction(() => window.__editor && window.__editor.doc.levels[0].rooms.length > 0, null, { timeout: 30000 });
     await p.evaluate(() => document.querySelector('#btn-3d').click());
     await p.waitForURL(/[?&]p=custom/, { timeout: 20000 });
-    await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
+    await p.waitForFunction(() => document.body.classList.contains('ready') && !!window.__spatial, null, { timeout: 90000 });
     const st = await p.evaluate(() => ({ style: document.querySelector('#style-now').textContent, approved: !!window.__spatial.proposal.approval, id: JSON.parse(localStorage.getItem('spatial.custom')).localId, left: ['spatial.style.custom', 'spatial.approval.custom'].filter(k => localStorage.getItem(k) != null) }));
     if (st.style !== '原始提案' || st.approved) throw new Error(`preview opened with stale choices: ${JSON.stringify(st)}`);
     if (!st.id) throw new Error('the handed-over plan has no localId');
