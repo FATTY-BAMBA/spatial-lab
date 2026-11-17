@@ -155,8 +155,8 @@ works, zh and en.
 - **1 fixed — a change made just before leaving is saved.** Every same-site link the owner can follow out of the 3D
   (我的專案, 編輯平面, 提案書, the language links, the ⋯ menu items — one click handler on the document, skipping in-page
   `#` links, new-tab/modified clicks and links another handler already took, e.g. the film player) waits for
-  `flushPresented()` before navigating. A style switch counts as pending from the click, not only after its 3D wipe
-  (`presWipe`, capped at 1.5 s). Closing or switching the tab (`pagehide`, `visibilitychange: hidden`) starts the save at
+  `flushPresented()` before navigating. A style switch still in its 3D wipe is completed at once by the flush (its
+  target is known from the click), so leaving mid-wipe saves it without waiting on the animation (`presWipe`). Closing or switching the tab (`pagehide`, `visibilitychange: hidden`) starts the save at
   once — best effort: supabase-js cannot send it as a keepalive request, so a tab killed mid-request can still lose it.
   e2e 「T-011 leaving the 3D right after a change…」: 侘寂風 → 我的專案 at once → saved `wabi`; in Explore, 原始提案 (wipe
   running) → 編輯平面 at once → saved `original`. Failed before the fix (and with the wipe wait disabled, its second half

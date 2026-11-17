@@ -407,10 +407,10 @@ async function boot() {
   }
   // the owner's choice goes to the project a moment after each change; share and 提案書 wait for it (flushPresented)
   let presDirty = false, presTimer = 0, presQ = Promise.resolve(true), presWarned = false, presWipe = null;
-  async function flushPresented() {
-    // a style switch still in its 3D wipe is saved once the wipe ends (at most ~1.5 s; a wipe cut short by another
-    // switch never calls back, hence the cap)
-    if (presWipe) await Promise.race([presWipe, new Promise(r => setTimeout(r, 1500))]);
+  function flushPresented() {
+    // a style switch still in its 3D wipe is completed now (its target is known from the click), so leaving mid-wipe
+    // saves it; the wipe's own end then finds it done
+    if (presWipe) presWipe();
     clearTimeout(presTimer);
     if (!presDirty) return presQ;
     presDirty = false;
@@ -452,12 +452,13 @@ async function boot() {
   function selectStyle(id, animate = true) {
     const st = styles.find(x => x.id === id);
     const oldFin = { ...chosen }, oldPal = palette;
-    let wiped = null, mine = null; if (owner) presWipe = mine = new Promise(r => { wiped = r; });
+    let done = false;
     const finish = () => {
+      if (done) return; done = true; if (presWipe === finish) presWipe = null;
       Object.assign(chosen, st.finishes); palette = st.palette; paletteId = st.id; styleId = st.id;
       applyState(chosen, palette); syncRadios(); saveState(); renderQuote(true); renderStyles();
-      if (wiped) { wiped(); if (presWipe === mine) presWipe = null; }
     };
+    if (owner) presWipe = finish;
     if (animate && mode !== 'plan') compare.transition(() => applyState(oldFin, oldPal), () => applyState(st.finishes, st.palette), finish);
     else finish();
   }
