@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 priority: P1
 owner: product-engineer
 depends: []
@@ -160,3 +160,13 @@ Evidence (6df1e9f, base d3d37ae):
    tries it only on a 404 or when `generateContent` is missing. The two can report different models in that case only.
 
 **Live check after merge (owner, signed in)**: open `/projects?check` and press 確認額度 once. Both rows should read 可用（已確認額度）.
+
+## Shipped (2026-11-17)
+
+Merged to `main` in db94728. Before merging (main session): the status link is hidden for designers and the panel opens
+only from `/projects?check` (owner decision taken per AGENTS.md, e2e asserts it); an Anthropic workspace spend-cap
+message maps to `no-credit` (unit test); straight apostrophe in the English free-tier text.
+
+Live check (owner account, signed in, free GET only): `/projects?check` opens the panel; AI 房間命名 claude-sonnet-5-5 and
+AI 效果圖 gemini-3-pro-image both 「金鑰有效，額度未確認」; footer link hidden. 確認額度 (paid, < NT$0.01) not pressed:
+left to the owner. Open: validator follow-ups 3, 4 (rate-limit /api/render and /api/vision per account), 6.

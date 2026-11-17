@@ -17,5 +17,5 @@ One file per task: `T-xxx-name.md`, with front matter `status` (todo · research
 | [T-009 Viewer performance + visual QA](T-009-viewer-qa.md) | P1 | todo | viewer-engineer + qa-engineer |
 | [T-010 Share from the viewer + QR code](T-010-share-from-viewer.md) | P1 | todo | product-engineer |
 | [T-011 Save the chosen style with the project](T-011-project-style.md) | P1 | todo | product-engineer + viewer-engineer |
-| [T-012 AI health check before a demo](T-012-ai-health-check.md) | P1 | review — branch agent/T-012-ai-health-check: /api/health (free) + 確認額度 (< NT$0.5), 我的專案?check, demo.md | product-engineer |
+| [T-012 AI health check before a demo](T-012-ai-health-check.md) | P1 | done — merged db94728, live-checked 2026-11-17 | product-engineer |
 | [T-013 The demo client's own plans in the fixtures](T-013-client-plans.md) | P0 | todo — needs the owner (client plans) | owner → qa-engineer |
