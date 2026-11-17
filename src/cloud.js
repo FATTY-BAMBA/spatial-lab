@@ -55,9 +55,28 @@ export async function setClient(id, name) { const sb = await client(); const { e
 export async function saveProject({ id, name, doc, thumb }) {
   const sb = await client();
   const row = { name: (name || '新專案').slice(0, 120), doc, ...(thumb ? { thumb } : {}) };
-  if (id) { const { error } = await sb.from('spatial_projects').update(row).eq('id', id); if (error) throw error; return id; }
+  if (id) {
+    // the editor saves its whole doc; keep the style the designer presented in the 3D (T-011, doc.presented) as it is on
+    // the server, so an editor tab opened before the style was picked cannot put an old one back
+    try {
+      const { data: cur, error: e0 } = await sb.from('spatial_projects').select('presented:doc->presented').eq('id', id).maybeSingle();
+      if (!e0 && cur) { row.doc = { ...doc }; if (cur.presented != null) row.doc.presented = cur.presented; else delete row.doc.presented; }
+    } catch { /* keep the doc as given */ }
+    const { error } = await sb.from('spatial_projects').update(row).eq('id', id); if (error) throw error; return id;
+  }
   const { data, error } = await sb.from('spatial_projects').insert(row).select('id').single();
   if (error) throw error; return data.id;
+}
+// T-011: the style and finishes the designer presents (see src/presented.js) live in the project doc, so the share RPC
+// already returns them and no migration is needed. Only `doc.presented` changes; the rest of the doc is read fresh
+// first so an edit saved by the editor in the meantime is kept.
+export async function savePresented(id, presented) {
+  const sb = await client();
+  const { data, error } = await sb.from('spatial_projects').select('doc').eq('id', id).single();
+  if (error) throw error;
+  const doc = { ...(data.doc || {}), presented };
+  const { error: e2 } = await sb.from('spatial_projects').update({ doc }).eq('id', id);
+  if (e2) throw e2; return presented;
 }
 export async function renameProject(id, name) { const sb = await client(); const { error } = await sb.from('spatial_projects').update({ name }).eq('id', id); if (error) throw error; }
 export async function deleteProject(id) { const sb = await client(); const { error } = await sb.from('spatial_projects').delete().eq('id', id); if (error) throw error; }

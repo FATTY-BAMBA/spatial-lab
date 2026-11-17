@@ -10,6 +10,7 @@ import { setupClickWalk, setupMinimap, setupTime, setupCompare } from './feature
 import { setupAI } from './ai.js';
 import { setupProposal } from './proposal.js';
 import { exportGLB, exportOBJ, exportDXF, download } from './export.js';
+import { makePresented, normPresented, usePresented, differs } from './presented.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
@@ -38,6 +39,10 @@ async function boot() {
   const params = new URLSearchParams(location.search);
   let customPlan = null, sharedView = false, cloudName = '', cloudRow = null, Cloud = null, firmP = Promise.resolve(null);
   if (params.get('p') === 'custom') { try { customPlan = JSON.parse(localStorage.getItem('spatial.custom') || 'null'); } catch {} }
+  // the editor could not save this plan to the account (signed in, save failed): say what this preview lacks (T-007 N9).
+  // The flag leaves the address at once so a reload does not repeat it.
+  const unsaved = params.get('p') === 'custom' && params.has('unsaved');
+  if (unsaved) { const u = new URL(location.href); u.searchParams.delete('unsaved'); history.replaceState(null, '', u); }
   // saved projects: ?id= (the owner, signed in) or ?share= (anyone with the link, read-only)
   const cloudId = params.get('id'), shareTok = params.get('share');
   if (!customPlan && (cloudId || shareTok)) {
@@ -56,9 +61,10 @@ async function boot() {
   // or share token, an unsaved editor preview (?p=custom) by the id the editor gives each plan it hands over, the demo
   // plans by name. A choice made in one plan never shows up in another.
   const stateKey = !customPlan ? projectKey : cloudId || shareTok ? `p.${cloudId || shareTok}` : `local.${String(customPlan.localId || 'plan').slice(0, 40)}`;
-  const finKey = customPlan ? `spatial.finishes.${stateKey}` : 'spatial.finishes';
-  // before per-plan keys every saved project and preview shared these: drop them so no old style or 核准 resurfaces
-  try { for (const k of ['spatial.style.custom', 'spatial.approval.custom']) localStorage.removeItem(k); } catch {}
+  const finKey = `spatial.finishes.${stateKey}`;
+  // before per-plan keys every saved project, preview and demo plan shared these: drop them so no old style, finishes
+  // or 核准 resurfaces (the demo apartment used to open as 自訂組合 from another plan's finishes)
+  try { for (const k of ['spatial.style.custom', 'spatial.approval.custom', 'spatial.finishes']) localStorage.removeItem(k); } catch {}
   const plan = localizeData(customPlan || (await loadPlan(PROJECTS[projectKey])));
   const editLink = document.getElementById('edit-link');
   if (editLink) editLink.href = cloudId && customPlan ? `/editor?id=${encodeURIComponent(cloudId)}` : `editor.html${projectKey === 'custom' ? '' : `?from=${projectKey}`}`;
@@ -364,28 +370,95 @@ async function boot() {
   const ORIGINAL = { id: 'original', name: t('原始提案', 'Original'), nameEn: t('Original', ''), tagline: t('本案預設材質', 'This project\'s default finishes'), finishes: { ...plan.defaultFinishes }, palette: plan.defaultPalette || {} };
   const styles = [ORIGINAL, ...catalog.styles];
   let styleId = null; // null = custom mix
-  let palette = ORIGINAL.palette;
-  try {
-    const sid = localStorage.getItem(`spatial.style.${stateKey}`);
-    const st = styles.find(x => x.id === sid);
-    if (st) { styleId = st.id; palette = st.palette; Object.assign(chosen, st.finishes); }
-  } catch {}
-  try { if (styleId === null && !localStorage.getItem(finKey)) styleId = 'original'; } catch { styleId = 'original'; }
+  let palette = ORIGINAL.palette, paletteId = 'original'; // a custom mix keeps the palette (fabrics, light) of the style it came from
+  const paletteOf = id => { const st = styles.find(x => x.id === id); return st ? [st.id, st.palette] : ['original', ORIGINAL.palette]; };
+  // T-011: the style and finishes the designer presents live on the project (doc.presented). The client's link and the
+  // owner on any computer open on them; a client's own switch on the phone is kept in that browser only (never saved).
+  const owner = !!(cloudId && customPlan && !sharedView && Cloud);
+  const presented = customPlan && cloudRow && cloudRow.doc ? normPresented(cloudRow.doc.presented, plan, styles.map(s => s.id)) : null;
+  const seenKey = `spatial.seen.${stateKey}`;
+  let seen = null; try { seen = localStorage.getItem(seenKey); } catch {}
+  // the owner always opens on what the project holds (its saved choice, else 原始提案): never on a style this browser
+  // remembers from before T-011, and never writing one to the project just by opening it (owner decision, validation)
+  if (owner && !presented) { styleId = 'original'; Object.assign(chosen, plan.defaultFinishes); saveLocal(); }
+  else if (owner || usePresented(presented, seen)) {
+    Object.assign(chosen, plan.defaultFinishes, presented.finishes);
+    styleId = presented.style;
+    [paletteId, palette] = paletteOf(presented.palette);
+    try { localStorage.setItem(seenKey, presented.at); } catch {}
+    saveLocal(); // a reload in this browser keeps it
+  } else {
+    try {
+      const sid = localStorage.getItem(`spatial.style.${stateKey}`);
+      const st = styles.find(x => x.id === sid);
+      if (st) { styleId = st.id; palette = st.palette; paletteId = st.id; Object.assign(chosen, st.finishes); }
+      else if (sid === '') [paletteId, palette] = paletteOf(localStorage.getItem(`spatial.palette.${stateKey}`));
+    } catch {}
+    try { if (styleId === null && !localStorage.getItem(finKey)) styleId = 'original'; } catch { styleId = 'original'; }
+  }
   function applyState(fin, pal) { for (const [gid, oid] of Object.entries(fin)) world.applyFinish(gid, oid); world.applyPalette(pal); }
   applyState(chosen, palette);
-  function saveState() {
-    try { localStorage.setItem(finKey, JSON.stringify(chosen)); localStorage.setItem(`spatial.style.${stateKey}`, styleId || ''); } catch {}
+  function saveLocal() {
+    try { localStorage.setItem(finKey, JSON.stringify(chosen)); localStorage.setItem(`spatial.style.${stateKey}`, styleId || ''); localStorage.setItem(`spatial.palette.${stateKey}`, paletteId); } catch {}
   }
+  function saveState() {
+    saveLocal();
+    if (owner) { presDirty = true; clearTimeout(presTimer); presTimer = setTimeout(flushPresented, 700); }
+  }
+  // the owner's choice goes to the project a moment after each change; share and 提案書 wait for it (flushPresented)
+  let presDirty = false, presTimer = 0, presQ = Promise.resolve(true), presWarned = false, presWipe = null;
+  function flushPresented() {
+    // a style switch still in its 3D wipe is completed now (its target is known from the click), so leaving mid-wipe
+    // saves it; the wipe's own end then finds it done
+    if (presWipe) presWipe();
+    clearTimeout(presTimer);
+    if (!presDirty) return presQ;
+    presDirty = false;
+    const pr = makePresented(styleId, chosen, paletteId);
+    presQ = presQ.then(() => Cloud.savePresented(cloudId, pr)).then(() => {
+      try { localStorage.setItem(seenKey, pr.at); } catch {}
+      if (cloudRow.doc) cloudRow.doc.presented = pr;
+      presWarned = false; return true;
+    }, e => {
+      console.warn('presented', e); presDirty = true;
+      if (!presWarned) { presWarned = true; toast(t('風格沒有存到帳號（網路中斷？），客戶的連結仍是先前的風格。再換一次風格或按分享會重試。', 'The style was not saved to your account (network down?), so the client\'s link still shows the previous one. Switch again or press Share to retry.'), 8000); }
+      return false;
+    });
+    return presQ;
+  }
+  // every way out of the 3D the owner can take (我的專案, 編輯平面, 提案書, language, ⋯ menu…) waits for the save, so a
+  // style picked just before leaving reaches the client's link; a tab closed or switched away starts it at once
+  if (owner) {
+    document.addEventListener('click', async e => {
+      const a = e.target.closest && e.target.closest('a[href]');
+      if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank' || a.hasAttribute('download')) return;
+      const u = new URL(a.href, location.href);
+      if (u.origin !== location.origin || (u.pathname === location.pathname && u.search === location.search)) return; // in-page (#…)
+      e.preventDefault(); await flushPresented(); location.href = a.href;
+    });
+    const early = () => { if (presDirty || presWipe) flushPresented(); };
+    addEventListener('pagehide', early);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') early(); });
+  }
+  // T-010: 分享 in the top bar (owner only): link, 複製, LINE, QR, 停止分享
+  if (owner) {
+    try { (await import('./share.js')).setupShare({ Cloud, id: cloudId, token: cloudRow.share_token || null, name: cloudName, beforeOpen: flushPresented }); }
+    catch (e) { console.warn('share', e); }
+  }
+  if (customPlan && (cloudId || shareTok)) phoneMenu();
   function markCustom() { styleId = null; renderStyles(); }
   const totalFor = fin => buildQuote(plan, { ...chosen, ...fin }).total;
   const chipColor = (gid, oid) => { const o = plan.finishes.find(f => f.id === gid).options.find(x => x.id === oid); return o ? o.tint || o.color : '#ccc'; };
   function selectStyle(id, animate = true) {
     const st = styles.find(x => x.id === id);
     const oldFin = { ...chosen }, oldPal = palette;
+    let done = false;
     const finish = () => {
-      Object.assign(chosen, st.finishes); palette = st.palette; styleId = st.id;
+      if (done) return; done = true; if (presWipe === finish) presWipe = null;
+      Object.assign(chosen, st.finishes); palette = st.palette; paletteId = st.id; styleId = st.id;
       applyState(chosen, palette); syncRadios(); saveState(); renderQuote(true); renderStyles();
     };
+    if (owner) presWipe = finish;
     if (animate && mode !== 'plan') compare.transition(() => applyState(oldFin, oldPal), () => applyState(st.finishes, st.palette), finish);
     else finish();
   }
@@ -433,6 +506,24 @@ async function boot() {
       host.appendChild(card);
     }
     $('#style-now').textContent = styleId ? styles.find(x => x.id === styleId).name : t('自訂組合', 'Custom mix');
+    // the client's link: mark the designer's pick and offer the way back to it after trying other styles
+    if (sharedView && presented) {
+      const card = presented.style && host.children[styles.findIndex(x => x.id === presented.style)], pc = card && card.querySelector('.sc-name');
+      if (pc) pc.append(Object.assign(document.createElement('em'), { className: 'sc-pick', textContent: t('設計師提案', 'Designer\'s pick') }));
+      let back = $('#presented-back');
+      if (!back) {
+        back = Object.assign(document.createElement('button'), { type: 'button', id: 'presented-back', className: 'pres-back' });
+        back.textContent = t('↺ 回到設計師的提案', '↺ Back to the designer\'s proposal');
+        back.addEventListener('click', backToPresented);
+        host.before(back);
+      }
+      back.hidden = !differs(presented, styleId, chosen);
+    }
+  }
+  function backToPresented() {
+    const oldFin = { ...chosen }, oldPal = palette, [pid, pal] = paletteOf(presented.palette);
+    const finish = () => { Object.assign(chosen, presented.finishes); palette = pal; paletteId = pid; styleId = presented.style; applyState(chosen, palette); syncRadios(); saveState(); renderQuote(true); renderStyles(); };
+    if (mode !== 'plan') compare.transition(() => applyState(oldFin, oldPal), () => applyState(presented.finishes, pal), finish); else finish();
   }
   renderStyles();
   syncRadios();
@@ -745,6 +836,7 @@ async function boot() {
   addEventListener('hashchange', () => { const h = location.hash.replace('#', ''); if (['story', 'explore', 'plan'].includes(h)) setMode(h); });
   requestAnimationFrame(frame);
   document.body.classList.add('ready');
+  if (unsaved) toast(t('尚未儲存到帳號，先開本機預覽：這裡沒有 AI 效果圖、提案書與分享。回到編輯平面，等「已儲存到帳號」再開 3D。', 'Not saved to your account yet, so this is a local preview: no AI renders, proposal or share link here. Go back to the editor and open the 3D once it says "Saved to your account".'), 10000);
   if (!document.body.classList.contains('no-hero-media') && mode === 'story' && window.scrollY < 40) setTimeout(() => heroVid.play().catch(() => {}), 500);
   // saved projects: renders come from the project; the owner can make new ones from the current view
   const cloudAI = customPlan && cloudRow && Cloud ? {
@@ -971,6 +1063,30 @@ async function boot() {
     }));
   }
   window.__spatial = { ai, proposal, world, camera, story, explore, setMode, setView, scrollToBeat, plan, compare, tod, selectStyle, openStyleCompare, openFinishCompare, photo };
+}
+
+// Phones (≤ 480 px) in a project view: the bar holds the tabs, 分享 and 提案; 提案書, 我的專案 and the language move into
+// a ⋯ menu (the same elements, moved, so their links and handlers stay). Back in the bar on wider screens.
+function phoneMenu() {
+  const mq = matchMedia('(max-width: 480px)'), top = document.getElementById('proposal-top');
+  const items = [document.getElementById('doc-link'), document.getElementById('acct-link'), document.querySelector('.bar .actions .lang-switch')].filter(Boolean);
+  if (!top || !items.length) return;
+  const marks = items.map(e => { const c = document.createComment(''); e.before(c); return c; });
+  const more = Object.assign(document.createElement('button'), { type: 'button', id: 'more-open', className: 'act', title: t('更多', 'More') });
+  more.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>';
+  more.setAttribute('aria-haspopup', 'true'); more.setAttribute('aria-expanded', 'false');
+  const menu = document.createElement('div');
+  menu.id = 'more'; menu.className = 'xp more'; menu.hidden = true; menu.setAttribute('aria-label', t('更多', 'More'));
+  document.body.append(menu);
+  const open = v => { menu.hidden = !v; more.setAttribute('aria-expanded', String(v)); if (v) menu.querySelector('a[href]:not([hidden]), button')?.focus({ preventScroll: true }); };
+  more.addEventListener('click', e => { e.stopPropagation(); open(menu.hidden); });
+  document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) open(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { open(false); more.focus(); } });
+  const place = () => {
+    if (mq.matches) { top.before(more); for (const e of items) menu.append(e); }
+    else { open(false); more.remove(); items.forEach((e, i) => marks[i].after(e)); }
+  };
+  place(); mq.addEventListener?.('change', place);
 }
 
 boot().catch(err => {

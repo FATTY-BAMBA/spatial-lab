@@ -17,5 +17,8 @@
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0"
   },
-  "optionalNote": "playwright is not listed: environments that ship it (Claude/Codex sandboxes) use theirs; CI installs playwright@1.63.0 itself."
+  "optionalNote": "playwright is not listed: environments that ship it (Claude/Codex sandboxes) use theirs; CI installs playwright@1.63.0 itself.",
+  "devDependencies": {
+    "jsqr": "^1.4.0"
+  }
 }

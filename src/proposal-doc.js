@@ -11,9 +11,21 @@ export function styleList(plan, catalog = {}) {
   return [original, ...(catalog.styles || [])];
 }
 
-// Which style the proposal quotes: the one asked for, else the one with the most AI renders, else 原始提案
-export function pickStyle(styles, renders = [], wanted = '') {
+// The designer's presented choice (T-011, doc.presented, already checked by normPresented): its style quotes exactly the
+// presented finishes (so the total is the one the designer saw); a custom mix is added as its own entry 'custom'.
+export function withPresented(styles, presented) {
+  if (!presented) return styles;
+  if (presented.style && styles.some(s => s.id === presented.style)) return styles.map(s => (s.id === presented.style ? { ...s, finishes: { ...s.finishes, ...presented.finishes } } : s));
+  return [...styles, { id: 'custom', name: t('自訂組合', 'Custom mix'), nameEn: '', tagline: t('設計師為本案選配的材質', 'Finishes your designer chose for this project'), finishes: { ...presented.finishes } }];
+}
+export const presentedId = presented => (presented ? presented.style || 'custom' : '');
+
+// Which style the proposal quotes: the one asked for, else the designer's presented choice, else the one with the most
+// AI renders, else 原始提案
+export function pickStyle(styles, renders = [], wanted = '', presented = null) {
   if (wanted && styles.some(s => s.id === wanted)) return wanted;
+  const pid = presentedId(presented);
+  if (pid && styles.some(s => s.id === pid)) return pid;
   const n = id => renders.filter(r => r.style === id).length;
   const best = styles.filter(s => n(s.id)).sort((a, b) => n(b.id) - n(a.id))[0];
   return best ? best.id : 'original';

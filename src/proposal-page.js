@@ -1,11 +1,12 @@
 // 提案書: the client-facing, printable proposal of a saved project, branded with the design firm.
 //   /proposal?share=<token>  the client (read-only, no sign-in; firm fields come from spatial_shared)
 //   /proposal?id=<project>   the owner's own preview (signed in; firm from 公司資料)
-//   &style=<id>              which style is quoted (default: the style with the most AI renders)
+//   &style=<id>              which style is quoted (default: the designer's saved choice, else the style with the most AI renders)
 import { loadPlan } from './plan.js';
 import { t, isEn, unitLabel, localizeData, langSwitch } from './i18n.js';
 import { drawLevel } from './drawing.js';
-import { styleList, pickStyle, proposalData, money } from './proposal-doc.js';
+import { styleList, pickStyle, proposalData, money, withPresented } from './proposal-doc.js';
+import { normPresented } from './presented.js';
 import { normFirm, onColor, contactLines, initials } from './firm.js';
 import { applyPrices } from './prices.js';
 
@@ -39,11 +40,14 @@ async function boot() {
   // only the project's own type label: completePlan fills gaps from the sample apartment, which is not this home
   const own = row.doc.project || {}, typeLabel = (isEn ? own.typeLabelEn : own.typeLabel) || '';
   localizeData(catalog);
-  const styles = styleList(plan, catalog);
+  // the style and finishes the designer presented (T-011): the proposal quotes them unless ?style= asks otherwise
+  const base0 = styleList(plan, catalog);
+  const presented = normPresented(row.doc.presented, plan, base0.map(s => s.id));
+  const styles = withPresented(base0, presented);
   // the firm's own 價目表 (after the catalogue options are in plan.finishes); none → the sample price book
   if (firm && firm.prices) applyPrices(plan, firm.prices);
   const renders = row.renders || [];
-  let styleId = pickStyle(styles, renders, params.get('style'));
+  let styleId = pickStyle(styles, renders, params.get('style'), presented);
   const F = normFirm(firm);
   if (F) { document.documentElement.style.setProperty('--brand', F.color); document.documentElement.style.setProperty('--on-brand', onColor(F.color)); document.documentElement.style.setProperty('--tint', F.color + '14'); }
   const name = row.name || plan.project.name || t('設計提案', 'Design proposal');
@@ -54,7 +58,8 @@ async function boot() {
   who.innerHTML = F ? `${F.logo ? `<img src="${esc(F.logo)}" alt="">` : ''}<span>${esc(F.name)}</span>` : `<span>${esc(name)}</span>`;
   $('#style-l').textContent = t('報價風格', 'Quoted style');
   const sel = $('#style');
-  sel.innerHTML = styles.map(s => `<option value="${esc(s.id)}">${esc(s.name)}${renders.some(r => r.style === s.id) ? ' ✦' : ''}</option>`).join('');
+  const pickId = presented ? presented.style || 'custom' : '';
+  sel.innerHTML = styles.map(s => `<option value="${esc(s.id)}">${esc(s.name)}${renders.some(r => r.style === s.id) ? ' ✦' : ''}${s.id === pickId ? t('（設計師提案）', ' (designer\'s pick)') : ''}</option>`).join('');
   sel.value = styleId;
   sel.addEventListener('change', () => { styleId = sel.value; const u = new URL(location.href); u.searchParams.set('style', styleId); history.replaceState(null, '', u); draw(); });
   const view3d = token ? `/?share=${encodeURIComponent(token)}` : `/?id=${encodeURIComponent(pid)}`;
