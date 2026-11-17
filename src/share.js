@@ -18,7 +18,7 @@ export function setupShare({ Cloud, id, token = null, name = '', beforeOpen = as
   if (anchor) anchor.before(btn); else bar.append(btn);
 
   const box = document.createElement('div');
-  box.id = 'share'; box.className = 'xp sh'; box.hidden = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', t('分享給客戶', 'Share with your client'));
+  box.id = 'share'; box.className = 'xp sh'; box.hidden = true; box.tabIndex = -1; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', t('分享給客戶', 'Share with your client'));
   box.innerHTML = `<p class="xp-h sh-h">${t('分享給客戶', 'Share with your client')}<small>${t('唯讀連結：客戶可以走進 3D、換風格、看報價，不能修改。', 'Read-only link: your client can walk the 3D, switch styles and see the quote, but not change anything.')}</small></p>
     <p class="sh-wait">${t('建立連結中…', 'Creating the link…')}</p>
     <div class="sh-on" hidden>
@@ -43,6 +43,8 @@ export function setupShare({ Cloud, id, token = null, name = '', beforeOpen = as
     }
     if (state === 'off') $('.sh-off-t').textContent = offText;
     btn.classList.toggle('on', state === 'on' && !!token);
+    // keyboard and screen readers land in the panel: on its first action, or on the panel while the link is made
+    if (!box.hidden) (state === 'on' ? $('.sh-copy') : state === 'off' ? $('.sh-again') : box).focus({ preventScroll: true });
   }
   async function turnOn() {
     show('wait'); status('');

@@ -378,7 +378,10 @@ async function boot() {
   const presented = customPlan && cloudRow && cloudRow.doc ? normPresented(cloudRow.doc.presented, plan, styles.map(s => s.id)) : null;
   const seenKey = `spatial.seen.${stateKey}`;
   let seen = null; try { seen = localStorage.getItem(seenKey); } catch {}
-  if (usePresented(presented, seen)) {
+  // the owner always opens on what the project holds (its saved choice, else 原始提案): never on a style this browser
+  // remembers from before T-011, and never writing one to the project just by opening it (owner decision, validation)
+  if (owner && !presented) { styleId = 'original'; Object.assign(chosen, plan.defaultFinishes); saveLocal(); }
+  else if (owner || usePresented(presented, seen)) {
     Object.assign(chosen, plan.defaultFinishes, presented.finishes);
     styleId = presented.style;
     [paletteId, palette] = paletteOf(presented.palette);
@@ -403,8 +406,11 @@ async function boot() {
     if (owner) { presDirty = true; clearTimeout(presTimer); presTimer = setTimeout(flushPresented, 700); }
   }
   // the owner's choice goes to the project a moment after each change; share and 提案書 wait for it (flushPresented)
-  let presDirty = false, presTimer = 0, presQ = Promise.resolve(true), presWarned = false;
-  function flushPresented() {
+  let presDirty = false, presTimer = 0, presQ = Promise.resolve(true), presWarned = false, presWipe = null;
+  async function flushPresented() {
+    // a style switch still in its 3D wipe is saved once the wipe ends (at most ~1.5 s; a wipe cut short by another
+    // switch never calls back, hence the cap)
+    if (presWipe) await Promise.race([presWipe, new Promise(r => setTimeout(r, 1500))]);
     clearTimeout(presTimer);
     if (!presDirty) return presQ;
     presDirty = false;
@@ -420,9 +426,20 @@ async function boot() {
     });
     return presQ;
   }
-  // an owner whose current choice is not on the project yet (chosen before this was saved, or a save that failed)
-  if (owner && (presented ? differs(presented, styleId, chosen) : styleId !== 'original')) { presDirty = true; presTimer = setTimeout(flushPresented, 700); }
-  if (owner) $('#doc-link')?.addEventListener('click', async e => { if (e.button || e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); const href = e.currentTarget.href; await flushPresented(); location.href = href; });
+  // every way out of the 3D the owner can take (我的專案, 編輯平面, 提案書, language, ⋯ menu…) waits for the save, so a
+  // style picked just before leaving reaches the client's link; a tab closed or switched away starts it at once
+  if (owner) {
+    document.addEventListener('click', async e => {
+      const a = e.target.closest && e.target.closest('a[href]');
+      if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank' || a.hasAttribute('download')) return;
+      const u = new URL(a.href, location.href);
+      if (u.origin !== location.origin || (u.pathname === location.pathname && u.search === location.search)) return; // in-page (#…)
+      e.preventDefault(); await flushPresented(); location.href = a.href;
+    });
+    const early = () => { if (presDirty || presWipe) flushPresented(); };
+    addEventListener('pagehide', early);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') early(); });
+  }
   // T-010: 分享 in the top bar (owner only): link, 複製, LINE, QR, 停止分享
   if (owner) {
     try { (await import('./share.js')).setupShare({ Cloud, id: cloudId, token: cloudRow.share_token || null, name: cloudName, beforeOpen: flushPresented }); }
@@ -435,9 +452,11 @@ async function boot() {
   function selectStyle(id, animate = true) {
     const st = styles.find(x => x.id === id);
     const oldFin = { ...chosen }, oldPal = palette;
+    let wiped = null, mine = null; if (owner) presWipe = mine = new Promise(r => { wiped = r; });
     const finish = () => {
       Object.assign(chosen, st.finishes); palette = st.palette; paletteId = st.id; styleId = st.id;
       applyState(chosen, palette); syncRadios(); saveState(); renderQuote(true); renderStyles();
+      if (wiped) { wiped(); if (presWipe === mine) presWipe = null; }
     };
     if (animate && mode !== 'plan') compare.transition(() => applyState(oldFin, oldPal), () => applyState(st.finishes, st.palette), finish);
     else finish();
@@ -1058,7 +1077,7 @@ function phoneMenu() {
   const menu = document.createElement('div');
   menu.id = 'more'; menu.className = 'xp more'; menu.hidden = true; menu.setAttribute('aria-label', t('更多', 'More'));
   document.body.append(menu);
-  const open = v => { menu.hidden = !v; more.setAttribute('aria-expanded', String(v)); };
+  const open = v => { menu.hidden = !v; more.setAttribute('aria-expanded', String(v)); if (v) menu.querySelector('a[href]:not([hidden]), button')?.focus({ preventScroll: true }); };
   more.addEventListener('click', e => { e.stopPropagation(); open(menu.hidden); });
   document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) open(false); });
   addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { open(false); more.focus(); } });

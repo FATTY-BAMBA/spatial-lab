@@ -20,7 +20,8 @@
 //  12. AI 服務狀態 (T-012): /projects?check runs the free check, 確認額度 shows a Gemini free-tier warning (360 px);
 //      not run on a plain visit; English + expired session
 //  13. T-011: the owner's style (and a custom mix) is saved on the project → the client's link, the 提案書 and the owner on
-//      another computer open on it with the same total; the client's own switch saves nothing; a failed save is reported
+//      another computer open on it with the same total; the client's own switch saves nothing; a failed save is reported;
+//      leaving the 3D right after a change (or during its wipe) still saves it; an old browser-local style is not pushed
 //  14. T-010: 分享 in the 3D → link, QR (decoded from the screen), 複製, LINE, 停止分享, token reused; 360 px bar and panel;
 //      English; no 分享 on the client link
 //  15. T-007 N9 (failed save → the preview says what it lacks) and N10 (old spatial.finishes no longer leaks into the demo)
@@ -220,7 +221,8 @@ if (docJSON && firmJSON) await step('share link shows the firm logo and name (Pr
   const { p, ctx } = await page({ doc: true, share: true, store: { 'qa-doc': docJSON, 'qa-firm': firmJSON, 'qa-renders': RENDERS } });
   await p.goto(`${srv.url}/?share=${TOKEN}`);
   await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
-  await p.waitForFunction(() => document.querySelector('.bar .brand.firm'), null, { timeout: 10000, polling: 250 }) // timer polling: rAF polling starves while software GL draws full-quality frames.catch(async e => { throw new Error(`${String(e.message).slice(0, 120)} bar not branded: ${await p.evaluate(() => document.querySelector('.bar .brand').outerHTML.slice(0, 160) + ' · ' + document.body.className)}`); });
+  // timer polling: rAF polling starves while software GL draws full-quality frames
+  await p.waitForFunction(() => document.querySelector('.bar .brand.firm'), null, { timeout: 10000, polling: 250 }).catch(async e => { throw new Error(`${String(e.message).slice(0, 120)} bar not branded: ${await p.evaluate(() => document.querySelector('.bar .brand').outerHTML.slice(0, 160) + ' · ' + document.body.className)}`); });
   const st = await p.evaluate(() => {
     const b = document.querySelector('.bar .brand'), img = b.querySelector('img'), doc = document.querySelector('#doc-link');
     return { name: b.textContent.trim(), img: img ? img.src.slice(0, 22) : '', imgOk: !!img && img.complete && img.naturalWidth > 0, title: document.title, doc: doc && !doc.hidden ? doc.getAttribute('href') : '', powered: (document.querySelector('.hero-copy .powered') || {}).textContent || '', lede: document.querySelector('.hero-copy > p').textContent };
@@ -465,7 +467,7 @@ if (docJSON && firmJSON) await step('T-011 style saved with the project: owner �
 });
 
 // the save fails (offline): the designer is told the client link still shows the previous choice
-if (docJSON) await step('T-011 style save fails → the designer is told; the choice is kept on this computer', async () => {
+if (docJSON) await step('T-011 style save fails → the designer is told (fits 360 px)', async () => {
   const A = 'aaaaaaaa-2222-3333-4444-555555555555';
   const { p } = await page({ doc: true, viewport: { width: 360, height: 780 }, store: { 'qa-doc': docJSON, 'qa-presentfail': '1' } });
   await openView(p, `${srv.url}/?id=${A}&q=lite`);
@@ -474,6 +476,32 @@ if (docJSON) await step('T-011 style save fails → the designer is told; the ch
   const n = await p.evaluate(() => { const e = [...document.querySelectorAll('.cloud-miss')].find(n => /客戶/.test(n.textContent)), r = e.getBoundingClientRect(); return { text: e.textContent, l: r.left, r: r.right }; });
   if (n.l < 0 || n.r > 360) throw new Error(`message off screen at 360 px: ${JSON.stringify(n)}`);
   results.push(`    ${n.text}`);
+  if (p.errors.length) throw new Error(p.errors[0]);
+});
+
+// the designer leaves the 3D right after a change (我的專案 at once, or 編輯平面 during the 3D wipe): the change is still
+// saved; and an old project's browser-local style (from before T-011) is not written to the project on open (owner decision)
+if (docJSON) await step('T-011 leaving the 3D right after a change still saves it; an old browser-local style is not pushed', async () => {
+  const A = 'aaaaaaaa-2222-3333-4444-555555555555';
+  const presentedOf = (p, id) => p.evaluate(i => { try { return JSON.parse(localStorage.getItem('qa-presented.' + i)); } catch { return null; } }, id);
+  const { p } = await page({ doc: true, viewport: { width: 960, height: 600 }, store: { 'qa-doc': docJSON, [`spatial.style.p.${A}`]: 'wabi', [`spatial.finishes.p.${A}`]: JSON.stringify({ floor: 'oak' }) } });
+  let st = await openView(p, `${srv.url}/?id=${A}&q=lite#plan`);
+  await p.waitForTimeout(1500);
+  const calls = await p.evaluate(() => window.__qaPresentedCalls);
+  if (st.style !== '原始提案' || calls) throw new Error(`old project with a browser-local 侘寂風: opened ${st.style}, ${calls} save(s)`);
+  // pick 侘寂風 and leave for 我的專案 at once
+  await pickStyleCard(p, '侘寂');
+  await p.evaluate(() => document.querySelector('#acct-link').click());
+  await p.waitForURL(u => u.pathname === '/projects', { timeout: 20000 });
+  let pr = await presentedOf(p, A);
+  if (!pr || pr.style !== 'wabi') throw new Error(`left for 我的專案 right after 侘寂風: project has ${JSON.stringify(pr && pr.style)}`);
+  // explore: 原始提案 starts the 3D wipe; 編輯平面 is clicked before it ends
+  st = await openView(p, `${srv.url}/?id=${A}&q=lite#explore`);
+  if (st.style !== '侘寂風') throw new Error(`reopened on ${st.style}`);
+  await p.evaluate(() => { [...document.querySelectorAll('#styles .style-card')].find(c => /原始提案/.test(c.querySelector('.sc-name').textContent)).querySelector('.sc-main').click(); document.querySelector('#edit-link').click(); });
+  await p.waitForURL(u => u.pathname.startsWith('/editor'), { timeout: 60000 });
+  pr = await presentedOf(p, A);
+  if (!pr || pr.style !== 'original') throw new Error(`left for 編輯平面 during the wipe: project has ${JSON.stringify(pr && pr.style)}`);
   if (p.errors.length) throw new Error(p.errors[0]);
 });
 
@@ -505,6 +533,7 @@ if (docJSON) await step('T-010 share from the 3D: 分享 → link + QR (decoded)
   if (!s1.line.startsWith('https://line.me/R/share?text=') || !decodeURIComponent(s1.line.split('text=')[1]).includes(link)) throw new Error(`LINE link ${s1.line}`);
   const q1 = await qrText(p, '#share .sh-qr');
   if (q1 !== link) throw new Error(`QR decodes to ${q1}`);
+  if (!(await p.evaluate(() => document.activeElement === document.querySelector('#share .sh-copy')))) throw new Error('focus did not move into the share panel');
   await p.evaluate(() => document.querySelector('#share .sh-copy').click());
   await p.waitForFunction(() => /已複製/.test(document.querySelector('#share .sh-status').textContent), null, { timeout: 5000 });
   const clip = await p.evaluate(() => navigator.clipboard.readText());
@@ -527,6 +556,7 @@ if (docJSON) await step('T-010 share from the 3D: 分享 → link + QR (decoded)
   await p.evaluate(() => document.querySelector('#more-open').click());
   const menu = await p.evaluate(() => { const m = document.querySelector('#more'), r = m.getBoundingClientRect(); return { open: !m.hidden, doc: !!m.querySelector('#doc-link[href*="/proposal"]'), acct: !!m.querySelector('#acct-link'), lang: !!m.querySelector('.lang-switch a[lang="en"]'), l: r.left, r: r.right }; });
   if (!menu.open || !menu.doc || !menu.acct || !menu.lang || menu.l < 0 || menu.r > 360) throw new Error(`⋯ menu at 360 px: ${JSON.stringify(menu)}`);
+  if (!(await p.evaluate(() => document.querySelector('#more').contains(document.activeElement)))) throw new Error('focus did not move into the ⋯ menu');
   await p.evaluate(() => document.querySelector('#more-open').click());
   await p.evaluate(() => document.querySelector('#share-open').click());
   await p.waitForSelector('#share:not([hidden]) .sh-qr svg', { timeout: 15000 });

@@ -29,8 +29,8 @@ client switching style does not change the owner's saved choice.
   old one back.
 - **Owner** (`/?id=`): every style or finish change is saved to the project 0.7 s later (`flushPresented`); 提案書 and
   分享 wait for that save. A failed save says so once (「風格沒有存到帳號（網路中斷？），客戶的連結仍是先前的風格…」) and
-  retries on the next change or on 分享. An owner whose browser has a choice the project does not (picked before this
-  shipped, or a failed save) pushes it once on open.
+  retries on the next change or on 分享. *(Changed after validation, see below: every way out of the 3D waits, and an old
+  browser-local style is no longer pushed on open.)*
 - **Client** (`/?share=`) and the owner on another computer open on `doc.presented` (finishes, style, palette). The
   client can switch styles on the phone: kept in that browser only (never saved); a reload keeps the client's switch
   until the designer presents something new (`usePresented`: the saved `at` vs the last one this browser applied). On
@@ -150,3 +150,25 @@ session): signed in, open a saved project `/?id=…` → pick 侘寂風 → wait
 same link; 停止分享 → the old link shows 「這個分享連結已失效或不存在」; 開啟分享連結 → new link works. Open the project
 in the editor, move a wall, let it autosave → the share link still opens 侘寂風. Phone (360–412 px): bar fits, ⋯ menu
 works, zh and en.
+
+## Fixes after validation (viewer-engineer, 2026-11-17)
+- **1 fixed — a change made just before leaving is saved.** Every same-site link the owner can follow out of the 3D
+  (我的專案, 編輯平面, 提案書, the language links, the ⋯ menu items — one click handler on the document, skipping in-page
+  `#` links, new-tab/modified clicks and links another handler already took, e.g. the film player) waits for
+  `flushPresented()` before navigating. A style switch counts as pending from the click, not only after its 3D wipe
+  (`presWipe`, capped at 1.5 s). Closing or switching the tab (`pagehide`, `visibilitychange: hidden`) starts the save at
+  once — best effort: supabase-js cannot send it as a keepalive request, so a tab killed mid-request can still lose it.
+  e2e 「T-011 leaving the 3D right after a change…」: 侘寂風 → 我的專案 at once → saved `wabi`; in Explore, 原始提案 (wipe
+  running) → 編輯平面 at once → saved `original`. Failed before the fix (and with the wipe wait disabled, its second half
+  fails: 「project has "wabi"」).
+- **2 fixed** — the e2e comment in 「share link shows the firm logo」 is on its own line; its `.catch` diagnostic is back.
+- **3 done (owner decision)** — only an explicit change by the owner in the 3D writes `presented`. The owner now always
+  opens a saved project on what the project holds: its `presented`, else 原始提案 — never on a style this browser
+  remembers from before T-011, and opening writes nothing. Old projects keep showing 原始提案 to the client until the
+  designer picks a style. (Side effect: after a failed save the owner's reload also shows the saved choice, i.e. what
+  the client sees.) Same e2e step: browser-local 侘寂風 on an old project → opens 原始提案, 0 saves.
+- Trivial: `src/cloud.js` line break restored; the share panel moves focus to 複製 (or 開啟分享連結 / the panel while the
+  link is made) and the ⋯ menu to its first item — both checked in the T-010 step.
+
+**Chosen model (owner):** the style or finish the designer last touched in the 3D is what the client sees — no separate
+「設為提案」 button. The demo script says to finish on the style to present.

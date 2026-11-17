@@ -86,7 +86,8 @@ export async function setShare(id, on) {
   const token = on ? Array.from(crypto.getRandomValues(new Uint8Array(18)), b => b.toString(36).padStart(2, '0')).join('').slice(0, 28) : null;
   const { error } = await sb.from('spatial_projects').update({ share_token: token }).eq('id', id);
   if (error) throw error; return token;
-}export async function sharedProject(token) {
+}
+export async function sharedProject(token) {
   const sb = await client();
   const { data, error } = await sb.rpc('spatial_shared', { token });
   if (error) throw error; return data && data[0] ? data[0] : null;

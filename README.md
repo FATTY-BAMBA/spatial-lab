@@ -40,6 +40,8 @@ Quote basis (`plan.quoteBasis`, defaults in `src/plan.js`, replaced by the firm'
   (`{ style, palette, finishes, at }`) is written to `spatial_projects.doc.presented` (no extra column). The client's link,
   the 提案書 and the owner on another computer open on it, with the same total. A client can still switch styles on the
   phone (kept in that browser only, never saved; 「回到設計師的提案」 brings the pick back). The 核准 stamp stays per browser.
+  Only a change the owner makes writes it (the last one touched is what the client sees); projects from before this open
+  on 原始提案 until the designer picks a style. Leaving the 3D waits for the save.
 - **分享 in the 3D top bar** (T-010, owner only): turns the read-only link on (or reuses it) and shows it with 複製,
   LINE 分享 (`line.me/R/share`), 其他 App (phones), a QR code drawn in the browser (`src/qr.js`, no library) and 停止分享.
   On phones (≤ 480 px) 提案書, 我的專案 and the language sit in the ⋯ menu so the bar fits 360 px.
