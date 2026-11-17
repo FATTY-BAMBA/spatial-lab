@@ -640,12 +640,14 @@ await step('AI 服務狀態: /projects?check → keys valid → 確認額度 →
   if (st.sw > 360) throw new Error(`horizontal scroll at 360 px: ${st.sw}`);
   await p.screenshot({ path: join(OUT, 'e2e-12-ai-health-phone.png'), fullPage: true });
   if (p.errors.length) throw new Error(p.errors[0]);
-  // English, session expired (401) → asks to sign in again; opened from the footer link
+  // English: no status link for designers; ?check opens it; session expired (401) → asks to sign in again
   const { p: q } = await page();
   await q.route('**/api/health', r => r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"sign-in required"}' }));
   await q.goto(`${srv.url}/projects?lang=en`);
   await q.waitForSelector('#list:not([hidden])', { timeout: 15000 });
-  await q.click('#aih-open');
+  if (await q.isVisible('#aih-open')) throw new Error('AI status link visible to every designer (owner-only via ?check)');
+  if (!(await q.isHidden('#aih'))) throw new Error('AI panel open without ?check');
+  await q.goto(`${srv.url}/projects?lang=en&check`);
   await q.waitForFunction(() => /Sign in again/.test(document.querySelector('#aih-sum').textContent), null, { timeout: 10000 });
   if ((await q.textContent('#aih-t')) !== 'AI services') throw new Error('panel title not in English');
   if (q.errors.length) throw new Error(q.errors[0]);

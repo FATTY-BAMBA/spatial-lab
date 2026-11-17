@@ -52,7 +52,7 @@ function anthropicCode(r) {
   const s = r.status, msg = String((r.j.error && r.j.error.message) || '');
   if (s >= 200 && s < 300) return 'ok';
   if (s === 401) return 'bad-key';
-  if (s === 402 || /credit balance|spend (limit|cap)|billing/i.test(msg)) return 'no-credit';
+  if (s === 402 || /credit balance|spend (limit|cap)|billing|usage limits?|regain access/i.test(msg)) return 'no-credit'; // incl. workspace spend cap (400/429 "…API usage limits. You will regain access on …")
   if (s === 403) return 'denied';
   if (s === 404) return 'no-model';
   if (s === 429) return 'quota';

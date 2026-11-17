@@ -139,6 +139,11 @@ test('confirm: Gemini free tier (429 limit 0) → free-tier; Anthropic low balan
   res = await call({ method: 'POST' });
   assert.deepEqual([res.body.vision.code, res.body.render.code], ['no-credit', 'quota']);
   handler._test.reset();
+  // workspace monthly spend cap: won't clear in minutes → out of credit, not "try again later"
+  stub({ geminiGen: json(200, { candidates: [{ content: { parts: [{ text: 'o' }] } }] }), anthropicMsg: json(400, { type: 'error', error: { type: 'invalid_request_error', message: 'You have reached your specified workspace API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.' } }) });
+  res = await call({ method: 'POST' });
+  assert.equal(res.body.vision.code, 'no-credit');
+  handler._test.reset();
   // FAILED_PRECONDITION: the free tier is not offered here → billing needed
   stub({ geminiGen: json(400, { error: { code: 400, status: 'FAILED_PRECONDITION', message: 'Gemini API free tier is not available in your country. Please enable billing on your project in Google AI Studio.' } }), anthropicMsg: json(400, { error: { type: 'invalid_request_error', message: 'max_tokens: something unrelated' } }) });
   res = await call({ method: 'POST' });

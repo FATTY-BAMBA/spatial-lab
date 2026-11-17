@@ -61,7 +61,7 @@ export function describe(res, t) {
   const tone = ready ? 'ok' : rows.some(r => r.tone === 'bad') ? 'bad' : 'warn';
   const summary = ready ? t('可以示範：AI 命名與效果圖都已確認可用。', 'Ready to demo: AI naming and renders both confirmed.')
     : keysOk && !probe ? t('兩把金鑰都有效。按「確認額度」實際試一次，才知道餘額與付費是否正常。', 'Both keys are valid. Press “Confirm credit” to try one real call and confirm credit and billing.')
-    : render.code === 'free-tier' ? t('效果圖無法使用：示範時請改用備用專案已做好的效果圖。', 'Renders will not work: use the backup project’s renders in the demo.')
+    : render.code === 'free-tier' ? t('效果圖無法使用：示範時請改用備用專案已做好的效果圖。', 'Renders will not work: use the backup project\'s renders in the demo.')
     : tone === 'bad' ? t('有 AI 服務無法使用，請看下方原因。', 'An AI service is not working; see below.')
     : t('部分項目未確認，請看下方說明。', 'Some items are not confirmed; see below.');
   // the paid confirm makes sense once a key looks valid and is not yet confirmed
