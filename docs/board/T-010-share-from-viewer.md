@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 priority: P1
 owner: viewer-engineer
 depends: [T-002]
@@ -70,3 +70,7 @@ N9 3.9 s, N10 2.4 s, T-012 step 1.8 s; big drawings: longest frame 50 ms (mall D
 ## Validation (validator, 2026-11-17)
 Validated together with T-011: **ship after fixes** — see `T-011-project-style.md` → "Validation (validator, 2026-11-17)"
 (evidence, the two fixes, owner decisions and the live check).
+
+## Shipped (2026-11-17)
+
+Merged to `main` in d65e8db together with T-011; live check recorded in [T-011](T-011-project-style.md#shipped-2026-11-17).

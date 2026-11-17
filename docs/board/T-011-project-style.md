@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 priority: P1
 owner: viewer-engineer
 depends: []
@@ -184,3 +184,19 @@ Two earlier full runs each had one failure, both fixed:
   for it.
 Status: review (validator: re-run the gate and step 1's e2e line).
 
+
+## Shipped (2026-11-17)
+
+Merged to `main` in d65e8db (with T-010, T-007 N9/N10). Live check on the owner's test project 寅成NO3 A3（流程測試）,
+signed in, in the browser pane:
+- Opened before any choice: 原始提案, NT$ 1,749,494, nothing written (old project, no auto-save of a local style).
+- Picked 侘寂風 → NT$ 2,525,672; `doc.presented.style = wabi` in the database within seconds.
+- 分享 (T-010): panel with QR, link, 複製, LINE 分享 (line.me/R/share), 停止分享. Client link `/?share=…`: 侘寂風,
+  NT$ 2,525,672, 「設計師提案」 badge, no 分享 button. `/proposal?share=…`: 侘寂風, same total, no Excel button.
+- Owner reopening the project: 侘寂風. 停止分享 → 「已停止分享，舊連結和 QR code 都已失效。」; `spatial_shared(old token)`
+  returns 0 rows; the old link shows 「這個分享連結已失效或不存在。」
+- Left as tested: the test project now presents 侘寂風 and is not shared.
+
+Follow-ups: the expired-link notice disappears after 6 s and the demo apartment shows instead — a client could think
+the demo is the designer's plan; keep the notice up with a 「聯絡設計師」 hint (small, viewer). Validator non-blocking:
+a style save rewrites the whole doc (needs a small RPC + migration, after the demo); focus handling done.
