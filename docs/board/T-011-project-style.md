@@ -69,3 +69,9 @@ client switching style does not change the owner's saved choice.
 - Two people editing one project at the same moment: the last `savePresented` wins (read-modify-write, no lock).
 - `savePresented`/`saveProject` against the real Supabase are not exercised by the gate (cloud is stubbed); check on the
   Vercel preview: pick a style on a saved project → open the share link in a private window → same style and total.
+
+## Gate (2026-11-17, branch head)
+unit 65/65 · regress: no regressions · **e2e 28/28** in 5 m 21 s (T-011 12.0 s + 4.8 s, T-010 51.9 s, N9 4.0 s, N10 2.7 s).
+The first full run had one timeout in the older 「share link shows the firm logo」 step (10 s wait for the brand, rAF
+polling starved by software GL while another worktree ran tests): main's code takes the same 36–44 s there. The wait now
+polls on a timer (3/3 alone, 23 s), and the next full run was all green.
