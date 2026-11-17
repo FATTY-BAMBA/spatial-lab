@@ -172,3 +172,15 @@ works, zh and en.
 
 **Chosen model (owner):** the style or finish the designer last touched in the 3D is what the client sees — no separate
 「設為提案」 button. The demo script says to finish on the style to present.
+
+**Gate after the fixes, run alone (pgrep clean):** unit 76/76 · regress: no regressions · **e2e 30/30** in 5 m 19 s
+(new 「leaving the 3D…」 15.4 s; T-011 11.9 s + 4.7 s; T-010 51.1 s; big drawings longest frame 100 ms / 83 ms).
+Two earlier full runs each had one failure, both fixed:
+- the mid-wipe half of the new step, when the leave *waited* for the wipe (capped at 1.5 s): on the 3-floor plan in
+  software GL the wipe outlasted the cap. The leave now completes the switch at once instead (no waiting on the
+  animation); 2/2 on that plan, and the step still fails with the completion removed.
+- 「editor 在 3D 中查看」 (T-007 step) read `window.__spatial` right after `ready`; `__spatial` is only set once the AI panel
+  is set up. A race in the test that this branch did not cause, but it showed up here. The two steps that read it now wait
+  for it.
+Status: review (validator: re-run the gate and step 1's e2e line).
+
