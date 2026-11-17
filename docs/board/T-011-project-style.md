@@ -75,3 +75,10 @@ unit 65/65 · regress: no regressions · **e2e 28/28** in 5 m 21 s (T-011 12.0 s
 The first full run had one timeout in the older 「share link shows the firm logo」 step (10 s wait for the brand, rAF
 polling starved by software GL while another worktree ran tests): main's code takes the same 36–44 s there. The wait now
 polls on a timer (3/3 alone, 23 s), and the next full run was all green.
+
+## Rebased on main aa27ac0 (T-012 merged), 2026-11-17
+Conflicts resolved, keeping both sides: `qa/e2e.mjs` header (T-012 is step 12; T-011/T-010/N9-N10 are now 13–15),
+`docs/demo.md` (T-012's `/projects?check` checklist plus the QR-code phone check), `docs/board/README.md` (T-012 = done).
+T-012 touched no viewer files; `zh.html`/`en.html` regenerated with no changes. Gate run alone (no other e2e or
+regress process): unit 76/76 · regress: no regressions · **e2e 29/29** in 5 m 08 s (T-011 12.0 s + 5.0 s, T-010 49.8 s,
+N9 3.9 s, N10 2.4 s, T-012 step 1.8 s; big drawings: longest frame 50 ms (mall DXF) and 83 ms (40k DWG)).
