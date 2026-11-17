@@ -66,3 +66,7 @@ Conflicts resolved, keeping both sides: `qa/e2e.mjs` header (T-012 is step 12; T
 T-012 touched no viewer files; `zh.html`/`en.html` regenerated with no changes. Gate run alone (no other e2e or
 regress process): unit 76/76 · regress: no regressions · **e2e 29/29** in 5 m 08 s (T-011 12.0 s + 5.0 s, T-010 49.8 s,
 N9 3.9 s, N10 2.4 s, T-012 step 1.8 s; big drawings: longest frame 50 ms (mall DXF) and 83 ms (40k DWG)).
+
+## Validation (validator, 2026-11-17)
+Validated together with T-011: **ship after fixes** — see `T-011-project-style.md` → "Validation (validator, 2026-11-17)"
+(evidence, the two fixes, owner decisions and the live check).

@@ -82,3 +82,71 @@ Conflicts resolved, keeping both sides: `qa/e2e.mjs` header (T-012 is step 12; T
 T-012 touched no viewer files; `zh.html`/`en.html` regenerated with no changes. Gate run alone (no other e2e or
 regress process): unit 76/76 · regress: no regressions · **e2e 29/29** in 5 m 08 s (T-011 12.0 s + 5.0 s, T-010 49.8 s,
 N9 3.9 s, N10 2.4 s, T-012 step 1.8 s; big drawings: longest frame 50 ms (mall DXF) and 83 ms (40k DWG)).
+
+## Validation (validator, 2026-11-17)
+Covers T-011, T-010 and T-007 N9/N10 (branch head 9556033 on main aa27ac0).
+
+**Verdict: ship after fixes** (two small fixes, no re-review needed beyond the gate and the step named in each).
+
+Evidence
+- Gate run alone (pgrep clean, 2 CPUs): unit 76/76 · regress OK, no regressions · **e2e 29/29** in 5 m 32 s (T-011 11.5 s +
+  4.9 s, T-010 48.9 s, N9 3.8 s, N10 2.5 s; big drawings longest frame 83 ms).
+- The 5 new e2e steps run on main's code (aa27ac0 + this branch's `qa/e2e.mjs`): **all 5 fail** as claimed (not saved on
+  the project / no message / no 分享 button / no N9 message / demo opens 自訂組合).
+- Extra checks run ad hoc (temporary script, not committed):
+  - With the firm's 價目表 (T-003 priced firm): owner 侘寂風 NT$ 923,170 = client link = 提案書.
+  - Client link: opens 侘寂風 → client switches → real reload keeps the client's switch → designer re-presents (newer `at`)
+    → opens 侘寂風 again; 0 `savePresented` calls from the client page.
+  - Owner, old project without `presented`: a plain open writes nothing; a browser that still has a pre-T-011 style for
+    that project pushes it once on open (see owner decision below).
+  - Phone bar fits with no overlap at 412 px zh/en owner, 360/412 px en client, 360 px zh client; ⋯ opens with Enter, Esc
+    closes and returns focus to ⋯; desktop after resize puts 提案書/我的專案/language back, no ⋯. Clipboard blocked →
+    `execCommand` fallback copies. Share panel Esc closes and returns focus to 分享.
+- Code review: no write path on `?share=` (`owner` requires `cloudId && !sharedView`; `savePresented`, `setupShare` and
+  the 提案書 save-first handler are all behind it; anon cannot update under RLS anyway). `presented` is ignored for demo
+  plans and `?p=custom` (no `cloudRow`); old projects without it fall back to the per-project localStorage path. New keys
+  (`spatial.seen.*`, `spatial.palette.*`) are per `stateKey`, so no cross-project leak of style or 核准 (B1 holds); 核准
+  stays per browser. 停止分享 nulls `share_token`; `spatial_shared` matches `p.share_token = token`, so the old link and QR
+  really stop working. Token reused when present. QR encoder checked line by line against Nayuki's reference (level-M
+  ECC/block tables, format/version bits, alignment, interleave, zigzag); unit test decodes every length 1–300 and 400…2331
+  (v1–40, version info, 16-bit length, multi-block) with jsQR, and the e2e decodes the on-screen QR at 1280 and 360 px.
+  LINE URL `https://line.me/R/share?text=` is LINE's documented format. jsQR is a `qa/` devDependency only (`qa/` is in
+  `.vercelignore`); nothing new on the site except `src/qr.js` (9 KB) and `src/share.js`. No secrets or client data in the
+  diff; screenshots show the sample plan and the fictional QA firm. zh/en pages regenerate with no change. N9 copy matches
+  the editor's 「已儲存到帳號」; N10: `spatial.finishes` has no other reader.
+
+Fixes before merge
+1. **A style change is lost if the designer leaves within ~0.7 s** (plus the 3D wipe, during which nothing is queued yet).
+   Reproduced: pick 侘寂風 → click 我的專案 at once → nothing saved on the project, so the client's link and the card's
+   分享 keep the old style until the 3D is opened again in that browser. Only 提案書 and 分享 wait. Make every way out of
+   the 3D wait for `flushPresented()` too — at least `#acct-link`, `#edit-link` and the language links (same handler as
+   `#doc-link`) — and start the save on `pagehide`/`visibilitychange: hidden`. Add one e2e line: switch, click 我的專案 at
+   once → saved.
+2. `qa/e2e.mjs` line 223 (「share link shows the firm logo」): the new `// timer polling…` comment was put **before**
+   `.catch(…)` on the same line, so the diagnostic catch is commented out. The step still fails on a timeout (no
+   regression hidden), but with a bare Playwright message. Move the comment to its own line.
+
+Not blocking (follow-ups)
+- `savePresented` is a read-modify-write of the whole `doc`: an editor save landing inside that one round trip is
+  overwritten, and each style switch downloads and uploads the full doc. Later: an RPC that sets only `doc->presented`
+  (`jsonb_set`, security invoker, owner RLS) — needs a migration, so not before the demo.
+- `src/cloud.js` lost a newline: `}export async function sharedProject` (works; cosmetic).
+- a11y: the share panel (`role=dialog`) and the ⋯ menu do not move focus into themselves, and both sit at the end of
+  `<body>`, so Tab from ⋯ goes to 提案 rather than into the menu. Esc/focus return are fine.
+- Stopping sharing does not remove AI render files from the public bucket (pre-existing; URLs are unguessable).
+
+Owner decisions (Abdoulie)
+- **Every style or finish change the designer makes in the 3D is what the client sees** (no separate 「設為提案」
+  button), including a style switched by tapping an AI render of another style. The demo script says to finish on the
+  style to present; confirm this implicit model is what you want.
+- **Existing projects:** the first time the designer opens an old project in 3D on a browser that still has a style from
+  before this change, that style is written to the project and the client's link switches from 原始提案 to it. Fine if
+  that browser's style is the one presented; otherwise open each live client project once and set the style.
+
+Cannot check from here: the Vercel preview and the live Supabase (gate stubs the cloud). Live check after merge (main
+session): signed in, open a saved project `/?id=…` → pick 侘寂風 → wait 2 s → in a private window open its share link:
+侘寂風 and the same total, 「設計師提案」 on the card; switch to 原始提案, reload: stays; 「↺ 回到設計師的提案」 works;
+`/proposal?share=…` quotes 侘寂風 (same total, with the firm's 價目表). Back as owner: 分享 → scan the QR with a phone →
+same link; 停止分享 → the old link shows 「這個分享連結已失效或不存在」; 開啟分享連結 → new link works. Open the project
+in the editor, move a wall, let it autosave → the share link still opens 侘寂風. Phone (360–412 px): bar fits, ⋯ menu
+works, zh and en.
