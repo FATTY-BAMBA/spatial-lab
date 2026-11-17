@@ -19,6 +19,11 @@
 //      unsaved plan's own preview (old shared keys ignored); the 3D opens with site storage blocked
 //  12. AI 服務狀態 (T-012): /projects?check runs the free check, 確認額度 shows a Gemini free-tier warning (360 px);
 //      not run on a plain visit; English + expired session
+//  13. T-011: the owner's style (and a custom mix) is saved on the project → the client's link, the 提案書 and the owner on
+//      another computer open on it with the same total; the client's own switch saves nothing; a failed save is reported
+//  14. T-010: 分享 in the 3D → link, QR (decoded from the screen), 複製, LINE, 停止分享, token reused; 360 px bar and panel;
+//      English; no 分享 on the client link
+//  15. T-007 N9 (failed save → the preview says what it lacks) and N10 (old spatial.finishes no longer leaks into the demo)
 // Writes screenshots to qa/reports/e2e-*.png. Exit 1 on any failure.
 // QA_ONLY=<regex> runs only the matching steps (the gate always runs them all).
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -215,7 +220,7 @@ if (docJSON && firmJSON) await step('share link shows the firm logo and name (Pr
   const { p, ctx } = await page({ doc: true, share: true, store: { 'qa-doc': docJSON, 'qa-firm': firmJSON, 'qa-renders': RENDERS } });
   await p.goto(`${srv.url}/?share=${TOKEN}`);
   await p.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 90000 });
-  await p.waitForFunction(() => document.querySelector('.bar .brand.firm'), null, { timeout: 10000 }).catch(async e => { throw new Error(`${String(e.message).slice(0, 120)} bar not branded: ${await p.evaluate(() => document.querySelector('.bar .brand').outerHTML.slice(0, 160) + ' · ' + document.body.className)}`); });
+  await p.waitForFunction(() => document.querySelector('.bar .brand.firm'), null, { timeout: 10000, polling: 250 }) // timer polling: rAF polling starves while software GL draws full-quality frames.catch(async e => { throw new Error(`${String(e.message).slice(0, 120)} bar not branded: ${await p.evaluate(() => document.querySelector('.bar .brand').outerHTML.slice(0, 160) + ' · ' + document.body.className)}`); });
   const st = await p.evaluate(() => {
     const b = document.querySelector('.bar .brand'), img = b.querySelector('img'), doc = document.querySelector('#doc-link');
     return { name: b.textContent.trim(), img: img ? img.src.slice(0, 22) : '', imgOk: !!img && img.complete && img.naturalWidth > 0, title: document.title, doc: doc && !doc.hidden ? doc.getAttribute('href') : '', powered: (document.querySelector('.hero-copy .powered') || {}).textContent || '', lede: document.querySelector('.hero-copy > p').textContent };

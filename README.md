@@ -35,7 +35,14 @@ Quote basis (`plan.quoteBasis`, defaults in `src/plan.js`, replaced by the firm'
 - **提案書** `/proposal?share=<token>` (client) or `/proposal?id=<project>` (owner preview); `/?share=…&view=proposal`
   redirects there. Cover (render, project, 業主, date, style, 坪), AI renders, floor plans + room table (m² / 坪),
   finishes, quote (未稅 / 營業稅 5% / 含稅), contact block and signature lines. `&style=<id>` picks the quoted style
-  (default: the style with the most AI renders). 列印 / 存成 PDF prints A4 portrait.
+  (default: the designer's saved choice, else the style with the most AI renders). 列印 / 存成 PDF prints A4 portrait.
+- **The chosen style is saved with the project** (T-011): when the owner switches style or a finish in the 3D, the choice
+  (`{ style, palette, finishes, at }`) is written to `spatial_projects.doc.presented` (no extra column). The client's link,
+  the 提案書 and the owner on another computer open on it, with the same total. A client can still switch styles on the
+  phone (kept in that browser only, never saved; 「回到設計師的提案」 brings the pick back). The 核准 stamp stays per browser.
+- **分享 in the 3D top bar** (T-010, owner only): turns the read-only link on (or reuses it) and shows it with 複製,
+  LINE 分享 (`line.me/R/share`), 其他 App (phones), a QR code drawn in the browser (`src/qr.js`, no library) and 停止分享.
+  On phones (≤ 480 px) 提案書, 我的專案 and the language sit in the ⋯ menu so the bar fits 360 px.
 - Database: `supabase/migrations/20261116090000_spatial_firms.sql` (`spatial_shared(token)` also returns `client` and
   the firm's public fields).
 

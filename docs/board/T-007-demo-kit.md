@@ -217,3 +217,15 @@ spatial.primestrideai.com contains the legacy-key cleanup, the editor says 不�
 apartment loads with no failed requests and not approved. Status stays `review` until the owner reviews `docs/demo.md`,
 decides O1 (pilot pricing) and runs the NT$4 live render check. Follow-ups N9 (toast when 在 3D 中查看 falls back to the
 local preview), N10 (old `spatial.finishes` on the demo apartment) and N1/N2 (script update after T-003) are open.
+
+## Follow-ups N9, N10 (viewer-engineer, 2026-11-17, branch `agent/T-011-demo-polish`)
+- **N9 done.** Signed in and the save fails → 「在 3D 中查看」 (and the import flow's 3D button) opens the local preview
+  with `&unsaved=1`; the viewer removes the flag from the address at once and, when ready, shows for 10 s:
+  「尚未儲存到帳號，先開本機預覽：這裡沒有 AI 效果圖、提案書與分享。回到編輯平面，等「已儲存到帳號」再開 3D。」 (en too).
+  Signed out stays silent (no account to save to). The flow's save step now says 「未能儲存到帳號：先存在這台電腦」 when
+  signed in, instead of 「未登入」. e2e 「N9 …」: save stubbed to fail → `?p=custom` → message on a 360 px screen, flag
+  gone from the URL. demo.md has the matching fallback row.
+- **N10 done.** Every plan keys its finishes (`spatial.finishes.<plan>`; demo plans by name); the old un-keyed
+  `spatial.finishes` is deleted on load with the other legacy keys. e2e 「N10 …」: legacy value seeded → the demo apartment
+  opens on 原始提案 and the key is gone (failed before: 「自訂組合」).
+- N1/N2 were done with the T-003 rebase; N5, N7, N11 unchanged.

@@ -422,7 +422,7 @@ async function boot() {
   }
   // an owner whose current choice is not on the project yet (chosen before this was saved, or a save that failed)
   if (owner && (presented ? differs(presented, styleId, chosen) : styleId !== 'original')) { presDirty = true; presTimer = setTimeout(flushPresented, 700); }
-  if (owner) $('#doc-link')?.addEventListener('click', async e => { e.preventDefault(); const href = e.currentTarget.href; await flushPresented(); location.href = href; });
+  if (owner) $('#doc-link')?.addEventListener('click', async e => { if (e.button || e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); const href = e.currentTarget.href; await flushPresented(); location.href = href; });
   // T-010: 分享 in the top bar (owner only): link, 複製, LINE, QR, 停止分享
   if (owner) {
     try { (await import('./share.js')).setupShare({ Cloud, id: cloudId, token: cloudRow.share_token || null, name: cloudName, beforeOpen: flushPresented }); }
