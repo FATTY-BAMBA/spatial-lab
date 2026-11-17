@@ -55,6 +55,17 @@ Quote basis (`plan.quoteBasis`, defaults in `src/plan.js`, replaced by the firm'
 - Database: `supabase/migrations/20261116150000_spatial_firm_prices.sql` (`spatial_shared` returns a trimmed copy:
   switched-on works lines and only the furniture prices of pieces in that project).
 
+## AI 服務狀態 (check the AI keys before a demo)
+
+- 我的專案 → bottom link **檢查 AI 服務狀態**, or open `/projects?check`: a free check (`GET /api/health`, signed in) that
+  each key is set, valid and can see the configured model — Anthropic `GET /v1/models/{id}` for room naming, Gemini
+  `GET models/{id}` (same model order as `api/render.js`) for renders. No generation, no cost.
+- **確認額度** (`POST /api/health`): one 1-token, text-only call per provider (no image, under NT$0.5) — the only way
+  to see an empty Anthropic balance or a Gemini project on the free tier (image models have no free tier). One per
+  minute per account, 20 per hour per server instance.
+- The answer is a short code + model id per provider; never a key or the provider's error text. Model lists live in
+  `api/_models.js`, shared by `api/vision.js`, `api/render.js` and `api/health.js`.
+
 ## 匯出 (export to the designer's tools)
 
 Top bar → 匯出. Exports what is on screen, in the current style:

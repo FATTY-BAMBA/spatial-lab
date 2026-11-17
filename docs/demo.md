@@ -20,8 +20,12 @@
   - [ ] 選好最適合的風格，按 **✦ 一鍵產生提案圖**（約 NT$12／3 張），再在客廳多拍 1–2 個好角度（✦ 產生目前視角）。
   - [ ] 專案卡填上**業主名稱**，開啟**分享**，用自己手機打開連結看一次。
   - [ ] 打開**提案書**，列印預覽確認 A4 版面。
-- [ ] 確認 Vercel 的 `GEMINI_API_KEY` 專案已開啟付費（免費方案不能出圖），Anthropic 帳戶有餘額。
-      方法：在備用專案按一次「✦ 產生目前視角」，30–40 秒內有圖就代表兩邊都正常。
+- [ ] **AI 服務狀態**（取代以前花 NT$4 試出一張圖）：登入後打開 `/projects?check`（只有這個網址會打開，設計師的我的專案頁不顯示）。
+      免費檢查兩把金鑰都顯示「金鑰有效」後，按 **確認額度**（實際呼叫一次、不出圖，不到 NT$0.5）。
+      兩行都是「可用（已確認額度）」就 OK。
+      「Google 專案是免費方案」→ 到 Google AI Studio 為 `GEMINI_API_KEY` 的專案開啟付費（免費方案不能出圖）；
+      「餘額不足」→ 到 Claude Console 加值；「伺服器沒有設定金鑰」／「金鑰無效」→ 到 Vercel 專案設定換金鑰後重新部署。
+      顯示「無法確認額度」時才在備用專案按一次「✦ 產生目前視角」（約 NT$4）確認。
 
 ### 前一天
 - [ ] 示範帳號的**公司資料**填好：公司名稱、Logo（PNG 透明底最好）、電話、LINE、Email、地址、統一編號、品牌色。
@@ -39,6 +43,7 @@
 - [ ] Chrome 設定 → 隱私權 → 清除瀏覽資料：**只勾「快取圖片和檔案」**，不要勾 Cookie（會被登出）。
 - [ ] 清完快取後，**把每個要用的頁面完整打開一次預熱**：我的專案、備用專案 3D、AI 效果圖、提案書、`/?p=apartment` 示範宅。
 - [ ] 確認右上角是「我的專案」而不是「登入」；登入過期就重新登入（登入過期時，打開專案會跳回示範宅）。
+- [ ] 打開 `/projects?check` 再看一次 AI 服務狀態（免費，幾秒）：兩行都是綠點或「金鑰有效」就好；有紅點就準備用備用專案的效果圖。
 - [ ] 手機：測試分享連結；開好**手機熱點**當備援網路。
 - [ ] 要上傳的客戶圖檔放在桌面，檔名看得懂（例如 `王公館-平面.dwg`）。
 
@@ -131,8 +136,10 @@ with live formulas — designer only, not on the client's share link (T-003; ski
 
 Preparation is what makes it flawless: get 2–3 of the client's plans days ahead, rehearse them locally with
 `node qa/rehearse.mjs <file>` (AI stubbed, nothing committed), then import 1–2 for real on the live site as a prepared
-backup project with renders, a 業主 name and a share link. On the day: laptop on power, clear only cached files (not
-cookies), pre-open all tabs, confirm signed in, phone hotspot ready.
+backup project with renders, a 業主 name and a share link. AI keys: open `/projects?check` (free check of both keys and
+models), then 確認額度 (one tiny real call each, < NT$0.5) — this replaces the NT$4 test render; a Gemini "free tier"
+answer means billing must be turned on in Google AI Studio. On the day: laptop on power, clear only cached files (not
+cookies), pre-open all tabs, confirm signed in, re-run the free check, phone hotspot ready.
 
 Fallbacks: slow/failed renders → the backup project's renders; weak detection → 檢查 → 全部補上 or switch to the
 backup; no walls found / old DWG → backup project; network → hotspot (open tabs keep working); laggy 3D → add `&q=med` to the URL;

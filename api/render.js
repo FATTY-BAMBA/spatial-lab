@@ -9,7 +9,7 @@ const SB_URL = 'https://mhzdimntfcovzffidfxf.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oemRpbW50ZmNvdnpmZmlkZnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0Nzg1NDMsImV4cCI6MjEwNDA1NDU0M30.pt2K5dTdLJIg8e2VSgQSsfl9Fh18v4EWSZuVs9AnADM';
 const BUCKET = 'spatial-renders';
 // newest first; the first one this key can use is remembered for the life of the function instance
-const MODELS = [process.env.RENDER_MODEL, 'gemini-3-pro-image', 'gemini-3-pro-image-preview', 'gemini-3.1-flash-image', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'].filter(Boolean);
+const MODELS = require('./_models').renderModels(); // shared with /api/health
 let goodModel = null;
 
 const PROMPT = ({ room, style, styleDesc, outdoor }) => `This image is a real-time 3D render of ${outdoor ? 'an outdoor space of a home' : 'a room in a Taiwan home'}${room ? ` (${room})` : ''}, made by interior-design software from the actual floor plan.

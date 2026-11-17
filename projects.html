@@ -170,6 +170,25 @@ dialog#prices::backdrop { background: rgba(8,6,4,.66); }
   header { gap: 8px; } .brand span { display: none; }
 }
 @media (max-width: 420px) { .brand b { display: none; } }
+/* AI 服務狀態 (T-012) */
+.aih { border: 1px solid var(--hair-2); background: var(--panel); border-radius: 14px; padding: 14px 16px; margin: -10px 0 26px; }
+.aih-h { display: flex; align-items: center; gap: 10px; }
+.aih-h h3 { margin: 0; font-size: 15px; }
+.aih-h .x { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--hair-2); background: none; color: var(--text-2); flex: none; }
+.aih-sum { margin: 8px 0 10px; color: var(--text-2); line-height: 1.6; font-size: 13.5px; }
+.aih ul { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.aih li { display: grid; grid-template-columns: 12px auto 1fr; gap: 4px 10px; align-items: baseline; font-size: 13.5px; }
+.aih li i { width: 9px; height: 9px; border-radius: 50%; background: var(--text-3); align-self: center; }
+.aih li[data-tone=ok] i { background: #7fbf8e; } .aih li[data-tone=warn] i { background: var(--brass); } .aih li[data-tone=bad] i { background: #e0705c; }
+.aih li b { white-space: nowrap; } .aih li span { color: var(--text-2); line-height: 1.5; min-width: 0; }
+.aih li small { grid-column: 3; color: var(--text-3); font-size: 11.5px; overflow-wrap: anywhere; }
+.aih[data-tone=ok] { border-color: rgba(127,191,142,.45); } .aih[data-tone=bad] { border-color: rgba(224,112,92,.55); }
+.aih-f { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.aih-f .btn { padding: 6px 12px; font-size: 13px; } .aih-f .btn[disabled] { opacity: .55; cursor: wait; }
+.aih-f small { color: var(--text-3); font-size: 12px; line-height: 1.5; flex: 1 1 220px; }
+.foot { margin-top: 30px; text-align: right; }
+.foot button { background: none; border: 0; padding: 4px 0; }
+@media (max-width: 420px) { .aih li { grid-template-columns: 12px 1fr; } .aih li span, .aih li small { grid-column: 2; } }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--night); padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 9; }
 </style>
 </head>
@@ -209,8 +228,15 @@ dialog#prices::backdrop { background: rgba(8,6,4,.66); }
       </ol>
     </div>
     <div class="nudge" id="nudge" hidden><p id="nudge-t"></p><button type="button" class="btn go" id="nudge-b"></button></div>
+    <section class="aih" id="aih" hidden aria-labelledby="aih-t">
+      <div class="aih-h"><h3 id="aih-t"></h3><button type="button" class="x" id="aih-x">×</button></div>
+      <p class="aih-sum" id="aih-sum" role="status" aria-live="polite"></p>
+      <ul id="aih-rows"></ul>
+      <div class="aih-f"><button type="button" class="btn" id="aih-run"></button><button type="button" class="btn go" id="aih-probe" hidden></button><small id="aih-note"></small></div>
+    </section>
     <div class="sec"><h3 id="p-h"></h3><span class="n" id="p-n"></span><span class="spacer"></span><a class="alt" id="try" href="/editor?from=apartment"></a></div>
     <div class="grid" id="grid"></div>
+    <p class="foot" hidden><button type="button" class="alt" id="aih-open"></button></p><!-- owner-only: the panel opens from /projects?check, not shown to designers -->
   </section>
 </main>
 <dialog id="firm" aria-labelledby="fm-title">
@@ -236,6 +262,7 @@ import { t, isEn } from './src/i18n.js';
 import * as C from './src/cloud.js';
 import { checkFirm, normFirm, onColor, initials, DEFAULT_COLOR } from './src/firm.js';
 import { setupPriceList } from './src/prices-ui.js';
+import { fetchHealth, describe as describeHealth } from './src/ai-health.js';
 const $ = s => document.querySelector(s);
 const toast = m => { const e = $('#toast'); e.textContent = m; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (e.hidden = true), 2600); };
 document.title = t('我的專案 · Spatial Lab', 'My projects · Spatial Lab');
@@ -284,6 +311,7 @@ async function render() {
   else who.appendChild(Object.assign(document.createElement('b'), { className: 'ini', textContent: (full[0] || '?').toUpperCase() }));
   who.appendChild(Object.assign(document.createElement('span'), { textContent: full }));
   loadFirm();
+  if (aihAuto) { aihAuto = false; checkAI(); $('#aih').scrollIntoView({ block: 'center' }); }
   $('#l-h').textContent = first ? t(`歡迎回來，${first}`, `Welcome back, ${first}`) : t('我的專案', 'My projects');
   let rows = [];
   try { rows = await C.listProjects(); } catch (e) { toast(t('讀取專案失敗', 'Could not load projects')); }
@@ -413,6 +441,31 @@ async function loadFirm() {
   if (location.hash === '#firm') openFirm();
   if (location.hash === '#prices') priceList.open();
 }
+
+// ---------- AI 服務狀態 (T-012): free check of both AI keys; /projects?check opens it (pre-demo checklist) ----------
+$('#aih-t').textContent = t('AI 服務狀態', 'AI services');
+$('#aih-x').setAttribute('aria-label', t('關閉', 'Close'));
+$('#aih-open').textContent = t('檢查 AI 服務狀態', 'Check AI services');
+$('#aih-run').textContent = t('重新檢查（免費）', 'Check again (free)');
+$('#aih-probe').textContent = t('確認額度', 'Confirm credit');
+$('#aih-note').textContent = t('「確認額度」會實際呼叫 AI 各一次（只回 1 個字、不出圖），費用不到 NT$0.5。', '“Confirm credit” makes one real AI call each (one word back, no image), costing under NT$0.5.');
+const escH = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+async function checkAI(probe = false) {
+  const box = $('#aih'); box.hidden = false;
+  const run = $('#aih-run'), pr = $('#aih-probe'); run.disabled = pr.disabled = true;
+  $('#aih-sum').textContent = probe ? t('正在實際呼叫 AI 確認額度…', 'Making one real AI call to confirm credit…') : t('檢查中…', 'Checking…');
+  const res = await fetchHealth({ token: await C.accessToken(), probe });
+  const v = describeHealth(res, t);
+  box.dataset.tone = v.tone; $('#aih-sum').textContent = v.summary;
+  $('#aih-rows').innerHTML = v.rows.map(r => `<li data-id="${r.id}" data-tone="${r.tone}"><i aria-hidden="true"></i><b>${escH(r.label)}</b><span>${escH(r.text)}</span>${r.model ? `<small>${escH(r.model)}</small>` : ''}</li>`).join('');
+  pr.hidden = !v.canProbe; $('#aih-note').hidden = !v.canProbe;
+  run.disabled = pr.disabled = false;
+}
+$('#aih-open').addEventListener('click', () => { checkAI(); $('#aih').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+$('#aih-run').addEventListener('click', () => checkAI());
+$('#aih-probe').addEventListener('click', () => checkAI(true));
+$('#aih-x').addEventListener('click', () => { $('#aih').hidden = true; });
+let aihAuto = /[?&]check\b/.test(location.search) || location.hash === '#check';
 
 C.onAuth(() => render());
 render();

@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: process.env.VISION_MODEL || 'claude-sonnet-5-5',
+        model: require('./_models').visionModel(),
         max_tokens: 6000,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } },
